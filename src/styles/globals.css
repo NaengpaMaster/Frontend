@@ -1,0 +1,100 @@
+.app-sidebar {
+  display: none;
+}
+
+.sidebar-nav-item:hover {
+  background: #EBEEEF;
+}
+
+.sidebar-profile-btn:hover {
+  background: #E1E5E6;
+}
+
+.card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(17, 32, 29, 0.12);
+}
+
+.row-hover {
+  transition: background 0.15s ease;
+}
+
+.row-hover:hover {
+  background: #EBEEEF;
+}
+
+.dash-grid,
+.dash-col-left,
+.dash-col-right {
+  display: contents;
+}
+
+.card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-scroll-pad {
+  padding-bottom: 64px;
+}
+
+.recipe-shell {
+  height: 100%;
+  overflow: hidden;
+}
+
+.recipe-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .app-sidebar {
+    display: flex;
+  }
+
+  .app-main {
+    margin-left: 240px;
+  }
+
+  .app-bottomnav {
+    display: none !important;
+  }
+
+  .app-scroll-pad {
+    padding-bottom: 0;
+  }
+
+  .app-content-frame {
+    max-width: 960px !important;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
+    align-items: start;
+    padding: 0 4px;
+  }
+
+  .dash-col-left,
+  .dash-col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
