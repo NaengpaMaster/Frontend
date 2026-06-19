@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle, Edit2, Plus, Search, X, Trash2 } from 'lucide-react';
 import {
-  Ingredient, IngredientCategory, IngredientLocation,
+  Ingredient, IngredientCategory,
   getDaysUntilExpiry, getExpiryStatus, getDayLabel, STATUS_COLORS,
   CATEGORIES, CATEGORY_EMOJIS, TODAY, C, PresetIngredientItem,
 } from '../data/mockData';
@@ -15,8 +15,6 @@ interface FridgeManagerProps {
   onUse: (id: string, remainingQuantity?: string) => void;
   onDelete: (id: string) => void;
 }
-
-const LOCATIONS: IngredientLocation[] = ['냉장', '냉동'];
 
 function DayCounter({ expiryDate }: { expiryDate: string }) {
   const days = getDaysUntilExpiry(expiryDate);
@@ -45,7 +43,7 @@ function IngredientModal({
   onClose: () => void;
   onSave: (i: Omit<Ingredient, 'id' | 'addedDate'>) => void;
 }) {
-  const [form, setForm] = useState<{ name: string; category: IngredientCategory; quantity: string; location: IngredientLocation; expiryDate: string; emoji: string; memo: string }>({
+  const [form, setForm] = useState<Omit<Ingredient, 'id' | 'addedDate'> & { memo: string }>({
     name: initial?.name ?? '',
     category: initial?.category ?? '채소/과일',
     quantity: initial?.quantity ?? '',
@@ -115,30 +113,6 @@ function IngredientModal({
                     }}
                   >
                     {CATEGORY_EMOJIS[c as IngredientCategory]} {c}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={labelStyle}><span style={{ color: C.danger }}>*</span> 보관 위치</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {LOCATIONS.map((l) => (
-                  <div
-                    key={l}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      background: form.location === l ? C.primary : C.surface,
-                      color: form.location === l ? '#FFF' : C.fgSubtle,
-                      border: `1px solid ${form.location === l ? C.primary : C.border}`,
-                      borderRadius: '10px',
-                      fontSize: '13px',
-                      fontWeight: form.location === l ? 700 : 400,
-                      textAlign: 'center' as const,
-                      opacity: form.location === l ? 1 : 0.45,
-                    }}
-                  >
-                    {l === '냉장' ? '❄️ 냉장' : '🧊 냉동'}
                   </div>
                 ))}
               </div>
@@ -391,9 +365,6 @@ export function FridgeManager({ ingredients, presetIngredients, onAdd, onUpdate,
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
                     <span style={{ fontWeight: 700, color: C.fg, fontSize: '15px' }}>{ingredient.name}</span>
-                    <span style={{ fontSize: '9px', padding: '1px 6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '4px', color: C.fgMuted }}>
-                      {ingredient.location}
-                    </span>
                   </div>
                   <div style={{ fontSize: '12px', color: C.fgMuted }}>{ingredient.quantity} · {ingredient.category}</div>
                   {ingredient.memo && (

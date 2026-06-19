@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info } from 'lucide-react';
 import {
   User, Recipe, Inquiry, DiscardedItem, C,
   mockDiscardedItems, CATEGORY_EMOJIS, IngredientCategory,
@@ -452,151 +452,107 @@ function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; on
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
-  const [detailReason, setDetailReason] = useState<DiscardedItem['reason'] | '전체'>('전체');
+  const expiredItems = discarded.filter((d) => d.reason === '유통기한 만료');
   const byCategory = Object.entries(
-    discarded.reduce<Record<string, number>>((acc, d) => {
+    expiredItems.reduce<Record<string, number>>((acc, d) => {
       acc[d.category] = (acc[d.category] ?? 0) + 1;
       return acc;
     }, {})
   )
     .map(([name, count]) => ({ name: name.split('/')[0], count }))
     .sort((a, b) => b.count - a.count);
-
-  const byReason = [
-    { name: '유통기한 만료', count: discarded.filter((d) => d.reason === '유통기한 만료').length, color: C.accent },
-    { name: '상함', count: discarded.filter((d) => d.reason === '상함').length, color: C.danger },
-    { name: '불필요', count: discarded.filter((d) => d.reason === '불필요').length, color: C.warn },
-  ];
-
-  const nameCounts = discarded.reduce<Record<string, number>>((acc, d) => {
+  const nameCounts = expiredItems.reduce<Record<string, number>>((acc, d) => {
     acc[d.name] = (acc[d.name] ?? 0) + 1;
     return acc;
   }, {});
   const topWasted = Object.entries(nameCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const totalExpired = discarded.filter((d) => d.reason === '유통기한 만료').length;
-  const wasteScore = Math.max(0, 100 - discarded.length * 7 - totalExpired * 3);
-  const detailItems = detailReason === '전체' ? discarded : discarded.filter((d) => d.reason === detailReason);
+  const totalExpired = expiredItems.length;
+  const wasteScore = Math.max(0, Math.min(100, 100 - totalExpired * 2 + 3 + 5));
+  const recentExpired = expiredItems.slice(0, 5);
+  const statCardStyle: React.CSSProperties = {
+    background: C.card,
+    borderRadius: '16px',
+    padding: '28px',
+    boxShadow: '0 8px 28px rgba(17,32,29,0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '28px',
+    minHeight: '118px',
+  };
 
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>낭비 통계</div>
-      <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>총 {discarded.length}개 식재료 폐기 기록</div>
+      <div style={{ fontWeight: 900, fontSize: '20px', color: C.fg, marginBottom: '6px' }}>냉파 통계</div>
+      <div style={{ fontSize: '14px', color: C.fgMuted, marginBottom: '24px' }}>사용자들의 냉파 활동을 한눈에 파악하세요.</div>
 
-      <div style={{ background: C.primaryLight, borderRadius: '16px', padding: '14px 16px', marginBottom: '16px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: C.primary, marginBottom: '4px' }}>어떤 기능인가요?</div>
-        <div style={{ fontSize: '12px', color: C.fgMuted, lineHeight: 1.6 }}>
-          회원들이 사용하지 못하고 버린 재료를 이유별·카테고리별로 모아, 자주 낭비되는 식재료를 파악하는 관리자 분석 화면입니다.
-          이 데이터를 기준으로 임박 알림, 추천 레시피, 장보기 안내를 개선할 수 있습니다.
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-        <div style={{ background: C.card, borderRadius: '14px', padding: '12px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-          <div style={{ fontSize: '10px', color: C.fgMuted, fontWeight: 700, marginBottom: '4px' }}>냉장고 낭비 점수</div>
-          <div style={{ fontSize: '24px', color: wasteScore >= 70 ? C.primary : C.accent, fontWeight: 900 }}>{wasteScore}점</div>
-          <div style={{ fontSize: '10px', color: C.fgSubtle, marginTop: '2px' }}>폐기 기록이 적을수록 높음</div>
-        </div>
-        <div style={{ background: C.card, borderRadius: '14px', padding: '12px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-          <div style={{ fontSize: '10px', color: C.fgMuted, fontWeight: 700, marginBottom: '4px' }}>관리 포인트</div>
-          <div style={{ fontSize: '14px', color: C.fg, fontWeight: 800 }}>임박 재료 소비 유도</div>
-          <div style={{ fontSize: '10px', color: C.fgSubtle, marginTop: '2px' }}>만료 폐기 {totalExpired}건 우선 개선</div>
-        </div>
-      </div>
-
-      {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '20px' }}>
-        {byReason.map((r) => (
-          <button
-            key={r.name}
-            onClick={() => setDetailReason(r.name as DiscardedItem['reason'])}
-            style={{
-              background: detailReason === r.name ? C.accentLight : C.card,
-              border: `1px solid ${detailReason === r.name ? C.accent + '60' : C.border}`,
-              borderRadius: '14px',
-              padding: '12px',
-              textAlign: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '22px', fontWeight: 900, color: r.color }}>{r.count}</div>
-            <div style={{ fontSize: '9px', color: C.fgMuted, marginTop: '2px', lineHeight: 1.3 }}>{r.name}</div>
-          </button>
-        ))}
-      </div>
-
-      <div style={{ background: C.card, borderRadius: '16px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: C.fgMuted, letterSpacing: '0.06em' }}>
-            {detailReason === '전체' ? '폐기 세부내역' : `${detailReason} 세부내역`}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '20px' }}>
+        <div style={statCardStyle}>
+          <div style={{ width: '82px', height: '82px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary, flexShrink: 0 }}>
+            <Star size={34} />
           </div>
-          {detailReason !== '전체' && (
-            <button onClick={() => setDetailReason('전체')} style={{ background: 'none', border: 'none', color: C.primary, fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
-              전체보기
-            </button>
-          )}
-        </div>
-        {detailItems.map((d) => (
-          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: C.fg }}>{d.name}</div>
-                <div style={{ fontSize: '10px', color: C.fgMuted }}>{d.category} · {d.reason}</div>
-              </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '17px', color: C.fg, fontWeight: 900 }}>
+              냉파 점수 평균 <Info size={15} color={C.fgMuted} />
             </div>
-            <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
+            <div style={{ fontSize: '34px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '10px' }}>{wasteScore}점</div>
+            <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '6px' }}>사용자 냉파 점수 평균</div>
           </div>
-        ))}
+        </div>
+        <div style={statCardStyle}>
+          <div style={{ width: '82px', height: '82px', borderRadius: '50%', background: C.dangerLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
+            <CalendarDays size={34} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '17px', color: C.fg, fontWeight: 900 }}>
+              유통기한 만료 건수 <Info size={15} color={C.fgMuted} />
+            </div>
+            <div style={{ fontSize: '34px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '10px' }}>{totalExpired}건</div>
+            <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '6px' }}>최근 7일 기준</div>
+          </div>
+        </div>
       </div>
 
       {/* Bar chart by category */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: C.fgMuted, marginBottom: '12px', letterSpacing: '0.06em' }}>카테고리별 폐기량</div>
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={byCategory} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: C.fgMuted }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
+      <div style={{ background: C.card, borderRadius: '16px', padding: '22px 24px', marginBottom: '16px', boxShadow: '0 8px 28px rgba(17,32,29,0.08)' }}>
+        <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg, marginBottom: '18px' }}>카테고리별 만료량</div>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={byCategory} margin={{ top: 8, right: 24, left: -6, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 16, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
+            <YAxis tick={{ fontSize: 16, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, 4]} />
             <Tooltip
               contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
               cursor={{ fill: C.surface }}
             />
-            <Bar dataKey="count" fill={C.primary} radius={[3, 3, 0, 0]} name="폐기 횟수" />
+            <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" barSize={150} label={{ position: 'top', fill: C.fg, fontSize: 16, fontWeight: 900 }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* Top wasted */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: C.fgMuted, marginBottom: '12px', letterSpacing: '0.06em' }}>자주 버려지는 재료 TOP 5</div>
+      <div style={{ background: C.card, borderRadius: '16px', padding: '24px', marginBottom: '16px', boxShadow: '0 8px 28px rgba(17,32,29,0.08)' }}>
+        <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg, marginBottom: '18px' }}>가장 많이 만료된 재료 TOP 5</div>
         {topWasted.map(([name, count], idx) => (
-          <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <div style={{ minWidth: '20px', fontSize: '12px', fontWeight: 700, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: C.fg }}>{name}</span>
-                <span style={{ fontSize: '12px', color: C.fgMuted }}>{count}회</span>
-              </div>
-              <div style={{ height: '4px', background: C.surface, borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(count / topWasted[0][1]) * 100}%`, background: idx === 0 ? C.accent : C.primaryMid, borderRadius: '2px' }} />
-              </div>
-            </div>
+          <div key={name} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto', alignItems: 'center', gap: '18px', padding: '12px 0' }}>
+            <div style={{ minWidth: '24px', fontSize: '17px', fontWeight: 900, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
+            <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg }}>{name}</div>
+            <div style={{ fontSize: '16px', color: C.fgMuted, fontWeight: 800 }}>{count}회</div>
           </div>
         ))}
       </div>
 
       {/* Recent discarded */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: C.fgMuted, marginBottom: '12px', letterSpacing: '0.06em' }}>최근 폐기 기록</div>
-        {discarded.slice(0, 5).map((d) => (
-          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
+      <div style={{ background: C.card, borderRadius: '16px', padding: '24px', boxShadow: '0 8px 28px rgba(17,32,29,0.08)' }}>
+        <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg, marginBottom: '14px' }}>최근 만료 기록</div>
+        {recentExpired.map((d) => (
+          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
+              <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: C.fg }}>{d.name}</div>
-                <div style={{ fontSize: '10px', color: C.fgMuted }}>{d.reason}</div>
+                <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg }}>{d.name}</div>
+                <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '2px' }}>{d.reason}</div>
               </div>
             </div>
-            <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
+            <span style={{ fontSize: '15px', color: C.fgMuted }}>{d.date}</span>
           </div>
         ))}
       </div>

@@ -117,9 +117,9 @@ export interface Weather {
 }
 
 export const mockWeather: Weather = {
-  condition: '비',
-  temperature: 18,
-  description: '비가 내리는 날씨예요',
+  condition: '맑음',
+  temperature: 29,
+  description: '맑음',
 };
 
 export const WEATHER_RECIPE_MAP: Record<WeatherCondition, { categories: string[]; emoji: string; message: string }> = {
