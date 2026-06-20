@@ -67,8 +67,8 @@ function MembersTab({ users, onUpdate }: { users: User[]; onUpdate: (u: User[]) 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
         {[
-          { label: '일반 회원', value: members.length, color: C.fg },
-          { label: '가입 회원', value: members.filter((u) => u.status === 'active').length, color: C.primary },
+          { label: '관리자 수', value: users.filter((u) => u.role === 'admin').length, color: C.fg },
+          { label: '전체 회원', value: members.length, color: C.primary },
           { label: '탈퇴 회원', value: members.filter((u) => u.status === 'inactive').length, color: C.accent },
         ].map((s) => (
           <div key={s.label} style={{ background: C.card, borderRadius: '14px', padding: '12px', textAlign: 'center', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
@@ -472,87 +472,86 @@ function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
   const statCardStyle: React.CSSProperties = {
     background: C.card,
     borderRadius: '16px',
-    padding: '28px',
-    boxShadow: '0 8px 28px rgba(17,32,29,0.08)',
+    padding: '14px',
+    boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
     display: 'flex',
     alignItems: 'center',
-    gap: '28px',
-    minHeight: '118px',
+    gap: '12px',
   };
 
   return (
     <div>
-      <div style={{ fontWeight: 900, fontSize: '20px', color: C.fg, marginBottom: '6px' }}>냉파 통계</div>
-      <div style={{ fontSize: '14px', color: C.fgMuted, marginBottom: '24px' }}>사용자들의 냉파 활동을 한눈에 파악하세요.</div>
+      <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>냉파 통계</div>
+      <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '16px' }}>사용자들의 냉파 활동을 한눈에 파악하세요.</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
         <div style={statCardStyle}>
-          <div style={{ width: '82px', height: '82px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary, flexShrink: 0 }}>
-            <Star size={34} />
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary, flexShrink: 0 }}>
+            <Star size={20} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '17px', color: C.fg, fontWeight: 900 }}>
-              냉파 점수 평균 <Info size={15} color={C.fgMuted} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
+              냉파 점수 평균 <Info size={12} color={C.fgMuted} />
             </div>
-            <div style={{ fontSize: '34px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '10px' }}>{wasteScore}점</div>
-            <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '6px' }}>사용자 냉파 점수 평균</div>
+            <div style={{ fontSize: '22px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{wasteScore}점</div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>사용자 냉파 점수 평균</div>
           </div>
         </div>
         <div style={statCardStyle}>
-          <div style={{ width: '82px', height: '82px', borderRadius: '50%', background: C.dangerLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
-            <CalendarDays size={34} />
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
+            <CalendarDays size={20} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '17px', color: C.fg, fontWeight: 900 }}>
-              유통기한 만료 건수 <Info size={15} color={C.fgMuted} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
+              유통기한 만료 건수 <Info size={12} color={C.fgMuted} />
             </div>
-            <div style={{ fontSize: '34px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '10px' }}>{totalExpired}건</div>
-            <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '6px' }}>최근 7일 기준</div>
+            <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{totalExpired}건</div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>최근 7일 기준</div>
           </div>
         </div>
       </div>
 
       {/* Bar chart by category */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '22px 24px', marginBottom: '16px', boxShadow: '0 8px 28px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg, marginBottom: '18px' }}>카테고리별 만료량</div>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={byCategory} margin={{ top: 8, right: 24, left: -6, bottom: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 16, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
-            <YAxis tick={{ fontSize: 16, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, 4]} />
+      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>카테고리별 만료량</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={byCategory} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, 4]} />
             <Tooltip
               contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
               cursor={{ fill: C.surface }}
             />
-            <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" barSize={150} label={{ position: 'top', fill: C.fg, fontSize: 16, fontWeight: 900 }} />
+            <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" barSize={150} label={{ position: 'top', fill: C.fg, fontSize: 11, fontWeight: 700 }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* Top wasted */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '24px', marginBottom: '16px', boxShadow: '0 8px 28px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg, marginBottom: '18px' }}>가장 많이 만료된 재료 TOP 5</div>
+      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>가장 많이 만료된 재료 TOP 5</div>
         {topWasted.map(([name, count], idx) => (
-          <div key={name} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto', alignItems: 'center', gap: '18px', padding: '12px 0' }}>
-            <div style={{ minWidth: '24px', fontSize: '17px', fontWeight: 900, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
-            <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg }}>{name}</div>
-            <div style={{ fontSize: '16px', color: C.fgMuted, fontWeight: 800 }}>{count}회</div>
+          <div key={name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
+            <div style={{ minWidth: '20px', fontSize: '13px', fontWeight: 700, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{name}</div>
+            <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{count}회</div>
           </div>
         ))}
       </div>
 
       {/* Recent discarded */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '24px', boxShadow: '0 8px 28px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg, marginBottom: '14px' }}>최근 만료 기록</div>
+      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>최근 만료 기록</div>
         {recentExpired.map((d) => (
-          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
-              <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
+          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
               <div>
-                <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg }}>{d.name}</div>
-                <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '2px' }}>{d.reason}</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{d.name}</div>
+                <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{d.reason}</div>
               </div>
             </div>
-            <span style={{ fontSize: '15px', color: C.fgMuted }}>{d.date}</span>
+            <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
           </div>
         ))}
       </div>
@@ -580,7 +579,7 @@ function InquiriesTab({
 
   // 미답변: 오래된 순 (위), 최신이 아래
   const pendingList = inquiries
-    .filter((i) => i.status !== 'answered')
+    .filter((i) => i.status === 'pending')
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   // 답변완료: 최신 답변이 위
   const answeredList = inquiries
@@ -695,7 +694,7 @@ function InquiriesTab({
                             <Edit2 size={11} /> 수정
                           </button>
                           <button
-                            onClick={() => { onDeleteAnswer(inq.id); setExpanded(null); setActiveTab('pending'); }}
+                            onClick={() => { onDeleteAnswer(inq.id); setExpanded(null); }}
                             style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '3px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: '6px', color: C.danger, fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
                           >
                             <Trash2 size={11} /> 삭제
@@ -728,7 +727,6 @@ function InquiriesTab({
                             onAnswer(inq.id, answerText.trim());
                             setEditingAnswerId(null);
                             setExpanded(null);
-                            setActiveTab('answered');
                           }}
                           disabled={!answerText.trim()}
                           style={{

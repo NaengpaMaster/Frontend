@@ -156,53 +156,53 @@ function ScoreDetailModal({
           </div>
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
-            <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>등급표</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>등급표</div>
             {gradeRows.map(([range, label]) => {
               const isCurrent = label === grade;
               return (
-                <div key={range} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '11px 0', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: '14px', color: C.fgMuted, fontWeight: 700 }}>{range}</span>
-                  <span style={{ fontSize: '14px', color: isCurrent ? C.primary : C.fg, fontWeight: 900, textAlign: 'right' }}>{label}</span>
+                <div key={range} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{range}</span>
+                  <span style={{ fontSize: '12px', color: isCurrent ? C.primary : C.fg, fontWeight: 700, textAlign: 'right' }}>{label}</span>
                 </div>
               );
             })}
           </div>
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>점수 산정 기준</div>
-          <div style={{ fontSize: '15px', color: C.fgMuted, lineHeight: 1.6, marginBottom: '18px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '8px' }}>점수 산정 기준</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted, lineHeight: 1.6, marginBottom: '12px' }}>
             만료 점수, 레시피/재료 등록을 반영해 산정합니다.
           </div>
           <div style={{ border: `1px solid ${C.border}`, borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: C.surface, fontSize: '15px', fontWeight: 900, color: C.fg }}>
-              <div style={{ padding: '12px 20px', borderRight: `1px solid ${C.border}` }}>항목</div>
-              <div style={{ padding: '12px 20px', textAlign: 'center' }}>차감 기준</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: C.surface, fontSize: '12px', fontWeight: 700, color: C.fg }}>
+              <div style={{ padding: '10px 14px', borderRight: `1px solid ${C.border}` }}>항목</div>
+              <div style={{ padding: '10px 14px', textAlign: 'center' }}>차감 기준</div>
             </div>
             {tableRows.map(([label, point, color]) => (
-              <div key={label} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${C.border}`, fontSize: '15px', color: C.fg }}>
-                <div style={{ padding: '13px 20px', borderRight: `1px solid ${C.border}` }}>{label}</div>
-                <div style={{ padding: '13px 20px', textAlign: 'center', color, fontWeight: 900 }}>{point}</div>
+              <div key={label} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${C.border}`, fontSize: '12px', color: C.fg }}>
+                <div style={{ padding: '10px 14px', borderRight: `1px solid ${C.border}` }}>{label}</div>
+                <div style={{ padding: '10px 14px', textAlign: 'center', color, fontWeight: 700 }}>{point}</div>
               </div>
             ))}
           </div>
           </div>
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>점수 산정 내역</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>점수 산정 내역</div>
           {scoreHistory.map((item) => (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '13px 0', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', minWidth: 0 }}>
-                <span style={{ width: '36px', fontSize: '24px', textAlign: 'center' }}>{item.icon}</span>
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
+                <span style={{ width: '28px', fontSize: '18px', textAlign: 'center' }}>{item.icon}</span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '17px', fontWeight: 900, color: C.fg }}>{item.title}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{item.title}</div>
                   {(item.meta || item.date) && (
-                    <div style={{ fontSize: '13px', color: C.fgMuted, marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '2px' }}>
                       {item.meta}{item.meta && item.date && ' · '}{item.date}
                     </div>
                   )}
                 </div>
               </div>
-              <span style={{ fontSize: '18px', color: item.score < 0 ? C.accent : C.primary, fontWeight: 900, whiteSpace: 'nowrap' }}>{item.score > 0 ? '+' : ''}{item.score}점</span>
+              <span style={{ fontSize: '13px', color: item.score < 0 ? C.accent : C.primary, fontWeight: 700, whiteSpace: 'nowrap' }}>{item.score > 0 ? '+' : ''}{item.score}점</span>
             </div>
           ))}
           </div>
@@ -282,28 +282,28 @@ function StatsDetailModal({
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
-            <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg, marginBottom: '18px' }}>가장 많이 만료된 재료 TOP 5</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>가장 많이 만료된 재료 TOP 5</div>
             {topExpired.map(([name, count], idx) => (
-              <div key={name} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto', alignItems: 'center', gap: '14px', padding: '10px 0' }}>
-                <div style={{ fontSize: '15px', fontWeight: 900, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
-                <div style={{ fontSize: '16px', fontWeight: 900, color: C.fg }}>{name}</div>
-                <div style={{ fontSize: '15px', color: C.fgMuted, fontWeight: 800, textAlign: 'right' }}>{count}회</div>
+              <div key={name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{name}</div>
+                <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600, textAlign: 'right' }}>{count}회</div>
               </div>
             ))}
           </div>
 
           <div style={cardStyle}>
-            <div style={{ fontSize: '18px', fontWeight: 900, color: C.fg, marginBottom: '20px' }}>카테고리별 만료량</div>
-            <div style={{ height: '176px', display: 'grid', gridTemplateColumns: '36px 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: C.fgMuted, fontSize: '14px', fontWeight: 700 }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px' }}>카테고리별 만료량</div>
+            <div style={{ height: '160px', display: 'grid', gridTemplateColumns: '28px 1fr', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: C.fgMuted, fontSize: '11px', fontWeight: 600 }}>
                 {[4, 3, 2, 1, 0].map((n) => <span key={n}>{n}</span>)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${categoryCounts.length}, 1fr)`, alignItems: 'end', gap: '18px', borderBottom: `1px solid ${C.border}`, paddingTop: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${categoryCounts.length}, 1fr)`, alignItems: 'end', gap: '12px', borderBottom: `1px solid ${C.border}`, paddingTop: '4px' }}>
                 {categoryCounts.map((item) => (
                   <div key={item.name} style={{ textAlign: 'center' }}>
-                    <div style={{ color: C.fg, fontWeight: 900, marginBottom: '8px' }}>{item.count}</div>
+                    <div style={{ fontSize: '11px', color: C.fg, fontWeight: 700, marginBottom: '6px' }}>{item.count}</div>
                     <div style={{ height: `${(item.count / maxCategoryCount) * 112}px`, background: 'linear-gradient(180deg, #069B8D, #0E8478)', borderRadius: '2px 2px 0 0' }} />
-                    <div style={{ fontSize: '14px', color: C.fgMuted, marginTop: '12px', whiteSpace: 'nowrap' }}>{item.name}</div>
+                    <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '8px', whiteSpace: 'nowrap' }}>{item.name}</div>
                   </div>
                 ))}
               </div>
@@ -367,44 +367,48 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
           </div>
           <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '2px' }}>안녕하세요, {currentUser.name}님 👋</div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={() => setShowScoreDetail(true)}
             style={{
+              width: '58px',
+              height: '58px',
               background: C.primaryLight,
               color: C.primary,
               borderRadius: '14px',
-              padding: '8px 11px',
-              textAlign: 'center',
-              border: `1px solid ${C.primaryMid}`,
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.06em' }}>냉파점수</div>
-            <div style={{ fontSize: '20px', fontWeight: 900, lineHeight: 1.1 }}>{wasteScore}<span style={{ fontSize: '10px', marginLeft: '1px' }}>점</span></div>
-            <div style={{ fontSize: '9px', fontWeight: 800, marginTop: '1px' }}>보기</div>
-          </button>
-          <button
-            onClick={() => setShowStatsDetail(true)}
-            style={{
-              width: '62px',
-              minHeight: '72px',
-              background: C.primaryLight,
-              color: C.primary,
-              borderRadius: '14px',
-              padding: '8px 9px',
-              textAlign: 'center',
               border: `1px solid ${C.primaryMid}`,
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '5px',
+              gap: '3px',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: '18px', fontWeight: 900, lineHeight: 1 }}>{wasteScore}<span style={{ fontSize: '9px', marginLeft: '1px' }}>점</span></div>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.02em' }}>냉파점수</div>
+          </button>
+          <button
+            onClick={() => setShowStatsDetail(true)}
+            style={{
+              width: '58px',
+              height: '58px',
+              background: C.primaryLight,
+              color: C.primary,
+              borderRadius: '14px',
+              border: `1px solid ${C.primaryMid}`,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              flexShrink: 0,
             }}
           >
             <BarChart3 size={18} strokeWidth={2.5} />
-            <div style={{ fontSize: '14px', fontWeight: 900, lineHeight: 1 }}>통계</div>
+            <div style={{ fontSize: '9px', fontWeight: 700 }}>통계</div>
           </button>
           <button
             onClick={onOpenMyPage}
@@ -413,13 +417,13 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
               height: '42px',
               background: C.surface,
               border: `1px solid ${C.border}`,
-              borderRadius: '16px',
+              borderRadius: '14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               color: C.fgMuted,
-              alignSelf: 'center',
+              flexShrink: 0,
             }}
           >
             <User size={18} />
@@ -499,8 +503,8 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
 
       {/* Urgent recipe recs */}
       {urgentRecipes.length > 0 && (
-        <div style={{ padding: '28px 20px 0' }}>
-          <div style={{ fontSize: '24px', fontWeight: 900, color: C.fg, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ padding: '20px 20px 0' }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: C.fg, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: C.accent }}>⚡</span> 임박 재료 활용 추천
           </div>
           <div className="card-grid">
@@ -511,24 +515,21 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
                 className="card-hover"
                 style={{
                   background: C.card,
-                  borderLeft: `6px solid ${C.accent}`,
+                  borderLeft: `4px solid ${C.accent}`,
                   borderRadius: '8px 16px 16px 8px',
-                  padding: '28px 32px',
+                  padding: '14px 16px',
                   textAlign: 'left',
                   cursor: 'pointer',
                   width: '100%',
-                  minHeight: '104px',
-                  boxShadow: '0 8px 28px rgba(17,32,29,0.08)',
+                  boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                  <span style={{ fontWeight: 900, color: C.fg, fontSize: '26px', letterSpacing: '-0.02em' }}>{r.name}</span>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '22px', color: C.fgMuted }}>{r.cookTime}분</span>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <span style={{ fontWeight: 700, color: C.fg, fontSize: '14px' }}>{r.name}</span>
+                  <span style={{ fontSize: '12px', color: C.fgMuted, whiteSpace: 'nowrap' }}>{r.cookTime}분</span>
                 </div>
                 {r.match.missingIngredients.length > 0 && (
-                  <div style={{ fontSize: '19px', color: C.fgMuted, marginTop: '8px' }}>부족: {r.match.missingIngredients.join(', ')}</div>
+                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '4px' }}>부족: {r.match.missingIngredients.join(', ')}</div>
                 )}
               </button>
             ))}
@@ -536,12 +537,12 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
         </div>
       )}
 
-      <div style={{ padding: '32px 20px 0' }}>
-        <div style={{ fontSize: '24px', fontWeight: 900, color: C.fg, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ padding: '20px 20px 0' }}>
+        <div style={{ fontSize: '16px', fontWeight: 700, color: C.fg, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>☀️</span> 오늘의 날씨 추천
         </div>
-        <div style={{ fontSize: '18px', color: C.fgMuted, marginBottom: '22px' }}>
-          서울 송파구&nbsp;&nbsp; | &nbsp;&nbsp;{mockWeather.temperature}°C&nbsp;&nbsp; | &nbsp;&nbsp;{mockWeather.description}
+        <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>
+          서울 송파구 | {mockWeather.temperature}°C | {mockWeather.description}
         </div>
         <div className="card-grid">
           {recipes
@@ -559,22 +560,21 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
                 style={{
                   background: C.card,
                   borderRadius: '16px',
-                  padding: '28px 32px',
+                  padding: '14px 16px',
                   textAlign: 'left',
                   cursor: 'pointer',
                   width: '100%',
-                  minHeight: '118px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  boxShadow: '0 8px 28px rgba(17,32,29,0.08)',
+                  boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '28px', fontWeight: 900, color: C.fg, letterSpacing: '-0.02em' }}>{r.name}</div>
-                  <div style={{ fontSize: '20px', color: C.fgMuted, marginTop: '4px' }}>{r.difficulty} · {r.cookTime}분</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>{r.name}</div>
+                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px' }}>{r.difficulty} · {r.cookTime}분</div>
                 </div>
-                <ChevronRight size={28} color={C.fgMuted} />
+                <ChevronRight size={16} color={C.fgMuted} />
               </button>
             ))}
         </div>
@@ -582,9 +582,9 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
 
       {/* Available recipes */}
       <div style={{ padding: '20px 20px 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ fontSize: '24px', fontWeight: 900, color: C.fg }}>지금 가능한 레시피</div>
-          <button onClick={() => onNavigate('recipe')} style={{ fontSize: '18px', color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 900 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: C.fg }}>지금 가능한 레시피</div>
+          <button onClick={() => onNavigate('recipe')} style={{ fontSize: '13px', color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
             전체보기 →
           </button>
         </div>
@@ -602,25 +602,24 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
                 style={{
                   background: C.card,
                   borderRadius: '14px',
-                  padding: '20px 28px',
+                  padding: '12px 16px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
                   cursor: 'pointer',
                   width: '100%',
                   textAlign: 'left',
-                  minHeight: '94px',
-                  boxShadow: '0 8px 28px rgba(17,32,29,0.08)',
+                  boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 900, color: C.fg, fontSize: '21px' }}>{r.name}</div>
-                  <div style={{ fontSize: '16px', color: C.fgMuted, marginTop: '4px' }}>
+                  <div style={{ fontWeight: 700, color: C.fg, fontSize: '14px' }}>{r.name}</div>
+                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px' }}>
                     {r.difficulty} · {r.cookTime}분
                     {r.match.missingIngredients.length > 0 && ` · 부족: ${r.match.missingIngredients.join(', ')}`}
                   </div>
                 </div>
-                <ChevronRight size={22} color={C.fgSubtle} />
+                <ChevronRight size={16} color={C.fgSubtle} />
               </button>
             ))}
           </div>
