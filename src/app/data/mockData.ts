@@ -455,6 +455,23 @@ export const initialPresetIngredients: PresetIngredientItem[] = PRESET_INGREDIEN
   active: true,
 }));
 
+export interface GradeEntry {
+  minScore: number;
+  maxScore: number;
+  label: string;
+  emoji: string;
+  range: string;
+}
+
+export const GRADE_TABLE: GradeEntry[] = [
+  { minScore: 0,  maxScore: 19,  label: '냉털 새내기',   emoji: '🥄', range: '0~19점' },
+  { minScore: 20, maxScore: 39,  label: '냉파 수련생',   emoji: '🌱', range: '20~39점' },
+  { minScore: 40, maxScore: 59,  label: '냉장고 탐험가', emoji: '🧭', range: '40~59점' },
+  { minScore: 60, maxScore: 79,  label: '냉파 에이스',   emoji: '⭐', range: '60~79점' },
+  { minScore: 80, maxScore: 89,  label: '냉파 고인물',   emoji: '⭐', range: '80~89점' },
+  { minScore: 90, maxScore: 100, label: '냉파 마스터',   emoji: '🏆', range: '90~100점' },
+];
+
 export const CATEGORY_EMOJIS: Record<IngredientCategory, string> = {
   '채소/과일': '🥬',
   '육류/어류': '🥩',

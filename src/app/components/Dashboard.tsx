@@ -4,7 +4,8 @@ import {
   Ingredient, Recipe, User as UserType,
   getDaysUntilExpiry, getExpiryStatus, getDayLabel,
   STATUS_COLORS, getRecipeMatch, TODAY, C,
-  CATEGORY_EMOJIS, mockDiscardedItems, DiscardedItem, mockWeather,
+  CATEGORY_EMOJIS, DiscardedItem, mockWeather,
+  GRADE_TABLE,
 } from '../data/mockData';
 import type { TabId } from './BottomNav';
 
@@ -12,6 +13,7 @@ interface DashboardProps {
   ingredients: Ingredient[];
   recipes: Recipe[];
   currentUser: UserType;
+  discardedItems: DiscardedItem[];
   onNavigate: (tab: TabId) => void;
   onOpenMyPage: () => void;
 }
@@ -45,21 +47,18 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function getGradeEntry(score: number) {
+  return (
+    [...GRADE_TABLE].reverse().find((g) => score >= g.minScore) ?? GRADE_TABLE[0]
+  );
+}
+
 function getNaengpaGrade(score: number) {
-  if (score >= 90) return '냉파 마스터';
-  if (score >= 80) return '냉파 고인물';
-  if (score >= 60) return '냉파 에이스';
-  if (score >= 40) return '냉장고 탐험가';
-  if (score >= 20) return '냉파 수련생';
-  return '냉털 새내기';
+  return getGradeEntry(score).label;
 }
 
 function getGradeEmoji(score: number) {
-  if (score >= 90) return '🏆';
-  if (score >= 70) return '⭐';
-  if (score >= 50) return '🧭';
-  if (score >= 30) return '🌱';
-  return '🥄';
+  return getGradeEntry(score).emoji;
 }
 
 function getNaengpaScore(discarded: DiscardedItem[]) {
@@ -101,14 +100,6 @@ function ScoreDetailModal({
     ['만료 재료 1일당', '-2점', C.accent],
     ['레시피 1건 등록', '+3점', C.primary],
     ['만료 재료 없음 유지 4일마다', '+5점', C.primary],
-  ];
-  const gradeRows = [
-    ['0~19점', '냉털 새내기'],
-    ['20~39점', '냉파 수련생'],
-    ['40~59점', '냉장고 탐험가'],
-    ['60~79점', '냉파 에이스'],
-    ['80~89점', '냉파 고인물'],
-    ['90~100점', '냉파 마스터'],
   ];
 
   return (
@@ -156,35 +147,60 @@ function ScoreDetailModal({
           </div>
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>등급표</div>
-            {gradeRows.map(([range, label]) => {
-              const isCurrent = label === grade;
-              return (
-                <div key={range} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{range}</span>
-                  <span style={{ fontSize: '12px', color: isCurrent ? C.primary : C.fg, fontWeight: 700, textAlign: 'right' }}>{label}</span>
-                </div>
-              );
-            })}
+            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>등급표</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '360px' }}>
+                <thead>
+                  <tr>
+                    {GRADE_TABLE.map(({ label }) => {
+                      const isCurrent = label === grade;
+                      return (
+                        <th key={label} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '10px', fontWeight: 700, color: isCurrent ? C.primary : C.fg, borderBottom: `2px solid ${isCurrent ? C.primary : C.border}`, whiteSpace: 'nowrap' }}>
+                          {label}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {GRADE_TABLE.map(({ range, label }) => {
+                      const isCurrent = label === grade;
+                      return (
+                        <td key={range} style={{ padding: '6px 4px', textAlign: 'center', fontSize: '9px', color: isCurrent ? C.primary : C.fgMuted, fontWeight: isCurrent ? 700 : 500, whiteSpace: 'nowrap' }}>
+                          {range}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '8px' }}>점수 산정 기준</div>
-          <div style={{ fontSize: '12px', color: C.fgMuted, lineHeight: 1.6, marginBottom: '12px' }}>
-            만료 점수, 레시피/재료 등록을 반영해 산정합니다.
-          </div>
-          <div style={{ border: `1px solid ${C.border}`, borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: C.surface, fontSize: '12px', fontWeight: 700, color: C.fg }}>
-              <div style={{ padding: '10px 14px', borderRight: `1px solid ${C.border}` }}>항목</div>
-              <div style={{ padding: '10px 14px', textAlign: 'center' }}>차감 기준</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '8px' }}>점수 산정 기준</div>
+            <div style={{ fontSize: '12px', color: C.fgMuted, lineHeight: 1.6, marginBottom: '12px' }}>
+              만료 점수, 레시피/재료 등록을 반영해 산정합니다.
             </div>
-            {tableRows.map(([label, point, color]) => (
-              <div key={label} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${C.border}`, fontSize: '12px', color: C.fg }}>
-                <div style={{ padding: '10px 14px', borderRight: `1px solid ${C.border}` }}>{label}</div>
-                <div style={{ padding: '10px 14px', textAlign: 'center', color, fontWeight: 700 }}>{point}</div>
-              </div>
-            ))}
-          </div>
+            {tableRows.map(([label, point, color]) => {
+              const isPlus = (point as string).startsWith('+');
+              return (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{
+                    width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                    background: isPlus ? '#E6F7F5' : '#FDECEA',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '13px', fontWeight: 900, color: isPlus ? C.primary : C.accent,
+                  }}>
+                    {isPlus ? '+' : '−'}
+                  </div>
+                  <span style={{ fontSize: '13px', color: C.fg, flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: '13px', color, fontWeight: 700, whiteSpace: 'nowrap' }}>{point}</span>
+                </div>
+              );
+            })}
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '12px' }}>ⓘ 레시피 등록 점수는 즉시 반영되며, 만료/유지 점수는 매일 00:00에 반영 됩니다.</div>
           </div>
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
@@ -221,6 +237,7 @@ function StatsDetailModal({
   onClose: () => void;
 }) {
   const expiredDiscarded = discarded.filter((item) => item.reason === '유통기한 만료');
+  const recentExpired = expiredDiscarded.slice(0, 5);
   const categoryCounts = Object.entries(
     expiredDiscarded.reduce<Record<string, number>>((acc, item) => {
       acc[item.category] = (acc[item.category] ?? 0) + 1;
@@ -309,6 +326,22 @@ function StatsDetailModal({
               </div>
             </div>
           </div>
+
+          <div style={{ ...cardStyle, marginTop: '14px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>최근 만료 기록</div>
+            {recentExpired.map((d) => (
+              <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category]}</span>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{d.name}</div>
+                    <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{d.reason}</div>
+                  </div>
+                </div>
+                <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -316,7 +349,7 @@ function StatsDetailModal({
 }
 
 
-export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpenMyPage }: DashboardProps) {
+export function Dashboard({ ingredients, recipes, currentUser, discardedItems, onNavigate, onOpenMyPage }: DashboardProps) {
   const [showScoreDetail, setShowScoreDetail] = useState(false);
   const [showStatsDetail, setShowStatsDetail] = useState(false);
   const sorted = [...ingredients].sort(
@@ -341,7 +374,7 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
     .slice(0, 2);
 
   const dateStr = new Date(TODAY).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-  const wasteScore = getNaengpaScore(mockDiscardedItems);
+  const wasteScore = getNaengpaScore(discardedItems);
   const grade = getNaengpaGrade(wasteScore);
   const gradeEmoji = getGradeEmoji(wasteScore);
 
@@ -387,7 +420,7 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
             }}
           >
             <div style={{ fontSize: '18px', fontWeight: 900, lineHeight: 1 }}>{wasteScore}<span style={{ fontSize: '9px', marginLeft: '1px' }}>점</span></div>
-            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.02em' }}>냉파점수</div>
+            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }}>냉파점수</div>
           </button>
           <button
             onClick={() => setShowStatsDetail(true)}
@@ -408,7 +441,7 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
             }}
           >
             <BarChart3 size={18} strokeWidth={2.5} />
-            <div style={{ fontSize: '9px', fontWeight: 700 }}>통계</div>
+            <div style={{ fontSize: '10px', fontWeight: 700 }}>통계</div>
           </button>
           <button
             onClick={onOpenMyPage}
@@ -435,13 +468,13 @@ export function Dashboard({ ingredients, recipes, currentUser, onNavigate, onOpe
         <ScoreDetailModal
           score={wasteScore}
           grade={grade}
-          discarded={mockDiscardedItems}
+          discarded={discardedItems}
           onClose={() => setShowScoreDetail(false)}
         />
       )}
       {showStatsDetail && (
         <StatsDetailModal
-          discarded={mockDiscardedItems}
+          discarded={discardedItems}
           onClose={() => setShowStatsDetail(false)}
         />
       )}

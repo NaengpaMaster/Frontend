@@ -16,6 +16,7 @@ import {
   initialShoppingItems,
   mockUsers, mockInquiries, mockComments, initialPresetIngredients,
   CATEGORY_EMOJIS,
+  mockDiscardedItems,
 } from './data/mockData';
 
 export default function App() {
@@ -197,6 +198,7 @@ export default function App() {
               ingredients={ingredients}
               recipes={recipes}
               currentUser={currentUser}
+              discardedItems={mockDiscardedItems}
               onNavigate={setActiveTab}
               onOpenMyPage={() => setShowMyPage(true)}
             />
