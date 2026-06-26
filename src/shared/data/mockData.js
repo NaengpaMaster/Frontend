@@ -36,7 +36,7 @@ export const WEATHER_RECIPE_MAP = {
 
 // ─── Utilities ─────────────────────────────────────────────────────────────────
 
-export const TODAY = '2026-06-12';
+export const TODAY = new Date().toISOString().split('T')[0];
 
 export function getDaysUntilExpiry(expiryDate) {
   if (!expiryDate || expiryDate === '기한없음') return Number.POSITIVE_INFINITY;
@@ -86,8 +86,9 @@ export const mockUsers = [
     role: 'user',
     householdType: '1인',
     preferences: { favoriteFoods: ['한식', '샐러드'], allergies: ['갑각류'], avoidIngredients: ['고수'] },
-    joinDate: '2026-04-15',
+    joinDate: '2026-04-29',
     status: 'active',
+    naengpaScore: 88,
   },
   {
     id: 'u2',
@@ -97,8 +98,9 @@ export const mockUsers = [
     role: 'admin',
     householdType: '기타',
     preferences: { favoriteFoods: [], allergies: [], avoidIngredients: [] },
-    joinDate: '2026-01-01',
+    joinDate: '2026-01-15',
     status: 'active',
+    naengpaScore: null,
   },
   {
     id: 'u3',
@@ -108,8 +110,9 @@ export const mockUsers = [
     role: 'user',
     householdType: '2인',
     preferences: { favoriteFoods: ['일식', '파스타'], allergies: ['견과류'], avoidIngredients: [] },
-    joinDate: '2026-03-22',
+    joinDate: '2026-04-05',
     status: 'active',
+    naengpaScore: 95,
   },
   {
     id: 'u4',
@@ -119,8 +122,9 @@ export const mockUsers = [
     role: 'user',
     householdType: '3인 이상',
     preferences: { favoriteFoods: ['한식'], allergies: [], avoidIngredients: ['마늘'] },
-    joinDate: '2026-05-10',
+    joinDate: '2026-05-24',
     status: 'inactive',
+    naengpaScore: 74,
   },
   {
     id: 'u5',
@@ -130,22 +134,23 @@ export const mockUsers = [
     role: 'user',
     householdType: '1인',
     preferences: { favoriteFoods: ['채식'], allergies: ['유제품'], avoidIngredients: [] },
-    joinDate: '2026-05-30',
+    joinDate: '2026-06-13',
     status: 'active',
+    naengpaScore: 81,
   },
 ];
 
 export const initialIngredients = [
-  { id: '1',  name: '두부',   category: '가공식품',   quantity: '1모',   location: '냉장', expiryDate: '2026-06-13', emoji: '🤍', addedDate: '2026-06-10' },
-  { id: '2',  name: '대파',   category: '채소/과일', quantity: '1/2단', location: '냉장', expiryDate: '2026-06-14', emoji: '🌿', addedDate: '2026-06-10' },
-  { id: '3',  name: '계란',   category: '유제품/계란', quantity: '6개',  location: '냉장', expiryDate: '2026-06-15', emoji: '🥚', addedDate: '2026-06-08' },
-  { id: '4',  name: '우유',   category: '유제품/계란', quantity: '500ml',location: '냉장', expiryDate: '2026-06-16', emoji: '🥛', addedDate: '2026-06-09' },
-  { id: '5',  name: '삼겹살', category: '육류/어류',  quantity: '200g', location: '냉동', expiryDate: '2026-06-20', emoji: '🥩', addedDate: '2026-06-07' },
-  { id: '7',  name: '양파',   category: '채소/과일', quantity: '2개',  location: '냉장', expiryDate: '2026-07-01', emoji: '🧅', addedDate: '2026-06-01' },
-  { id: '8',  name: '마늘',   category: '채소/과일', quantity: '1통',  location: '냉장', expiryDate: '2026-07-10', emoji: '🧄', addedDate: '2026-06-01' },
-  { id: '9',  name: '김치',   category: '가공식품',   quantity: '300g', location: '냉장', expiryDate: '2026-07-15', emoji: '🌶️', addedDate: '2026-05-20' },
-  { id: '11', name: '고추장', category: '양념/소스',  quantity: '1/2통',location: '냉장', expiryDate: '2026-11-01', emoji: '🫙', addedDate: '2026-03-15' },
-  { id: '12', name: '된장',   category: '양념/소스',  quantity: '1통',  location: '냉장', expiryDate: '2026-12-01', emoji: '🫙', addedDate: '2026-03-01' },
+  { id: '1',  name: '두부',   category: '가공식품',    quantity: '1모',   location: '냉장', expiryDate: '2026-06-27', emoji: '🤍', addedDate: '2026-06-24' },
+  { id: '2',  name: '대파',   category: '채소/과일',   quantity: '1/2단', location: '냉장', expiryDate: '2026-06-28', emoji: '🌿', addedDate: '2026-06-24' },
+  { id: '3',  name: '계란',   category: '유제품/계란', quantity: '6개',   location: '냉장', expiryDate: '2026-06-29', emoji: '🥚', addedDate: '2026-06-22' },
+  { id: '4',  name: '우유',   category: '유제품/계란', quantity: '500ml', location: '냉장', expiryDate: '2026-06-30', emoji: '🥛', addedDate: '2026-06-23' },
+  { id: '5',  name: '삼겹살', category: '육류/어류',   quantity: '200g',  location: '냉동', expiryDate: '2026-07-04', emoji: '🥩', addedDate: '2026-06-21' },
+  { id: '7',  name: '양파',   category: '채소/과일',   quantity: '2개',   location: '냉장', expiryDate: '2026-07-15', emoji: '🧅', addedDate: '2026-06-15' },
+  { id: '8',  name: '마늘',   category: '채소/과일',   quantity: '1통',   location: '냉장', expiryDate: '2026-07-24', emoji: '🧄', addedDate: '2026-06-15' },
+  { id: '9',  name: '김치',   category: '가공식품',    quantity: '300g',  location: '냉장', expiryDate: '2026-07-29', emoji: '🌶️', addedDate: '2026-06-03' },
+  { id: '11', name: '고추장', category: '양념/소스',   quantity: '1/2통', location: '냉장', expiryDate: '2026-11-15', emoji: '🫙', addedDate: '2026-03-29' },
+  { id: '12', name: '된장',   category: '양념/소스',   quantity: '1통',   location: '냉장', expiryDate: '2026-12-15', emoji: '🫙', addedDate: '2026-03-15' },
 ];
 
 export const recipes = [
@@ -208,9 +213,9 @@ export const recipes = [
 ];
 
 export const mockComments = [
-  { id: 'cm1', recipeId: 'r1', userId: 'u3', userName: '이서윤', content: '진짜 맛있었어요! 된장을 조금 더 넣었더니 더 구수하더라고요 👍', createdAt: '2026-06-10' },
-  { id: 'cm2', recipeId: 'r1', userId: 'u5', userName: '최유리', content: '초보인데도 쉽게 만들 수 있었어요!', createdAt: '2026-06-11' },
-  { id: 'cm3', recipeId: 'r3', userId: 'u1', userName: '김지원', content: '냉장고 정리할 때 딱이네요 ㅎㅎ', createdAt: '2026-06-12' },
+  { id: 'cm1', recipeId: 'r1', userId: 'u3', userName: '이서윤', content: '진짜 맛있었어요! 된장을 조금 더 넣었더니 더 구수하더라고요 👍', createdAt: '2026-06-24' },
+  { id: 'cm2', recipeId: 'r1', userId: 'u5', userName: '최유리', content: '초보인데도 쉽게 만들 수 있었어요!', createdAt: '2026-06-25' },
+  { id: 'cm3', recipeId: 'r3', userId: 'u1', userName: '김지원', content: '냉장고 정리할 때 딱이네요 ㅎㅎ', createdAt: '2026-06-26' },
 ];
 
 export const initialShoppingItems = [
@@ -222,20 +227,29 @@ export const initialShoppingItems = [
 ];
 
 export const mockDiscardedItems = [
-  { id: 'd1', name: '시금치',   category: '채소/과일',  reason: '유통기한 만료', date: '2026-06-10' },
-  { id: 'd2', name: '두부',     category: '가공식품',   reason: '유통기한 만료', date: '2026-06-08' },
-  { id: 'd3', name: '요거트',   category: '유제품/계란', reason: '유통기한 만료', date: '2026-06-07' },
-  { id: 'd4', name: '버섯',     category: '채소/과일',  reason: '상함',         date: '2026-06-05' },
-  { id: 'd5', name: '쌈채소',   category: '채소/과일',  reason: '유통기한 만료', date: '2026-06-03' },
-  { id: 'd6', name: '두부',     category: '가공식품',   reason: '유통기한 만료', date: '2026-05-28' },
-  { id: 'd7', name: '삼겹살',   category: '육류/어류',  reason: '유통기한 만료', date: '2026-05-25' },
+  { id: 'd1',  name: '시금치',  category: '채소/과일',   reason: '유통기한 만료', date: '2026-06-24' },
+  { id: 'd2',  name: '두부',    category: '가공식품',    reason: '유통기한 만료', date: '2026-06-22' },
+  { id: 'd3',  name: '요거트',  category: '유제품/계란', reason: '유통기한 만료', date: '2026-06-21' },
+  { id: 'd4',  name: '버섯',    category: '채소/과일',   reason: '상함',          date: '2026-06-19' },
+  { id: 'd5',  name: '쌈채소',  category: '채소/과일',   reason: '유통기한 만료', date: '2026-06-17' },
+  { id: 'd6',  name: '두부',    category: '가공식품',    reason: '유통기한 만료', date: '2026-06-11' },
+  { id: 'd7',  name: '삼겹살',  category: '육류/어류',   reason: '유통기한 만료', date: '2026-06-08' },
+  { id: 'd8',  name: '시금치',  category: '채소/과일',   reason: '유통기한 만료', date: '2026-06-16' },
+  { id: 'd9',  name: '두부',    category: '가공식품',    reason: '유통기한 만료', date: '2026-06-14' },
+  { id: 'd10', name: '쌈채소',  category: '채소/과일',   reason: '유통기한 만료', date: '2026-06-09' },
+  { id: 'd11', name: '요거트',  category: '유제품/계란', reason: '유통기한 만료', date: '2026-06-03' },
+  { id: 'd12', name: '계란',    category: '유제품/계란', reason: '유통기한 만료', date: '2026-05-31' },
+  { id: 'd13', name: '쌈채소',  category: '채소/과일',   reason: '유통기한 만료', date: '2026-05-26' },
+  { id: 'd14', name: '두부',    category: '가공식품',    reason: '유통기한 만료', date: '2026-05-24' },
+  { id: 'd15', name: '삼겹살',  category: '육류/어류',   reason: '유통기한 만료', date: '2026-05-19' },
+  { id: 'd16', name: '쌈채소',  category: '채소/과일',   reason: '유통기한 만료', date: '2026-06-20' },
 ];
 
 export const mockInquiries = [
-  { id: 'q1', userId: 'u3', userName: '이서윤', subject: '레시피 추천 기준이 궁금해요', content: '보유 재료 매칭 퍼센트는 어떻게 계산되나요?', status: 'answered', createdAt: '2026-06-10', answer: '보유하신 재료 중 레시피에 필요한 재료가 몇 가지인지 비율로 계산됩니다. 예를 들어 필요 재료 5개 중 4개를 보유하시면 80%로 표시됩니다.' },
-  { id: 'q2', userId: 'u1', userName: '김지원', subject: '못 먹는 재료 설정이 안 됩니다', content: '마이페이지에서 못 먹는 재료를 저장했는데 반영이 안 되는 것 같아요.', status: 'pending', createdAt: '2026-06-11' },
-  { id: 'q3', userId: 'u5', userName: '최유리', subject: '앱이 가끔 느려요', content: '재료를 많이 등록하면 앱이 느려지는 현상이 있어요.', status: 'pending', createdAt: '2026-06-12' },
-  { id: 'q4', userId: 'u4', userName: '박민준', subject: '레시피 추가 요청', content: '잡채 레시피도 추가해주실 수 있나요?', status: 'closed', createdAt: '2026-06-05', answer: '좋은 의견 감사합니다! 다음 업데이트에 반영할 예정입니다.' },
+  { id: 'q1', userId: 'u3', userName: '이서윤', subject: '레시피 추천 기준이 궁금해요', content: '보유 재료 매칭 퍼센트는 어떻게 계산되나요?', status: 'answered', createdAt: '2026-06-24', answer: '보유하신 재료 중 레시피에 필요한 재료가 몇 가지인지 비율로 계산됩니다. 예를 들어 필요 재료 5개 중 4개를 보유하시면 80%로 표시됩니다.' },
+  { id: 'q2', userId: 'u1', userName: '김지원', subject: '못 먹는 재료 설정이 안 됩니다', content: '마이페이지에서 못 먹는 재료를 저장했는데 반영이 안 되는 것 같아요.', status: 'pending', createdAt: '2026-06-25' },
+  { id: 'q3', userId: 'u5', userName: '최유리', subject: '앱이 가끔 느려요', content: '재료를 많이 등록하면 앱이 느려지는 현상이 있어요.', status: 'pending', createdAt: '2026-06-26' },
+  { id: 'q4', userId: 'u4', userName: '박민준', subject: '레시피 추가 요청', content: '잡채 레시피도 추가해주실 수 있나요?', status: 'closed', createdAt: '2026-06-19', answer: '좋은 의견 감사합니다! 다음 업데이트에 반영할 예정입니다.' },
 ];
 
 export const CATEGORIES = [
