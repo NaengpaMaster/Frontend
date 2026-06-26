@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { authApi } from '@/apis/authApi';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { Sidebar } from '@/shared/components/Sidebar';
 import { Dashboard } from '@/domains/dashboard/components/Dashboard';
@@ -22,7 +24,17 @@ import useInquiryStore from '@/domains/inquiry/store/useInquiryStore';
 export default function App() {
   /* MARKER-MAKE-KIT-INVOKED */
 
-  const { currentUser, showMyPage, showAdmin, setCurrentUser, setShowMyPage, setShowAdmin } = useAuthStore();
+  const {
+    currentUser,
+    authLoading,
+    showMyPage,
+    showAdmin,
+    setCurrentUser,
+    setAuthLoading,
+    setShowMyPage,
+    setShowAdmin,
+    resetAuth,
+  } = useAuthStore();
   const { activeTab, setActiveTab } = useUiStore();
   const {
     ingredients, presetIngredients,
@@ -41,15 +53,45 @@ export default function App() {
     addInquiry, updateInquiry, deleteInquiry, answerInquiry, deleteAnswer, setUsers,
   } = useInquiryStore();
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function restoreSession() {
+      try {
+        await authApi.refresh();
+        const user = await authApi.getMe();
+        if (!mounted) return;
+        setCurrentUser(user);
+        setShowAdmin(user?.role === 'admin');
+      } catch {
+        if (mounted) {
+          resetAuth();
+        }
+      } finally {
+        if (mounted) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resetAuth, setAuthLoading, setCurrentUser, setShowAdmin]);
+
   // ─── Auth handlers ─────────────────────────────────────────────────────────
   const handleLogin = (user) => {
     setCurrentUser(user);
     setShowAdmin(user.role === 'admin');
   };
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setShowMyPage(false);
-    setShowAdmin(false);
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      resetAuth();
+    }
   };
   const handleDeleteAccount = () => {
     if (!currentUser) return;
@@ -101,6 +143,14 @@ export default function App() {
   };
 
   // ─── Not logged in ─────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div style={{ width: '100%', minHeight: '100%', display: 'grid', placeItems: 'center', background: '#F2F4F5' }}>
+        <div style={{ color: '#54716B', fontWeight: 700 }}>로그인 상태 확인 중...</div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return (
       <div style={{ width: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center', background: '#F2F4F5' }}>
