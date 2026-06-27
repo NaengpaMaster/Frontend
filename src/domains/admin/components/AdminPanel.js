@@ -1,11 +1,28 @@
 import { useState } from 'react';
 import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info } from 'lucide-react';
 import {
-  mockDiscardedItems, CATEGORY_EMOJIS,
-  CATEGORIES, C, TODAY,
-} from '@/shared/data/mockData';
-import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
+  User, Recipe, Inquiry, DiscardedItem, C,
+  mockDiscardedItems, CATEGORY_EMOJIS, IngredientCategory,
+  PresetIngredientItem, CATEGORIES,
+} from '../data/mockData';
+import { RecipeFormModal } from './RecipeFormModal';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+interface AdminPanelProps {
+  users: User[];
+  recipes: Recipe[];
+  inquiries: Inquiry[];
+  presetIngredients: PresetIngredientItem[];
+  onClose: () => void;
+  onUpdateUsers: (users: User[]) => void;
+  onUpdateRecipes: (recipes: Recipe[]) => void;
+  onAnswerInquiry: (id: string, answer: string) => void;
+  onDeleteInquiry: (id: string) => void;
+  onDeleteAnswer: (id: string) => void;
+  onUpdatePresetIngredients: (items: PresetIngredientItem[]) => void;
+}
+
+type AdminTab = 'members' | 'recipes' | 'ingredients' | 'stats' | 'inquiries';
 
 const TAB_ICONS = {
   members:     { icon: Users,         label: '회원' },
@@ -16,22 +33,30 @@ const TAB_ICONS = {
 };
 
 // ─── Members ──────────────────────────────────────────────────────────────────
-function MembersTab({ users, onUpdate }) {
-  const [search, setSearch] = useState('');
-  const members = users.filter((u) => u.role !== 'admin');
-  const filtered = members.filter((u) => u.name.includes(search) || u.email.includes(search) || u.householdType.includes(search));
+type MemberViewMode = 'active' | 'inactive' | 'admin';
 
-  const toggle = (id) => {
+
+function MembersTab({ users, onUpdate }: { users: User[]; onUpdate: (u: User[]) => void }) {
+  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<MemberViewMode>('active');
+
+  const allMembers = users.filter((u) => u.role !== 'admin');
+  const activeMembers = allMembers.filter((u) => u.status === 'active');
+  const inactiveMembers = allMembers.filter((u) => u.status === 'inactive');
+  const adminUsers = users.filter((u) => u.role === 'admin');
+
+  const baseList = viewMode === 'active' ? activeMembers : viewMode === 'inactive' ? inactiveMembers : adminUsers;
+  const filtered = baseList.filter((u) => u.name.includes(search) || u.email.includes(search) || u.householdType.includes(search));
+
+  const toggle = (id: string) => {
     onUpdate(users.map((u) => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>회원 관리</div>
-          <div style={{ fontSize: '12px', color: C.fgMuted }}>총 {members.length}명 · 가입 회원 {members.filter((u) => u.status === 'active').length}명</div>
-        </div>
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>회원 관리</div>
+        <div style={{ fontSize: '12px', color: C.fgMuted }}>총 {allMembers.length}명 · 활성 {activeMembers.length}명</div>
       </div>
 
       <div style={{ position: 'relative', marginBottom: '12px' }}>
@@ -47,14 +72,26 @@ function MembersTab({ users, onUpdate }) {
         />
       </div>
 
-      {/* Stats row */}
+      {/* Stats row - 클릭하면 해당 뷰로 필터 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
-        {[
-          { label: '관리자 수', value: users.filter((u) => u.role === 'admin').length, color: C.fg },
-          { label: '전체 회원', value: members.length, color: C.primary },
-          { label: '탈퇴 회원', value: members.filter((u) => u.status === 'inactive').length, color: C.accent },
-        ].map((s) => (
-          <div key={s.label} style={{ background: C.card, borderRadius: '14px', padding: '12px', textAlign: 'center', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        {([
+          { label: '관리자 수', value: adminUsers.length, color: C.fg, mode: 'admin' as MemberViewMode },
+          { label: '전체 회원', value: allMembers.length, color: C.primary, mode: 'active' as MemberViewMode },
+          { label: '탈퇴 회원', value: inactiveMembers.length, color: C.accent, mode: 'inactive' as MemberViewMode },
+        ]).map((s) => (
+          <div
+            key={s.label}
+            className="stat-card-hover"
+            onClick={() => { setViewMode(s.mode); setSearch(''); }}
+            style={{
+              background: C.card,
+              borderRadius: '14px',
+              padding: '12px',
+              textAlign: 'center',
+              boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
+              cursor: 'pointer',
+            }}
+          >
             <div style={{ fontSize: '22px', fontWeight: 900, color: s.color }}>{s.value}</div>
             <div style={{ fontSize: '9px', color: C.fgSubtle, marginTop: '2px' }}>{s.label}</div>
           </div>
@@ -127,18 +164,18 @@ function MembersTab({ users, onUpdate }) {
 }
 
 // ─── Recipes ──────────────────────────────────────────────────────────────────
-function RecipesTab({ recipes, onUpdate }) {
-  const [editing, setEditing] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
+function RecipesTab({ recipes, onUpdate }: { recipes: Recipe[]; onUpdate: (r: Recipe[]) => void }) {
+  const [editing, setEditing] = useState<Recipe | null>(null);
+  const [selected, setSelected] = useState<Recipe | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const handleEdit = (data) => {
+  const handleEdit = (data: Omit<Recipe, 'id'>) => {
     if (!editing) return;
     onUpdate(recipes.map((r) => r.id === editing.id ? { ...data, id: editing.id } : r));
     setEditing(null);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: string) => {
     onUpdate(recipes.filter((r) => r.id !== id));
     setDeleteId(null);
   };
@@ -262,19 +299,19 @@ function RecipesTab({ recipes, onUpdate }) {
 }
 
 // ─── Preset Ingredients ───────────────────────────────────────────────────────
-function IngredientsTab({ items, onUpdate }) {
+function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; onUpdate: (items: PresetIngredientItem[]) => void }) {
   const [search, setSearch] = useState('');
   const [addName, setAddName] = useState('');
-  const [addCategory, setAddCategory] = useState('채소/과일');
+  const [addCategory, setAddCategory] = useState<IngredientCategory>('채소/과일');
   const [addDupError, setAddDupError] = useState(false);
-  const [editIdx, setEditIdx] = useState(null);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  const [editCategory, setEditCategory] = useState('채소/과일');
-  const [deleteIdx, setDeleteIdx] = useState(null);
+  const [editCategory, setEditCategory] = useState<IngredientCategory>('채소/과일');
+  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
 
   const inputStyle = {
     background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px',
-    padding: '9px 12px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+    padding: '9px 12px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const,
   };
 
   const handleAdd = () => {
@@ -285,16 +322,16 @@ function IngredientsTab({ items, onUpdate }) {
     setAddDupError(false);
   };
 
-  const handleToggle = (idx) => {
+  const handleToggle = (idx: number) => {
     onUpdate(items.map((item, i) => i === idx ? { ...item, active: !item.active } : item));
   };
 
-  const handleDelete = (idx) => {
+  const handleDelete = (idx: number) => {
     onUpdate(items.filter((_, i) => i !== idx));
     setDeleteIdx(null);
   };
 
-  const handleEditSave = (idx) => {
+  const handleEditSave = (idx: number) => {
     if (!editName.trim()) return;
     if (items.some((item, i) => i !== idx && item.name === editName.trim())) return;
     onUpdate(items.map((item, i) => i === idx ? { ...item, name: editName.trim(), category: editCategory } : item));
@@ -314,7 +351,7 @@ function IngredientsTab({ items, onUpdate }) {
         <input
           style={{
             width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
-            padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+            padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const,
           }}
           placeholder="재료명 또는 카테고리 검색"
           value={search}
@@ -328,7 +365,7 @@ function IngredientsTab({ items, onUpdate }) {
           <Plus size={13} color={C.primary} /> 재료 추가
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <select style={{ ...inputStyle, width: '130px', flexShrink: 0, cursor: 'pointer' }} value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
+          <select style={{ ...inputStyle, width: '130px', flexShrink: 0, cursor: 'pointer' }} value={addCategory} onChange={(e) => setAddCategory(e.target.value as IngredientCategory)}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_EMOJIS[c]} {c}</option>)}
           </select>
           <input
@@ -393,7 +430,7 @@ function IngredientsTab({ items, onUpdate }) {
                   <select
                     style={{ ...inputStyle, fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
                     value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
+                    onChange={(e) => setEditCategory(e.target.value as IngredientCategory)}
                   >
                     {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_EMOJIS[c]} {c}</option>)}
                   </select>
@@ -434,64 +471,25 @@ function IngredientsTab({ items, onUpdate }) {
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
-function StatsTab({ discarded, users }) {
-  const [period, setPeriod] = useState('7일');
-
-  const today = new Date(TODAY);
-  const diffDays = (dateStr) => (today.getTime() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24);
-
-  const allExpired = discarded.filter((d) => d.reason === '유통기한 만료');
-
-  // 1. 사용자별 점수 집계 진짜 평균
-  const scoredUsers = users.filter((u) => u.role !== 'admin' && u.naengpaScore != null);
-  const avgScore = scoredUsers.length
-    ? Math.round(scoredUsers.reduce((sum, u) => sum + u.naengpaScore, 0) / scoredUsers.length)
-    : 0;
-
-  // 2. 이번주 만료 건수 + 전주 대비 증감률
-  const thisWeekCount = allExpired.filter((d) => diffDays(d.date) < 7).length;
-  const lastWeekCount = allExpired.filter((d) => { const diff = diffDays(d.date); return diff >= 7 && diff < 14; }).length;
-  const weekChangePct = lastWeekCount === 0
-    ? null
-    : Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100);
-
-  // 3. 카테고리별 만료량 (기간 필터 적용)
-  const periodFiltered = allExpired.filter((d) => {
-    const diff = diffDays(d.date);
-    if (period === '7일') return diff < 7;
-    if (period === '30일') return diff < 30;
-    return true;
-  });
+function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
+  const expiredItems = discarded.filter((d) => d.reason === '유통기한 만료');
   const byCategory = Object.entries(
-    periodFiltered.reduce((acc, d) => {
+    expiredItems.reduce<Record<string, number>>((acc, d) => {
       acc[d.category] = (acc[d.category] ?? 0) + 1;
       return acc;
     }, {})
   )
     .map(([name, count]) => ({ name: name.split('/')[0], count }))
     .sort((a, b) => b.count - a.count);
-
-  // 4. TOP 5 + 순위 변동 (전체 대비 7일 이전 데이터 기준)
-  const computeRanking = (items) => {
-    const counts = items.reduce((acc, d) => { acc[d.name] = (acc[d.name] ?? 0) + 1; return acc; }, {});
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([name, count], i) => ({ name, count, rank: i + 1 }));
-  };
-  const prevRankMap = Object.fromEntries(
-    computeRanking(allExpired.filter((d) => diffDays(d.date) >= 7)).map(({ name, rank }) => [name, rank])
-  );
-  const topWasted = computeRanking(allExpired).slice(0, 5);
-
-  // 5. 주간 만료 추이 (6주)
-  const weeklyTrend = Array.from({ length: 6 }, (_, i) => {
-    const weekAgo = 5 - i;
-    const from = weekAgo * 7;
-    const to = (weekAgo + 1) * 7;
-    const count = allExpired.filter((d) => { const diff = diffDays(d.date); return diff >= from && diff < to; }).length;
-    const label = weekAgo === 0 ? '이번주' : weekAgo === 1 ? '지난주' : `${weekAgo}주전`;
-    return { label, count };
-  });
-
-  const statCardStyle = {
+  const nameCounts = expiredItems.reduce<Record<string, number>>((acc, d) => {
+    acc[d.name] = (acc[d.name] ?? 0) + 1;
+    return acc;
+  }, {});
+  const topWasted = Object.entries(nameCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const totalExpired = expiredItems.length;
+  const wasteScore = Math.max(0, Math.min(100, 100 - totalExpired * 2 + 3 + 5));
+  const recentExpired = expiredItems.slice(0, 5);
+  const statCardStyle: React.CSSProperties = {
     background: C.card,
     borderRadius: '16px',
     padding: '14px',
@@ -507,7 +505,6 @@ function StatsTab({ discarded, users }) {
       <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '16px' }}>사용자들의 냉파 활동을 한눈에 파악하세요.</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-        {/* 1. 사용자별 점수 집계 평균 */}
         <div style={statCardStyle}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary, flexShrink: 0 }}>
             <Star size={20} />
@@ -516,11 +513,10 @@ function StatsTab({ discarded, users }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
               냉파 점수 평균 <Info size={12} color={C.fgMuted} />
             </div>
-            <div style={{ fontSize: '22px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{avgScore}점</div>
-            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>활성 회원 {scoredUsers.length}명 기준</div>
+            <div style={{ fontSize: '22px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{wasteScore}점</div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>사용자 냉파 점수 평균</div>
           </div>
         </div>
-        {/* 2. 만료 건수 + 전주 대비 */}
         <div style={statCardStyle}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
             <CalendarDays size={20} />
@@ -529,95 +525,55 @@ function StatsTab({ discarded, users }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
               유통기한 만료 건수 <Info size={12} color={C.fgMuted} />
             </div>
-            <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{thisWeekCount}건</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-              <span style={{ fontSize: '11px', color: C.fgMuted }}>이번주 7일 기준</span>
-              {weekChangePct !== null && (
-                <span style={{
-                  fontSize: '10px', fontWeight: 700,
-                  color: weekChangePct > 0 ? C.accent : C.primary,
-                  background: weekChangePct > 0 ? C.accentLight : C.primaryLight,
-                  borderRadius: '6px', padding: '1px 5px',
-                }}>
-                  {weekChangePct > 0 ? `▲ +${weekChangePct}%` : weekChangePct < 0 ? `▼ ${weekChangePct}%` : '- 0%'}
-                </span>
-              )}
-            </div>
+            <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{totalExpired}건</div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>최근 7일 기준</div>
           </div>
         </div>
       </div>
 
-      {/* 3. 카테고리별 만료량 + 기간 필터 */}
+      {/* Bar chart by category */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>카테고리별 만료량</div>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {['7일', '30일', '전체'].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
-                  cursor: 'pointer', border: 'none',
-                  background: period === p ? C.primary : C.surface,
-                  color: period === p ? '#FFF' : C.fgMuted,
-                }}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>카테고리별 만료량</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={byCategory} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }} cursor={{ fill: C.surface }} />
+            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, 4]} />
+            <Tooltip
+              contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
+              cursor={{ fill: C.surface }}
+            />
             <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" barSize={150} label={{ position: 'top', fill: C.fg, fontSize: 11, fontWeight: 700 }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* 4. TOP 5 + 순위 변동 */}
+      {/* Top wasted */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>가장 많이 만료된 재료 TOP 5</div>
-        {topWasted.map(({ name, count, rank }) => {
-          const prevRank = prevRankMap[name];
-          const change = prevRank != null ? prevRank - rank : null;
-          return (
-            <div key={name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto auto', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: rank === 1 ? C.accent : C.fgMuted }}>{rank}</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{name}</div>
-              <span style={{
-                fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px',
-                ...(change === null
-                  ? { color: C.primary, background: C.primaryLight }
-                  : change > 0
-                  ? { color: C.primary, background: C.primaryLight }
-                  : change < 0
-                  ? { color: C.accent, background: C.accentLight }
-                  : { color: C.fgSubtle, background: C.surface }),
-              }}>
-                {change === null ? 'NEW' : change > 0 ? `▲${change}` : change < 0 ? `▼${Math.abs(change)}` : '-'}
-              </span>
-              <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{count}회</div>
-            </div>
-          );
-        })}
+        {topWasted.map(([name, count], idx) => (
+          <div key={name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
+            <div style={{ minWidth: '20px', fontSize: '13px', fontWeight: 700, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{name}</div>
+            <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{count}회</div>
+          </div>
+        ))}
       </div>
 
-      {/* 5. 주간 만료 추이 라인 차트 */}
+      {/* Recent discarded */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>주간 만료 추이</div>
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={weeklyTrend} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-            <XAxis dataKey="label" tick={{ fontSize: 10, fill: C.fgMuted }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }} />
-            <Line type="monotone" dataKey="count" stroke={C.primary} strokeWidth={2.5} dot={{ r: 4, fill: C.primary, strokeWidth: 0 }} activeDot={{ r: 6 }} name="만료 건수" />
-          </LineChart>
-        </ResponsiveContainer>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>최근 만료 기록</div>
+        {recentExpired.map((d) => (
+          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{d.name}</div>
+                <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{d.reason}</div>
+              </div>
+            </div>
+            <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -629,12 +585,17 @@ function InquiriesTab({
   onAnswer,
   onDeleteInquiry,
   onDeleteAnswer,
+}: {
+  inquiries: Inquiry[];
+  onAnswer: (id: string, answer: string) => void;
+  onDeleteInquiry: (id: string) => void;
+  onDeleteAnswer: (id: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState('pending');
-  const [expanded, setExpanded] = useState(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'answered'>('pending');
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState('');
-  const [editingAnswerId, setEditingAnswerId] = useState(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // 미답변: 오래된 순 (위), 최신이 아래
   const pendingList = inquiries
@@ -647,7 +608,7 @@ function InquiriesTab({
 
   const currentList = activeTab === 'pending' ? pendingList : answeredList;
 
-  const handleExpand = (inq) => {
+  const handleExpand = (inq: Inquiry) => {
     if (expanded === inq.id) {
       setExpanded(null);
       setEditingAnswerId(null);
@@ -658,7 +619,7 @@ function InquiriesTab({
     }
   };
 
-  const tabBtn = (tab, label, count, Icon) => {
+  const tabBtn = (tab: 'pending' | 'answered', label: string, count: number, Icon: React.ElementType) => {
     const isActive = activeTab === tab;
     return (
       <button
@@ -747,7 +708,7 @@ function InquiriesTab({
                         <div style={{ fontSize: '11px', fontWeight: 700, color: C.fgMuted }}>관리자 답변</div>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <button
-                            onClick={() => { setEditingAnswerId(inq.id); setAnswerText(inq.answer); }}
+                            onClick={() => { setEditingAnswerId(inq.id); setAnswerText(inq.answer!); }}
                             style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '3px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '6px', color: C.fgMuted, fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
                           >
                             <Edit2 size={11} /> 수정
@@ -773,7 +734,7 @@ function InquiriesTab({
                           borderRadius: '10px', padding: '10px 12px', color: C.fg, fontSize: '13px',
                           outline: 'none', resize: 'none', height: '90px', boxSizing: 'border-box',
                           display: 'block', marginBottom: '8px',
-                        }}
+                        } as React.CSSProperties}
                         placeholder="답변을 입력하세요..."
                         value={answerText}
                         onChange={(e) => setAnswerText(e.target.value)}
@@ -800,7 +761,7 @@ function InquiriesTab({
                         </button>
                         {inq.answer && (
                           <button
-                            onClick={() => { setEditingAnswerId(null); setAnswerText(inq.answer); }}
+                            onClick={() => { setEditingAnswerId(null); setAnswerText(inq.answer!); }}
                             style={{ flex: 1, padding: '9px 12px', background: C.surface, border: `1px solid ${C.border}`, color: C.fgMuted, borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
                           >
                             취소
@@ -823,10 +784,10 @@ function InquiriesTab({
 export function AdminPanel({
   users, recipes, inquiries, presetIngredients, onClose,
   onUpdateUsers, onUpdateRecipes, onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
-}) {
-  const [activeTab, setActiveTab] = useState('members');
+}: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<AdminTab>('members');
 
-  const pendingInquiries = inquiries.filter((i) => i.status === 'pending').length;
+  const pendingInquiries = inquiries.filter((i) => i.status !== 'answered').length;
 
   return (
     <div
@@ -863,7 +824,7 @@ export function AdminPanel({
           flexShrink: 0,
         }}
       >
-        {Object.entries(TAB_ICONS).map(([key, { icon: Icon, label }]) => {
+        {(Object.entries(TAB_ICONS) as [AdminTab, { icon: any; label: string }][]).map(([key, { icon: Icon, label }]) => {
           const isActive = activeTab === key;
           const badge = key === 'inquiries' && pendingInquiries > 0 ? pendingInquiries : null;
           return (
@@ -911,11 +872,11 @@ export function AdminPanel({
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
         {activeTab === 'members'     && <MembersTab users={users} onUpdate={onUpdateUsers} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onUpdate={onUpdateRecipes} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
-        {activeTab === 'stats'       && <StatsTab discarded={mockDiscardedItems} users={users} />}
+        {activeTab === 'stats'       && <StatsTab discarded={mockDiscardedItems} />}
         {activeTab === 'inquiries'   && <InquiriesTab inquiries={inquiries} onAnswer={onAnswerInquiry} onDeleteInquiry={onDeleteInquiry} onDeleteAnswer={onDeleteAnswer} />}
       </div>
     </div>
