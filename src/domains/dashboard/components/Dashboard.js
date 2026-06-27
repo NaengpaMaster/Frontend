@@ -3,7 +3,7 @@ import { BarChart3, ChevronRight, Zap, TrendingDown, User, X } from 'lucide-reac
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel,
   STATUS_COLORS, getRecipeMatch, TODAY, C,
-  CATEGORY_EMOJIS, mockWeather,
+  CATEGORY_EMOJIS,
   GRADE_TABLE,
 } from '@/shared/data/mockData';
 
@@ -550,49 +550,6 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
           </div>
         </div>
       )}
-
-      <div style={{ padding: '20px 20px 0' }}>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: C.fg, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>☀️</span> 오늘의 날씨 추천
-        </div>
-        <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>
-          서울 송파구 | {mockWeather.temperature}°C | {mockWeather.description}
-        </div>
-        <div className="card-grid">
-          {recipes
-            .filter((r) => ['냉모밀', '오이냉국'].includes(r.name))
-            .concat([
-              { ...recipes[0], id: 'weather-cold-noodle', name: '냉모밀', cookTime: 10, difficulty: '쉬움' },
-              { ...recipes[0], id: 'weather-cucumber-soup', name: '오이냉국', cookTime: 15, difficulty: '쉬움' },
-            ])
-            .slice(0, 2)
-            .map((r) => (
-              <button
-                key={r.id}
-                onClick={() => onNavigate('recipe')}
-                className="card-hover"
-                style={{
-                  background: C.card,
-                  borderRadius: '16px',
-                  padding: '14px 16px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>{r.name}</div>
-                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px' }}>{r.difficulty} · {r.cookTime}분</div>
-                </div>
-                <ChevronRight size={16} color={C.fgMuted} />
-              </button>
-            ))}
-        </div>
-      </div>
 
       {/* Available recipes */}
       <div style={{ padding: '20px 20px 0' }}>
