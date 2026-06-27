@@ -27,6 +27,14 @@
   background: #EBEEEF;
 }
 
+.stat-card-hover {
+  transition: background 0.15s ease;
+}
+
+.stat-card-hover:hover {
+  background: #EBEEEF !important;
+}
+
 .dash-grid,
 .dash-col-left,
 .dash-col-right {
