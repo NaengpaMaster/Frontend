@@ -1,28 +1,12 @@
 import { useState } from 'react';
 import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info } from 'lucide-react';
 import {
-  User, Recipe, Inquiry, DiscardedItem, C,
-  mockDiscardedItems, CATEGORY_EMOJIS, IngredientCategory,
-  PresetIngredientItem, CATEGORIES,
-} from '../data/mockData';
-import { RecipeFormModal } from './RecipeFormModal';
+  C,
+  mockDiscardedItems, CATEGORY_EMOJIS,
+  CATEGORIES,
+} from '@/shared/data/mockData';
+import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-
-interface AdminPanelProps {
-  users: User[];
-  recipes: Recipe[];
-  inquiries: Inquiry[];
-  presetIngredients: PresetIngredientItem[];
-  onClose: () => void;
-  onUpdateUsers: (users: User[]) => void;
-  onUpdateRecipes: (recipes: Recipe[]) => void;
-  onAnswerInquiry: (id: string, answer: string) => void;
-  onDeleteInquiry: (id: string) => void;
-  onDeleteAnswer: (id: string) => void;
-  onUpdatePresetIngredients: (items: PresetIngredientItem[]) => void;
-}
-
-type AdminTab = 'members' | 'recipes' | 'ingredients' | 'stats' | 'inquiries';
 
 const TAB_ICONS = {
   members:     { icon: Users,         label: '회원' },
@@ -33,12 +17,9 @@ const TAB_ICONS = {
 };
 
 // ─── Members ──────────────────────────────────────────────────────────────────
-type MemberViewMode = 'active' | 'inactive' | 'admin';
-
-
-function MembersTab({ users, onUpdate }: { users: User[]; onUpdate: (u: User[]) => void }) {
+function MembersTab({ users, onUpdate }) {
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<MemberViewMode>('active');
+  const [viewMode, setViewMode] = useState('active');
 
   const allMembers = users.filter((u) => u.role !== 'admin');
   const activeMembers = allMembers.filter((u) => u.status === 'active');
@@ -48,7 +29,7 @@ function MembersTab({ users, onUpdate }: { users: User[]; onUpdate: (u: User[]) 
   const baseList = viewMode === 'active' ? activeMembers : viewMode === 'inactive' ? inactiveMembers : adminUsers;
   const filtered = baseList.filter((u) => u.name.includes(search) || u.email.includes(search) || u.householdType.includes(search));
 
-  const toggle = (id: string) => {
+  const toggle = (id) => {
     onUpdate(users.map((u) => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
   };
 
@@ -74,11 +55,11 @@ function MembersTab({ users, onUpdate }: { users: User[]; onUpdate: (u: User[]) 
 
       {/* Stats row - 클릭하면 해당 뷰로 필터 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
-        {([
-          { label: '관리자 수', value: adminUsers.length, color: C.fg, mode: 'admin' as MemberViewMode },
-          { label: '전체 회원', value: allMembers.length, color: C.primary, mode: 'active' as MemberViewMode },
-          { label: '탈퇴 회원', value: inactiveMembers.length, color: C.accent, mode: 'inactive' as MemberViewMode },
-        ]).map((s) => (
+        {[
+          { label: '관리자 수', value: adminUsers.length, color: C.fg, mode: 'admin' },
+          { label: '전체 회원', value: allMembers.length, color: C.primary, mode: 'active' },
+          { label: '탈퇴 회원', value: inactiveMembers.length, color: C.accent, mode: 'inactive' },
+        ].map((s) => (
           <div
             key={s.label}
             className="stat-card-hover"
@@ -164,18 +145,18 @@ function MembersTab({ users, onUpdate }: { users: User[]; onUpdate: (u: User[]) 
 }
 
 // ─── Recipes ──────────────────────────────────────────────────────────────────
-function RecipesTab({ recipes, onUpdate }: { recipes: Recipe[]; onUpdate: (r: Recipe[]) => void }) {
-  const [editing, setEditing] = useState<Recipe | null>(null);
-  const [selected, setSelected] = useState<Recipe | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+function RecipesTab({ recipes, onUpdate }) {
+  const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
 
-  const handleEdit = (data: Omit<Recipe, 'id'>) => {
+  const handleEdit = (data) => {
     if (!editing) return;
     onUpdate(recipes.map((r) => r.id === editing.id ? { ...data, id: editing.id } : r));
     setEditing(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id) => {
     onUpdate(recipes.filter((r) => r.id !== id));
     setDeleteId(null);
   };
@@ -299,19 +280,19 @@ function RecipesTab({ recipes, onUpdate }: { recipes: Recipe[]; onUpdate: (r: Re
 }
 
 // ─── Preset Ingredients ───────────────────────────────────────────────────────
-function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; onUpdate: (items: PresetIngredientItem[]) => void }) {
+function IngredientsTab({ items, onUpdate }) {
   const [search, setSearch] = useState('');
   const [addName, setAddName] = useState('');
-  const [addCategory, setAddCategory] = useState<IngredientCategory>('채소/과일');
+  const [addCategory, setAddCategory] = useState('채소/과일');
   const [addDupError, setAddDupError] = useState(false);
-  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editIdx, setEditIdx] = useState(null);
   const [editName, setEditName] = useState('');
-  const [editCategory, setEditCategory] = useState<IngredientCategory>('채소/과일');
-  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+  const [editCategory, setEditCategory] = useState('채소/과일');
+  const [deleteIdx, setDeleteIdx] = useState(null);
 
   const inputStyle = {
     background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px',
-    padding: '9px 12px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const,
+    padding: '9px 12px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
   };
 
   const handleAdd = () => {
@@ -322,16 +303,16 @@ function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; on
     setAddDupError(false);
   };
 
-  const handleToggle = (idx: number) => {
+  const handleToggle = (idx) => {
     onUpdate(items.map((item, i) => i === idx ? { ...item, active: !item.active } : item));
   };
 
-  const handleDelete = (idx: number) => {
+  const handleDelete = (idx) => {
     onUpdate(items.filter((_, i) => i !== idx));
     setDeleteIdx(null);
   };
 
-  const handleEditSave = (idx: number) => {
+  const handleEditSave = (idx) => {
     if (!editName.trim()) return;
     if (items.some((item, i) => i !== idx && item.name === editName.trim())) return;
     onUpdate(items.map((item, i) => i === idx ? { ...item, name: editName.trim(), category: editCategory } : item));
@@ -351,7 +332,7 @@ function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; on
         <input
           style={{
             width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
-            padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const,
+            padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
           }}
           placeholder="재료명 또는 카테고리 검색"
           value={search}
@@ -365,7 +346,7 @@ function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; on
           <Plus size={13} color={C.primary} /> 재료 추가
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <select style={{ ...inputStyle, width: '130px', flexShrink: 0, cursor: 'pointer' }} value={addCategory} onChange={(e) => setAddCategory(e.target.value as IngredientCategory)}>
+          <select style={{ ...inputStyle, width: '130px', flexShrink: 0, cursor: 'pointer' }} value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_EMOJIS[c]} {c}</option>)}
           </select>
           <input
@@ -395,74 +376,74 @@ function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; on
         {filtered.map((item) => {
           const idx = items.indexOf(item);
           return (
-          <div
-            key={idx}
-            style={{
-              background: C.card,
-              borderRadius: '14px',
-              padding: '11px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              opacity: item.active ? 1 : 0.5,
-              boxShadow: '0 2px 8px rgba(17,32,29,0.07)',
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>{CATEGORY_EMOJIS[item.category]}</span>
-            {editIdx === idx ? (
-              <>
-                <div style={{ flex: 1, display: 'flex', gap: '6px', minWidth: 0 }}>
-                  <input
-                    style={{
-                      ...inputStyle,
-                      flex: 1,
-                      fontSize: '13px',
-                      minWidth: 0,
-                      ...(items.some((item, i) => i !== idx && item.name === editName.trim()) && editName.trim()
-                        ? { border: `1px solid ${C.danger}`, background: C.dangerLight }
-                        : {}),
-                    }}
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleEditSave(idx); if (e.key === 'Escape') setEditIdx(null); }}
-                    autoFocus
-                  />
-                  <select
-                    style={{ ...inputStyle, fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value as IngredientCategory)}
-                  >
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_EMOJIS[c]} {c}</option>)}
-                  </select>
-                </div>
-                <button onClick={() => handleEditSave(idx)} style={{ padding: '5px 10px', background: C.primary, color: '#FFF', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>저장</button>
-                <button onClick={() => setEditIdx(null)} style={{ padding: '5px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '12px', color: C.fgMuted, cursor: 'pointer', flexShrink: 0 }}>취소</button>
-              </>
-            ) : (
-              <>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{item.name}</div>
-                  <div style={{ fontSize: '10px', color: C.fgMuted }}>{item.category}</div>
-                </div>
-                <button onClick={() => handleToggle(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.active ? C.primary : C.fgSubtle, padding: '2px' }}>
-                  {item.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                </button>
-                <button onClick={() => { setEditIdx(idx); setEditName(item.name); setEditCategory(item.category); }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
-                  <Edit2 size={12} />
-                </button>
-                {deleteIdx === idx ? (
-                  <>
-                    <button onClick={() => handleDelete(idx)} style={{ padding: '5px 8px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제</button>
-                    <button onClick={() => setDeleteIdx(null)} style={{ padding: '5px 6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}>취소</button>
-                  </>
-                ) : (
-                  <button onClick={() => setDeleteIdx(idx)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
-                    <Trash2 size={12} />
+            <div
+              key={idx}
+              style={{
+                background: C.card,
+                borderRadius: '14px',
+                padding: '11px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                opacity: item.active ? 1 : 0.5,
+                boxShadow: '0 2px 8px rgba(17,32,29,0.07)',
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>{CATEGORY_EMOJIS[item.category]}</span>
+              {editIdx === idx ? (
+                <>
+                  <div style={{ flex: 1, display: 'flex', gap: '6px', minWidth: 0 }}>
+                    <input
+                      style={{
+                        ...inputStyle,
+                        flex: 1,
+                        fontSize: '13px',
+                        minWidth: 0,
+                        ...(items.some((it, i) => i !== idx && it.name === editName.trim()) && editName.trim()
+                          ? { border: `1px solid ${C.danger}`, background: C.dangerLight }
+                          : {}),
+                      }}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleEditSave(idx); if (e.key === 'Escape') setEditIdx(null); }}
+                      autoFocus
+                    />
+                    <select
+                      style={{ ...inputStyle, fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                    >
+                      {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_EMOJIS[c]} {c}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={() => handleEditSave(idx)} style={{ padding: '5px 10px', background: C.primary, color: '#FFF', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>저장</button>
+                  <button onClick={() => setEditIdx(null)} style={{ padding: '5px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '12px', color: C.fgMuted, cursor: 'pointer', flexShrink: 0 }}>취소</button>
+                </>
+              ) : (
+                <>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{item.name}</div>
+                    <div style={{ fontSize: '10px', color: C.fgMuted }}>{item.category}</div>
+                  </div>
+                  <button onClick={() => handleToggle(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.active ? C.primary : C.fgSubtle, padding: '2px' }}>
+                    {item.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                   </button>
-                )}
-              </>
-            )}
-          </div>
+                  <button onClick={() => { setEditIdx(idx); setEditName(item.name); setEditCategory(item.category); }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
+                    <Edit2 size={12} />
+                  </button>
+                  {deleteIdx === idx ? (
+                    <>
+                      <button onClick={() => handleDelete(idx)} style={{ padding: '5px 8px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제</button>
+                      <button onClick={() => setDeleteIdx(null)} style={{ padding: '5px 6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDeleteIdx(idx)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           );
         })}
       </div>
@@ -471,17 +452,17 @@ function IngredientsTab({ items, onUpdate }: { items: PresetIngredientItem[]; on
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
-function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
+function StatsTab({ discarded }) {
   const expiredItems = discarded.filter((d) => d.reason === '유통기한 만료');
   const byCategory = Object.entries(
-    expiredItems.reduce<Record<string, number>>((acc, d) => {
+    expiredItems.reduce((acc, d) => {
       acc[d.category] = (acc[d.category] ?? 0) + 1;
       return acc;
     }, {})
   )
     .map(([name, count]) => ({ name: name.split('/')[0], count }))
     .sort((a, b) => b.count - a.count);
-  const nameCounts = expiredItems.reduce<Record<string, number>>((acc, d) => {
+  const nameCounts = expiredItems.reduce((acc, d) => {
     acc[d.name] = (acc[d.name] ?? 0) + 1;
     return acc;
   }, {});
@@ -489,7 +470,7 @@ function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
   const totalExpired = expiredItems.length;
   const wasteScore = Math.max(0, Math.min(100, 100 - totalExpired * 2 + 3 + 5));
   const recentExpired = expiredItems.slice(0, 5);
-  const statCardStyle: React.CSSProperties = {
+  const statCardStyle = {
     background: C.card,
     borderRadius: '16px',
     padding: '14px',
@@ -565,7 +546,7 @@ function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
         {recentExpired.map((d) => (
           <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category as IngredientCategory]}</span>
+              <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category]}</span>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{d.name}</div>
                 <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{d.reason}</div>
@@ -580,35 +561,23 @@ function StatsTab({ discarded }: { discarded: DiscardedItem[] }) {
 }
 
 // ─── Inquiries ────────────────────────────────────────────────────────────────
-function InquiriesTab({
-  inquiries,
-  onAnswer,
-  onDeleteInquiry,
-  onDeleteAnswer,
-}: {
-  inquiries: Inquiry[];
-  onAnswer: (id: string, answer: string) => void;
-  onDeleteInquiry: (id: string) => void;
-  onDeleteAnswer: (id: string) => void;
-}) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'answered'>('pending');
-  const [expanded, setExpanded] = useState<string | null>(null);
+function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
+  const [activeTab, setActiveTab] = useState('pending');
+  const [expanded, setExpanded] = useState(null);
   const [answerText, setAnswerText] = useState('');
-  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingAnswerId, setEditingAnswerId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // 미답변: 오래된 순 (위), 최신이 아래
   const pendingList = inquiries
     .filter((i) => i.status === 'pending')
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  // 답변완료: 최신 답변이 위
   const answeredList = inquiries
     .filter((i) => i.status === 'answered')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const currentList = activeTab === 'pending' ? pendingList : answeredList;
 
-  const handleExpand = (inq: Inquiry) => {
+  const handleExpand = (inq) => {
     if (expanded === inq.id) {
       setExpanded(null);
       setEditingAnswerId(null);
@@ -619,7 +588,7 @@ function InquiriesTab({
     }
   };
 
-  const tabBtn = (tab: 'pending' | 'answered', label: string, count: number, Icon: React.ElementType) => {
+  const tabBtn = (tab, label, count, Icon) => {
     const isActive = activeTab === tab;
     return (
       <button
@@ -654,13 +623,11 @@ function InquiriesTab({
         <div style={{ fontSize: '12px', color: C.fgMuted }}>전체 {inquiries.length}건</div>
       </div>
 
-      {/* 탭 헤더 */}
       <div style={{ display: 'flex', background: C.card, borderRadius: '14px 14px 0 0', borderBottom: `1px solid ${C.border}`, marginBottom: '12px' }}>
         {tabBtn('pending', '미답변', pendingList.length, Clock)}
         {tabBtn('answered', '답변완료', answeredList.length, CheckCircle)}
       </div>
 
-      {/* 탭 콘텐츠 */}
       {currentList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: C.fgMuted, fontSize: '13px' }}>
           {activeTab === 'pending' ? '미답변 문의가 없어요' : '답변 완료된 문의가 없어요'}
@@ -708,7 +675,7 @@ function InquiriesTab({
                         <div style={{ fontSize: '11px', fontWeight: 700, color: C.fgMuted }}>관리자 답변</div>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <button
-                            onClick={() => { setEditingAnswerId(inq.id); setAnswerText(inq.answer!); }}
+                            onClick={() => { setEditingAnswerId(inq.id); setAnswerText(inq.answer); }}
                             style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '3px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '6px', color: C.fgMuted, fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
                           >
                             <Edit2 size={11} /> 수정
@@ -734,7 +701,7 @@ function InquiriesTab({
                           borderRadius: '10px', padding: '10px 12px', color: C.fg, fontSize: '13px',
                           outline: 'none', resize: 'none', height: '90px', boxSizing: 'border-box',
                           display: 'block', marginBottom: '8px',
-                        } as React.CSSProperties}
+                        }}
                         placeholder="답변을 입력하세요..."
                         value={answerText}
                         onChange={(e) => setAnswerText(e.target.value)}
@@ -761,7 +728,7 @@ function InquiriesTab({
                         </button>
                         {inq.answer && (
                           <button
-                            onClick={() => { setEditingAnswerId(null); setAnswerText(inq.answer!); }}
+                            onClick={() => { setEditingAnswerId(null); setAnswerText(inq.answer); }}
                             style={{ flex: 1, padding: '9px 12px', background: C.surface, border: `1px solid ${C.border}`, color: C.fgMuted, borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
                           >
                             취소
@@ -784,15 +751,13 @@ function InquiriesTab({
 export function AdminPanel({
   users, recipes, inquiries, presetIngredients, onClose,
   onUpdateUsers, onUpdateRecipes, onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
-}: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<AdminTab>('members');
+}) {
+  const [activeTab, setActiveTab] = useState('members');
 
   const pendingInquiries = inquiries.filter((i) => i.status !== 'answered').length;
 
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 500, display: 'flex', flexDirection: 'column' }}
-    >
+    <div style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 500, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div
         style={{
@@ -824,7 +789,7 @@ export function AdminPanel({
           flexShrink: 0,
         }}
       >
-        {(Object.entries(TAB_ICONS) as [AdminTab, { icon: any; label: string }][]).map(([key, { icon: Icon, label }]) => {
+        {Object.entries(TAB_ICONS).map(([key, { icon: Icon, label }]) => {
           const isActive = activeTab === key;
           const badge = key === 'inquiries' && pendingInquiries > 0 ? pendingInquiries : null;
           return (
