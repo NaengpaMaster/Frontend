@@ -20,20 +20,6 @@ export const C = {
   dangerLight: '#FFEBEE',
 };
 
-export const mockWeather = {
-  condition: '맑음',
-  temperature: 29,
-  description: '맑음',
-};
-
-export const WEATHER_RECIPE_MAP = {
-  맑음: { categories: ['볶음', '볶음밥', '반찬'], emoji: '☀️', message: '맑은 날엔 간단한 볶음요리가 딱!' },
-  흐림: { categories: ['찌개', '수프', '국'], emoji: '☁️', message: '흐린 날엔 따뜻한 국물요리 어떠세요?' },
-  비: { categories: ['찌개', '수프', '국', '볶음'], emoji: '🌧️', message: '비 오는 날엔 따뜻한 찌개가 최고!' },
-  눈: { categories: ['찌개', '수프', '국'], emoji: '❄️', message: '눈 오는 날엔 뜨끈한 국물요리를!' },
-  더움: { categories: ['무침', '반찬', '기타'], emoji: '🌞', message: '더운 날엔 간단하고 시원한 요리 추천!' },
-};
-
 // ─── Utilities ─────────────────────────────────────────────────────────────────
 
 export const TODAY = new Date().toISOString().split('T')[0];
