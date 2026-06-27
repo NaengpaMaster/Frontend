@@ -167,6 +167,7 @@ export default function App() {
       <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', background: '#F2F4F5' }}>
         <div style={{ width: '100%', maxWidth: '720px', height: '100%', position: 'relative', overflow: 'hidden' }}>
           <AdminPanel
+            currentUser={currentUser}
             users={users}
             recipes={recipes}
             inquiries={inquiries}

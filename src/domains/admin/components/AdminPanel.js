@@ -17,7 +17,7 @@ const TAB_ICONS = {
 };
 
 // ─── Members ──────────────────────────────────────────────────────────────────
-function MembersTab({ users, onUpdate }) {
+function MembersTab({ users, onUpdate, currentUser }) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('active');
 
@@ -32,6 +32,11 @@ function MembersTab({ users, onUpdate }) {
   const toggle = (id) => {
     onUpdate(users.map((u) => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
   };
+
+  const changeRole = (id, newRole) => {
+    onUpdate(users.map((u) => u.id === id ? { ...u, role: newRole } : u));
+  };
+
 
   return (
     <div>
@@ -118,22 +123,62 @@ function MembersTab({ users, onUpdate }) {
               </div>
               <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{u.email} · {u.householdType} · 가입 {u.joinDate}</div>
             </div>
-            <button
-              onClick={() => toggle(u.id)}
-              style={{
-                padding: '6px 12px',
-                background: u.status === 'active' ? C.dangerLight : C.primaryLight,
-                borderRadius: '10px',
-                color: u.status === 'active' ? C.danger : C.primary,
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              {u.status === 'active' ? '탈퇴 처리' : '가입 복구'}
-            </button>
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              {viewMode !== 'admin' && (
+                <button
+                  onClick={() => toggle(u.id)}
+                  style={{
+                    padding: '6px 10px',
+                    background: u.status === 'active' ? C.dangerLight : C.primaryLight,
+                    borderRadius: '10px',
+                    color: u.status === 'active' ? C.danger : C.primary,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    border: 'none',
+                  }}
+                >
+                  {u.status === 'active' ? '탈퇴 처리' : '가입 복구'}
+                </button>
+              )}
+              {viewMode === 'active' && (
+                <button
+                  onClick={() => changeRole(u.id, 'admin')}
+                  style={{
+                    padding: '6px 10px',
+                    background: C.primaryLight,
+                    borderRadius: '10px',
+                    color: C.primary,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    border: `1px solid ${C.primary}`,
+                  }}
+                >
+                  관리자 지정
+                </button>
+              )}
+              {viewMode === 'admin' && currentUser?.email !== u.email && (
+                <button
+                  onClick={() => changeRole(u.id, 'user')}
+                  style={{
+                    padding: '6px 10px',
+                    background: C.warnLight,
+                    borderRadius: '10px',
+                    color: C.warn,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    border: 'none',
+                  }}
+                >
+                  권한 해제
+                </button>
+              )}
+            </div>
           </div>
         ))}
         {filtered.length === 0 && (
@@ -749,12 +794,12 @@ function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) 
 
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
-  users, recipes, inquiries, presetIngredients, onClose,
+  currentUser, users, recipes, inquiries, presetIngredients, onClose,
   onUpdateUsers, onUpdateRecipes, onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState('members');
 
-  const pendingInquiries = inquiries.filter((i) => i.status !== 'answered').length;
+  const pendingInquiries = inquiries.filter((i) => i.status === 'pending').length;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 500, display: 'flex', flexDirection: 'column' }}>
@@ -838,7 +883,7 @@ export function AdminPanel({
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
-        {activeTab === 'members'     && <MembersTab users={users} onUpdate={onUpdateUsers} />}
+        {activeTab === 'members'     && <MembersTab users={users} onUpdate={onUpdateUsers} currentUser={currentUser} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onUpdate={onUpdateRecipes} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab discarded={mockDiscardedItems} />}
