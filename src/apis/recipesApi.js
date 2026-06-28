@@ -18,3 +18,14 @@ export const recipesApi = {
   addComment: (recipeId, data) =>
     axiosClient.post(`/api/recipes/${recipeId}/comments`, data),
 };
+
+export const adminRecipesApi = {
+  getAll: (page = 0, size = 20) =>
+    axiosClient.get('/api/v1/recipes', { params: { page, size } }),
+  getById: (id) =>
+    axiosClient.get(`/api/v1/admin/recipes/${id}`),
+  update: (id, data) =>
+    axiosClient.put(`/api/v1/recipes/${id}`, data),
+  delete: (id) =>
+    axiosClient.delete(`/api/v1/recipes/${id}`),
+};
