@@ -1,34 +1,89 @@
 import { create } from 'zustand';
-import { initialIngredients, initialPresetIngredients } from '@/shared/data/mockData';
+import { initialPresetIngredients } from '@/shared/data/mockData';
+import { fridgeApi } from '@/apis/fridgeApi';
 
-const useIngredientStore = create((set) => ({
-  ingredients: initialIngredients,
+const CATEGORY_NAMES = {
+  1: '채소/과일',
+  2: '채소/과일',
+  3: '육류/어류',
+  4: '육류/어류',
+  5: '유제품/계란',
+  6: '기타',
+  7: '기타',
+  8: '양념/소스',
+  9: '가공식품',
+  10: '기타',
+};
+
+const toViewIngredient = (item) => ({
+  id: item.fridgeItemId,
+  productId: item.productId,
+  name: item.productName,
+  category: CATEGORY_NAMES[item.productCategoryId] ?? '기타',
+  quantity: item.quantity,
+  expiryDate: item.expiryDate,
+  memo: item.memo,
+});
+
+const useIngredientStore = create((set, get) => ({
+  ingredients: [],
   presetIngredients: initialPresetIngredients,
+  loading: false,
+  error: null,
 
-  addIngredient: (data) => set((state) => ({
-    ingredients: [
-      ...state.ingredients,
-      { ...data, id: `ing_${Date.now()}`, addedDate: new Date().toISOString().split('T')[0] },
-    ],
-  })),
+  fetchIngredients: async () => {
+    set({ loading: true, error: null });
+    try {
+      const items = await fridgeApi.getItems();
+      set({ ingredients: items.map(toViewIngredient) });
+    } catch (error) {
+      set({ error: error.message });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  addIngredient: async (data) => {
+    await fridgeApi.createItem({
+      productId: data.productId,
+      quantity: data.quantity,
+      expiryDate: data.expiryDate,
+      memo: data.memo,
+    });
+
+    await get().fetchIngredients();
+  },
 
   addIngredients: (items) => set((state) => ({
     ingredients: [...state.ingredients, ...items],
   })),
 
-  updateIngredient: (id, data) => set((state) => ({
-    ingredients: state.ingredients.map((i) => i.id === id ? { ...i, ...data } : i),
-  })),
+  updateIngredient: async (id, data) => {
+    await fridgeApi.updateItem(id, {
+      productId: data.productId,
+      quantity: data.quantity,
+      expiryDate: data.expiryDate,
+      memo: data.memo,
+    });
 
-  useIngredient: (id, remainingQuantity) => set((state) => ({
-    ingredients: remainingQuantity
-      ? state.ingredients.map((i) => i.id === id ? { ...i, quantity: remainingQuantity } : i)
-      : state.ingredients.filter((i) => i.id !== id),
-  })),
+    await get().fetchIngredients();
+  },
 
-  deleteIngredient: (id) => set((state) => ({
-    ingredients: state.ingredients.filter((i) => i.id !== id),
-  })),
+  useIngredient: async (id, remainingQuantity) => {
+    if (remainingQuantity) {
+      await fridgeApi.usePartial(id, remainingQuantity);
+      await get().fetchIngredients();
+      return;
+    }
+
+    await fridgeApi.useAll(id);
+    await get().fetchIngredients();
+  },
+
+  deleteIngredient: async (id) => {
+    await fridgeApi.deleteItem(id);
+    await get().fetchIngredients();
+  },
 
   setPresetIngredients: (presetsOrFn) => set((state) => ({
     presetIngredients: typeof presetsOrFn === 'function'

@@ -1,18 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
-import { C, CATEGORY_EMOJIS, PRESET_INGREDIENTS } from '@/shared/data/mockData';
+import { C, CATEGORY_EMOJIS } from '@/shared/data/mockData';
+import { fridgeApi } from '@/apis/fridgeApi';
+
+const CATEGORY_NAMES = {
+  1: '채소/과일',
+  2: '채소/과일',
+  3: '육류/어류',
+  4: '육류/어류',
+  5: '유제품/계란',
+  6: '기타',
+  7: '기타',
+  8: '양념/소스',
+  9: '가공식품',
+  10: '기타',
+};
+
+const toSearchItem = (item) => ({
+  productId: item.productId,
+  name: item.name,
+  category: CATEGORY_NAMES[item.productCategoryId] ?? '기타',
+});
 
 export function IngredientSearchField({
   value,
   placeholder = '재료 이름 검색',
   excluded = [],
-  presetIngredients,
   onSelect,
   onFormSubmit,
 }) {
   const [query, setQuery] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [apiResults, setApiResults] = useState([]);
 
   // 외부에서 value가 바뀌면 (ex. 수정 모달 초기값) query도 동기화
   useEffect(() => {
@@ -20,17 +40,30 @@ export function IngredientSearchField({
     setIsOpen(false);
   }, [value]);
 
-  const sourceList = presetIngredients
-    ? presetIngredients.filter((item) => item.active)
-    : PRESET_INGREDIENTS;
-
   const keyword = query.trim();
-  const results = isOpen && keyword
-    ? sourceList
-        .filter((item) => !excluded.includes(item.name))
-        .filter((item) => item.name.includes(keyword) || item.category.includes(keyword))
-        .slice(0, 6)
-    : [];
+  const excludedKey = excluded.join('|');
+  const results = isOpen && keyword ? apiResults : [];
+
+  useEffect(() => {
+    if (!isOpen || !keyword) {
+      setApiResults([]);
+      return;
+    }
+
+    let alive = true;
+    fridgeApi.searchProducts(keyword)
+      .then((items) => {
+        if (!alive) return;
+        setApiResults(items.map(toSearchItem).filter((item) => !excluded.includes(item.name)).slice(0, 6));
+      })
+      .catch(() => {
+        if (alive) setApiResults([]);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [excludedKey, isOpen, keyword]);
 
   // 검색어 바뀔 때 하이라이트 초기화
   useEffect(() => {
@@ -47,13 +80,14 @@ export function IngredientSearchField({
   const handleChange = (e) => {
     setQuery(e.target.value);
     setIsOpen(true);       // 타이핑하면 드롭다운 열기
+    onSelect({ name: e.target.value, category: '기타', productId: null });
   };
 
   const handleClear = () => {
     setQuery('');
     setIsOpen(false);
     setHighlightedIndex(-1);
-    onSelect({ name: '', category: '기타' });
+    onSelect({ name: '', category: '기타', productId: null });
   };
 
   const handleKeyDown = (e) => {
@@ -122,7 +156,7 @@ export function IngredientSearchField({
             const isHighlighted = idx === highlightedIndex;
             return (
               <button
-                key={`${item.category}-${item.name}`}
+                key={`${item.productId ?? item.category}-${item.name}`}
                 type="button"
                 onMouseDown={(e) => {
                   // onBlur보다 먼저 실행되게 mouseDown에서 처리

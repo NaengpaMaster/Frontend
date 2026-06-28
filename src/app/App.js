@@ -38,7 +38,7 @@ export default function App() {
   const { activeTab, setActiveTab } = useUiStore();
   const {
     ingredients, presetIngredients,
-    addIngredient, addIngredients, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
+    fetchIngredients, addIngredient, addIngredients, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
   } = useIngredientStore();
   const {
     recipes, comments,
@@ -80,6 +80,11 @@ export default function App() {
       mounted = false;
     };
   }, [resetAuth, setAuthLoading, setCurrentUser, setShowAdmin]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchIngredients();
+  }, [currentUser, fetchIngredients]);
 
   // ─── Auth handlers ─────────────────────────────────────────────────────────
   const handleLogin = (user) => {

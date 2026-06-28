@@ -28,6 +28,7 @@ function IngredientModal({
   onSave,
 }) {
   const [form, setForm] = useState({
+    productId: initial?.productId ?? null,
     name: initial?.name ?? '',
     category: initial?.category ?? '채소/과일',
     quantity: initial?.quantity ?? '',
@@ -70,12 +71,16 @@ function IngredientModal({
                 placeholder="재료 이름을 검색하세요"
                 presetIngredients={presetIngredients}
                 onSelect={(ingredient) => {
-                  if (ingredient.name) {
-                    setForm((prev) => ({ ...prev, name: ingredient.name, category: ingredient.category, emoji: CATEGORY_EMOJIS[ingredient.category] }));
-                  }
+                  setForm((prev) => ({
+                    ...prev,
+                    productId: ingredient.productId,
+                    name: ingredient.name,
+                    category: ingredient.category,
+                    emoji: CATEGORY_EMOJIS[ingredient.category],
+                  }));
                 }}
                 onFormSubmit={() => {
-                  if (form.name && form.quantity && form.expiryDate) { onSave(form); onClose(); }
+                  if (form.productId && form.name && form.quantity && form.expiryDate) { onSave(form); onClose(); }
                 }}
               />
             </div>
@@ -124,15 +129,15 @@ function IngredientModal({
         {/* Footer (fixed) */}
         <div style={{ padding: '16px 20px', flexShrink: 0, borderTop: `1px solid ${C.border}`, background: C.bg }}>
           <button
-            onClick={() => { if (form.name && form.quantity && form.expiryDate) { onSave(form); onClose(); } }}
-            disabled={!form.name || !form.quantity || !form.expiryDate}
+            onClick={() => { if (form.productId && form.name && form.quantity && form.expiryDate) { onSave(form); onClose(); } }}
+            disabled={!form.productId || !form.name || !form.quantity || !form.expiryDate}
             style={{
               width: '100%',
-              background: form.name && form.quantity && form.expiryDate ? C.primary : C.surface,
-              color: form.name && form.quantity && form.expiryDate ? '#FFFFFF' : C.fgMuted,
+              background: form.productId && form.name && form.quantity && form.expiryDate ? C.primary : C.surface,
+              color: form.productId && form.name && form.quantity && form.expiryDate ? '#FFFFFF' : C.fgMuted,
               border: 'none', borderRadius: '16px', padding: '14px',
               fontWeight: 700, fontSize: '15px',
-              cursor: form.name && form.quantity && form.expiryDate ? 'pointer' : 'not-allowed',
+              cursor: form.productId && form.name && form.quantity && form.expiryDate ? 'pointer' : 'not-allowed',
             }}
           >
             {initial ? '수정 완료' : '냉장고에 넣기'}
