@@ -42,7 +42,9 @@ export default function App() {
   } = useIngredientStore();
   const {
     recipes, comments,
-    toggleFavorite, addRecipe, updateRecipe, deleteRecipe, addComment, setRecipes,
+    toggleFavorite, addRecipe, updateRecipe, deleteRecipe, addComment,
+    fetchAdminRecipes, fetchAdminRecipesNext, adminUpdateRecipe, adminDeleteRecipe,
+    adminLoading, adminPage, adminTotalPages,
   } = useRecipeStore();
   const {
     shoppingItems,
@@ -211,7 +213,13 @@ export default function App() {
             presetIngredients={presetIngredients}
             onClose={handleLogout}
             onUpdateUsers={setUsers}
-            onUpdateRecipes={setRecipes}
+            onFetchRecipes={fetchAdminRecipes}
+            onFetchNextPage={fetchAdminRecipesNext}
+            adminLoading={adminLoading}
+            adminPage={adminPage}
+            adminTotalPages={adminTotalPages}
+            onAdminUpdateRecipe={adminUpdateRecipe}
+            onAdminDeleteRecipe={adminDeleteRecipe}
             onAnswerInquiry={answerInquiry}
             onDeleteInquiry={deleteInquiry}
             onDeleteAnswer={deleteAnswer}
