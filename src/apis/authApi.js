@@ -32,7 +32,11 @@ export function toFrontendUser(member) {
     password: '',
     role: member.role === 'ADMIN' ? 'admin' : 'user',
     householdType: HOUSEHOLD_LABELS[member.householdType] || '기타',
-    preferences: { favoriteFoods: [], allergies: [], avoidIngredients: [] },
+    preferences: {
+      favoriteFoods: member.favoriteFoods || [],
+      allergies: [],
+      avoidIngredients: member.avoidIngredients || [],
+    },
     joinDate: member.createdAt ? member.createdAt.split('T')[0] : '',
     status: member.status === 'INACTIVE' || member.deletedAt ? 'inactive' : 'active',
   };
@@ -76,6 +80,11 @@ export const authApi = {
 
   async getMe() {
     const member = unwrap(await axiosClient.get('/api/v1/members/me'));
+    return toFrontendUser(member);
+  },
+
+  async getProfile() {
+    const member = unwrap(await axiosClient.get('/api/v1/members/me/profile'));
     return toFrontendUser(member);
   },
 };

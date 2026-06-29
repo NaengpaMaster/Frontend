@@ -86,10 +86,44 @@ export default function App() {
     fetchIngredients();
   }, [currentUser, fetchIngredients]);
 
+  useEffect(() => {
+    function handleForbidden() {
+      setShowAdmin(false);
+    }
+
+    window.addEventListener('naengpa:forbidden', handleForbidden);
+    return () => window.removeEventListener('naengpa:forbidden', handleForbidden);
+  }, [setShowAdmin]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function refreshProfile() {
+      if (!showMyPage) return;
+
+      try {
+        const profile = await authApi.getProfile();
+        if (mounted) {
+          setCurrentUser(profile);
+        }
+      } catch {
+        if (mounted) {
+          setShowMyPage(false);
+        }
+      }
+    }
+
+    refreshProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [showMyPage, setCurrentUser, setShowMyPage]);
+
   // ─── Auth handlers ─────────────────────────────────────────────────────────
   const handleLogin = (user) => {
     setCurrentUser(user);
-    setShowAdmin(user.role === 'admin');
+    setShowAdmin(user?.role === 'admin');
   };
   const handleLogout = async () => {
     try {

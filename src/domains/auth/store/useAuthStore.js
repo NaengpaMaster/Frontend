@@ -8,7 +8,9 @@ const useAuthStore = create((set) => ({
   setCurrentUser: (user) => set({ currentUser: user }),
   setAuthLoading: (authLoading) => set({ authLoading }),
   setShowMyPage: (val) => set({ showMyPage: val }),
-  setShowAdmin: (val) => set({ showAdmin: val }),
+  setShowAdmin: (val) => set((state) => ({
+    showAdmin: Boolean(val && state.currentUser?.role === 'admin'),
+  })),
   resetAuth: () => set({
     currentUser: null,
     showMyPage: false,
