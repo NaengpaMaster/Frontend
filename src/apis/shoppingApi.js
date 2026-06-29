@@ -1,16 +1,20 @@
 import axiosClient from './axiosClient';
 
+const unwrap = (response) => response.data?.data ?? response.data;
+
 export const shoppingApi = {
   getAll: () =>
-    axiosClient.get('/api/shopping'),
+    axiosClient.get('/api/v1/shopping-items').then(unwrap),
+
   create: (data) =>
-    axiosClient.post('/api/shopping', data),
-  toggle: (id) =>
-    axiosClient.patch(`/api/shopping/${id}/toggle`),
+    axiosClient.post('/api/v1/shopping-items', data).then(unwrap),
+
+  toggle: (id, isPurchased) =>
+    axiosClient.patch(`/api/v1/shopping-items/${id}/check`, { isPurchased }).then(unwrap),
+
   delete: (id) =>
-    axiosClient.delete(`/api/shopping/${id}`),
-  clearChecked: () =>
-    axiosClient.delete('/api/shopping/checked'),
-  moveToFridge: (ids) =>
-    axiosClient.post('/api/shopping/move-to-fridge', { ids }),
+    axiosClient.delete(`/api/v1/shopping-items/${id}`),
+
+  moveToFridge: (id, data) =>
+    axiosClient.post(`/api/v1/shopping-items/${id}/fridge`, data).then(unwrap),
 };
