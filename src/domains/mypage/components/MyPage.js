@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, AlertTriangle } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
 
@@ -39,6 +39,17 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
   const [avoidInput, setAvoidInput] = useState('');
   const [showAvoidSuggestions, setShowAvoidSuggestions] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      ...user,
+      preferences: {
+        ...user.preferences,
+        allergies: [],
+        avoidIngredients: Array.from(new Set([...user.preferences.avoidIngredients, ...user.preferences.allergies])),
+      },
+    });
+  }, [user]);
 
   const avoidSuggestions = avoidInput.trim() && showAvoidSuggestions
     ? presetIngredients
