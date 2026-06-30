@@ -5,7 +5,7 @@ import { IngredientSearchField } from '@/domains/fridge/components/IngredientSea
 
 export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked, onMoveCheckedToFridge }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: '', quantity: '', category: '채소/과일' });
+  const [form, setForm] = useState({ productId: null, name: '', quantity: '', category: '채소/과일' });
 
   const checkedCount = items.filter((i) => i.checked).length;
 
@@ -16,9 +16,9 @@ export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked,
   }, {});
 
   const handleAdd = () => {
-    if (!form.name) return;
+    if (!form.productId || !form.name) return;
     onAdd({ ...form, checked: false });
-    setForm({ name: '', quantity: '', category: '채소/과일' });
+    setForm({ productId: null, name: '', quantity: '', category: '채소/과일' });
     setShowAdd(false);
   };
 
@@ -103,7 +103,12 @@ export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked,
               <IngredientSearchField
                 value={form.name}
                 placeholder="살 재료 이름 검색"
-                onSelect={(ingredient) => setForm({ ...form, name: ingredient.name, category: ingredient.category })}
+                onSelect={(ingredient) => setForm({
+                  ...form,
+                  productId: ingredient.productId,
+                  name: ingredient.name,
+                  category: ingredient.category,
+                })}
               />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -115,11 +120,11 @@ export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked,
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={handleAdd}
-                disabled={!form.name}
+                disabled={!form.productId || !form.name}
                 style={{
-                  width: '100%', padding: '10px 16px', background: form.name ? C.primary : C.surface,
-                  color: form.name ? '#FFF' : C.fgMuted, border: 'none', borderRadius: '10px',
-                  fontWeight: 700, cursor: form.name ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', fontSize: '13px',
+                  width: '100%', padding: '10px 16px', background: form.productId && form.name ? C.primary : C.surface,
+                  color: form.productId && form.name ? '#FFF' : C.fgMuted, border: 'none', borderRadius: '10px',
+                  fontWeight: 700, cursor: form.productId && form.name ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', fontSize: '13px',
                 }}
               >
                 추가

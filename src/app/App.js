@@ -12,7 +12,7 @@ import { InquiryPage } from '@/domains/inquiry/components/InquiryPage';
 import { AuthScreen } from '@/domains/auth/components/AuthScreen';
 import { MyPage } from '@/domains/mypage/components/MyPage';
 import { AdminPanel } from '@/domains/admin/components/AdminPanel';
-import { CATEGORY_EMOJIS, mockDiscardedItems } from '@/shared/data/mockData';
+import { mockDiscardedItems } from '@/shared/data/mockData';
 
 import useAuthStore from '@/domains/auth/store/useAuthStore';
 import useUiStore from '@/shared/store/useUiStore';
@@ -38,7 +38,7 @@ export default function App() {
   const { activeTab, setActiveTab } = useUiStore();
   const {
     ingredients, presetIngredients,
-    fetchIngredients, addIngredient, addIngredients, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
+    fetchIngredients, addIngredient, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
   } = useIngredientStore();
   const {
     recipes, comments,
@@ -46,7 +46,7 @@ export default function App() {
   } = useRecipeStore();
   const {
     shoppingItems,
-    addShoppingItem, toggleShoppingItem, deleteShoppingItem, clearChecked,
+    fetchShoppingItems, addShoppingItem, toggleShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
   } = useShoppingStore();
   const {
     inquiries, users,
@@ -84,7 +84,8 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     fetchIngredients();
-  }, [currentUser, fetchIngredients]);
+    fetchShoppingItems();
+  }, [currentUser, fetchIngredients, fetchShoppingItems]);
 
   useEffect(() => {
     function handleForbidden() {
@@ -160,24 +161,9 @@ export default function App() {
   };
 
   // ─── Shopping → Fridge ─────────────────────────────────────────────────────
-  const handleMoveCheckedToFridge = () => {
-    const checked = shoppingItems.filter((item) => item.checked);
-    if (checked.length === 0) return;
-
-    const moved = checked.map((item, index) => ({
-      id: `ing_shop_${Date.now()}_${index}`,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity || '1개',
-      location: '냉장',
-      expiryDate: '기한없음',
-      emoji: CATEGORY_EMOJIS[item.category],
-      addedDate: new Date().toISOString().split('T')[0],
-      memo: '장보기 목록에서 반영',
-    }));
-
-    addIngredients(moved);
-    clearChecked();
+  const handleMoveCheckedToFridge = async () => {
+    await moveCheckedToFridge();
+    await fetchIngredients();
     setActiveTab('fridge');
   };
 
