@@ -57,6 +57,12 @@ export default function App() {
     let mounted = true;
 
     async function restoreSession() {
+      if (!authApi.hasStoredRefreshToken()) {
+        resetAuth();
+        setAuthLoading(false);
+        return;
+      }
+
       try {
         await authApi.refresh();
         const user = await authApi.getMe();
@@ -95,6 +101,15 @@ export default function App() {
     window.addEventListener('naengpa:forbidden', handleForbidden);
     return () => window.removeEventListener('naengpa:forbidden', handleForbidden);
   }, [setShowAdmin]);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      resetAuth();
+    }
+
+    window.addEventListener('naengpa:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('naengpa:unauthorized', handleUnauthorized);
+  }, [resetAuth]);
 
   useEffect(() => {
     let mounted = true;
@@ -138,9 +153,11 @@ export default function App() {
     setUsers(users.map((u) => u.id === currentUser.id ? { ...u, status: 'inactive' } : u));
     handleLogout();
   };
-  const handleUpdateUser = (updated) => {
-    setCurrentUser(updated);
-    setUsers(users.map((u) => u.id === updated.id ? updated : u));
+  const handleUpdateUser = async (updated) => {
+    const saved = await authApi.updateProfile(updated);
+    setCurrentUser(saved);
+    setUsers(users.map((u) => u.id === saved.id ? saved : u));
+    return saved;
   };
 
   // ─── Recipe handlers ────────────────────────────────────────────────────────
@@ -296,7 +313,6 @@ export default function App() {
           {showMyPage && (
             <MyPage
               user={currentUser}
-              presetIngredients={presetIngredients}
               onClose={() => setShowMyPage(false)}
               onLogout={handleLogout}
               onUpdate={handleUpdateUser}
