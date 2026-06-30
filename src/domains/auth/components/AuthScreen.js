@@ -45,6 +45,16 @@ export function AuthScreen({ onLogin }) {
 
   const handleLogin = async () => {
     setError('');
+
+    if (!loginEmail.trim()) {
+      setError('이메일은 공백일 수 없습니다.');
+      return;
+    }
+    if (!loginPw) {
+      setError('비밀번호는 공백일 수 없습니다.');
+      return;
+    }
+
     setLoading(true);
 
     try {

@@ -1,4 +1,4 @@
-import axiosClient, { clearAccessToken, saveAccessToken } from './axiosClient';
+import axiosClient, { clearAccessToken, getRefreshToken, saveAccessToken, saveRefreshToken } from './axiosClient';
 
 const HOUSEHOLD_LABELS = {
   ONE_PERSON: '1인',
@@ -12,6 +12,18 @@ const HOUSEHOLD_VALUES = {
   '2인': 'TWO_PERSON',
   '3인 이상': 'THREE_OR_MORE',
   '기타': 'ETC',
+};
+
+const toAvoidIngredient = (item) => {
+  if (typeof item === 'string') {
+    return { productId: null, name: item, productCategoryId: null };
+  }
+
+  return {
+    productId: item.productId,
+    name: item.name,
+    productCategoryId: item.productCategoryId ?? null,
+  };
 };
 
 function unwrap(response) {
@@ -35,7 +47,7 @@ export function toFrontendUser(member) {
     preferences: {
       favoriteFoods: member.favoriteFoods || [],
       allergies: [],
-      avoidIngredients: member.avoidIngredients || [],
+      avoidIngredients: (member.avoidIngredients || []).map(toAvoidIngredient),
     },
     joinDate: member.createdAt ? member.createdAt.split('T')[0] : '',
     status: member.status === 'INACTIVE' || member.deletedAt ? 'inactive' : 'active',
@@ -43,9 +55,14 @@ export function toFrontendUser(member) {
 }
 
 export const authApi = {
+  hasStoredRefreshToken() {
+    return Boolean(getRefreshToken());
+  },
+
   async login(email, password) {
     const tokenResponse = unwrap(await axiosClient.post('/api/v1/auth/login', { email, password }));
     saveAccessToken(tokenResponse.accessToken);
+    saveRefreshToken(tokenResponse.refreshToken);
     return tokenResponse;
   },
 
@@ -58,8 +75,13 @@ export const authApi = {
   },
 
   async refresh() {
-    const tokenResponse = unwrap(await axiosClient.post('/api/v1/auth/refresh'));
+    const refreshToken = getRefreshToken();
+    const tokenResponse = unwrap(await axiosClient.post(
+      '/api/v1/auth/refresh',
+      refreshToken ? { refreshToken } : undefined
+    ));
     saveAccessToken(tokenResponse.accessToken);
+    saveRefreshToken(tokenResponse.refreshToken);
     return tokenResponse;
   },
 
@@ -85,6 +107,18 @@ export const authApi = {
 
   async getProfile() {
     const member = unwrap(await axiosClient.get('/api/v1/members/me/profile'));
+    return toFrontendUser(member);
+  },
+
+  async updateProfile({ name, nickname, householdType, preferences }) {
+    const member = unwrap(await axiosClient.patch('/api/v1/members/me/profile', {
+      nickname: name || nickname,
+      householdType: HOUSEHOLD_VALUES[householdType] || householdType || 'ETC',
+      favoriteFoods: preferences?.favoriteFoods || [],
+      avoidProductIds: (preferences?.avoidIngredients || [])
+        .map((item) => item.productId)
+        .filter(Boolean),
+    }, { skipUnauthorizedRedirect: true }));
     return toFrontendUser(member);
   },
 };

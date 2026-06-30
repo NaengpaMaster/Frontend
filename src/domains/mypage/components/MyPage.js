@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, AlertTriangle } from 'lucide-react';
+import { fridgeApi } from '@/apis/fridgeApi';
 import { C } from '@/shared/data/mockData';
 
 const HOUSEHOLD_TYPES = ['1인', '2인', '3인 이상', '기타'];
-const FAVORITE_FOODS_LIST = ['한식', '일식', '중식', '양식', '채식', '샐러드', '파스타', '피자', '라멘', '분식'];
+const FAVORITE_FOODS_LIST = ['한식', '중식', '양식', '일식', '아시안', '후식', '분식'];
 
 const inputStyle = {
   width: '100%',
@@ -26,38 +27,98 @@ const sectionTitle = {
   textTransform: 'uppercase',
 };
 
-export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, onDeleteAccount, onOpenAdmin }) {
+const CATEGORY_NAMES = {
+  1: '채소/과일',
+  2: '채소/과일',
+  3: '육류/어류',
+  4: '육류/어류',
+  5: '유제품/계란',
+  6: '기타',
+  7: '기타',
+  8: '양념/소스',
+  9: '가공식품',
+  10: '기타',
+};
+
+function normalizeAvoidIngredient(item) {
+  if (typeof item === 'string') {
+    return { productId: null, name: item, productCategoryId: null, category: '기타' };
+  }
+
+  return {
+    productId: item.productId ?? null,
+    name: item.name,
+    productCategoryId: item.productCategoryId ?? null,
+    category: CATEGORY_NAMES[item.productCategoryId] ?? item.category ?? '기타',
+  };
+}
+
+function normalizePreferences(user) {
+  const preferences = user.preferences || {};
+  const avoidIngredients = [
+    ...(preferences.avoidIngredients || []),
+    ...(preferences.allergies || []),
+  ].map(normalizeAvoidIngredient);
+  const uniqueAvoidIngredients = Array.from(
+    new Map(avoidIngredients.map((item) => [item.productId ?? item.name, item])).values()
+  );
+
+  return {
+    ...preferences,
+    favoriteFoods: preferences.favoriteFoods || [],
+    allergies: [],
+    avoidIngredients: uniqueAvoidIngredients,
+  };
+}
+
+export function MyPage({ user, onClose, onLogout, onUpdate, onDeleteAccount, onOpenAdmin }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [form, setForm] = useState({
     ...user,
-    preferences: {
-      ...user.preferences,
-      allergies: [],
-      avoidIngredients: Array.from(new Set([...user.preferences.avoidIngredients, ...user.preferences.allergies])),
-    },
+    preferences: normalizePreferences(user),
   });
   const [avoidInput, setAvoidInput] = useState('');
   const [showAvoidSuggestions, setShowAvoidSuggestions] = useState(false);
+  const [avoidSuggestions, setAvoidSuggestions] = useState([]);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     setForm({
       ...user,
-      preferences: {
-        ...user.preferences,
-        allergies: [],
-        avoidIngredients: Array.from(new Set([...user.preferences.avoidIngredients, ...user.preferences.allergies])),
-      },
+      preferences: normalizePreferences(user),
     });
   }, [user]);
 
-  const avoidSuggestions = avoidInput.trim() && showAvoidSuggestions
-    ? presetIngredients
-        .filter((i) => i.active)
-        .filter((i) => i.name.includes(avoidInput.trim()))
-        .filter((i) => !form.preferences.avoidIngredients.includes(i.name))
-        .slice(0, 6)
-    : [];
+  useEffect(() => {
+    const keyword = avoidInput.trim();
+    if (!keyword || !showAvoidSuggestions) {
+      setAvoidSuggestions([]);
+      return;
+    }
+
+    let alive = true;
+    fridgeApi.searchProducts(keyword)
+      .then((items) => {
+        if (!alive) return;
+        const selectedIds = new Set(form.preferences.avoidIngredients.map((item) => item.productId).filter(Boolean));
+        const selectedNames = new Set(form.preferences.avoidIngredients.map((item) => item.name));
+        setAvoidSuggestions(
+          items
+            .map(normalizeAvoidIngredient)
+            .filter((item) => !selectedIds.has(item.productId) && !selectedNames.has(item.name))
+            .slice(0, 6)
+        );
+      })
+      .catch(() => {
+        if (alive) setAvoidSuggestions([]);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [avoidInput, form.preferences.avoidIngredients, showAvoidSuggestions]);
 
   const toggleFavorite = (item) => {
     const list = form.preferences.favoriteFoods;
@@ -65,24 +126,56 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
     setForm({ ...form, preferences: { ...form.preferences, favoriteFoods: updated } });
   };
 
-  const addAvoid = (name = avoidInput) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    if (!form.preferences.avoidIngredients.includes(trimmed)) {
-      setForm({ ...form, preferences: { ...form.preferences, avoidIngredients: [...form.preferences.avoidIngredients, trimmed] } });
+  const addAvoid = (item) => {
+    const nextItem = typeof item === 'object' && item !== null
+      ? normalizeAvoidIngredient(item)
+      : normalizeAvoidIngredient({ name: avoidInput.trim() });
+    if (!nextItem.name || !nextItem.productId) return;
+    const exists = form.preferences.avoidIngredients.some((avoidIngredient) =>
+      (nextItem.productId && avoidIngredient.productId === nextItem.productId)
+      || avoidIngredient.name === nextItem.name
+    );
+
+    if (!exists) {
+      setForm({
+        ...form,
+        preferences: {
+          ...form.preferences,
+          avoidIngredients: [...form.preferences.avoidIngredients, nextItem],
+        },
+      });
     }
     setAvoidInput('');
     setShowAvoidSuggestions(false);
   };
 
   const removeAvoid = (item) => {
-    setForm({ ...form, preferences: { ...form.preferences, avoidIngredients: form.preferences.avoidIngredients.filter((a) => a !== item) } });
+    setForm({
+      ...form,
+      preferences: {
+        ...form.preferences,
+        avoidIngredients: form.preferences.avoidIngredients.filter((avoidIngredient) =>
+          (item.productId || item.name) !== (avoidIngredient.productId || avoidIngredient.name)
+        ),
+      },
+    });
   };
 
-  const handleSave = () => {
-    onUpdate({ ...form, preferences: { ...form.preferences, allergies: [] } });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      const savedUser = await onUpdate({ ...form, preferences: { ...form.preferences, allergies: [] } });
+      if (savedUser) {
+        setForm({ ...savedUser, preferences: normalizePreferences(savedUser) });
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaveError(error.message || '프로필 저장에 실패했습니다.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -173,7 +266,7 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
                 <input
                   style={inputStyle}
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => setForm({ ...form, name: e.target.value, nickname: e.target.value })}
                 />
               </div>
               <div>
@@ -242,7 +335,7 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   style={{ ...inputStyle, flex: 1 }}
-                  placeholder="재료명 검색 또는 입력 후 추가"
+                  placeholder="사전 재료 검색 후 선택"
                   value={avoidInput}
                   onChange={(e) => { setAvoidInput(e.target.value); setShowAvoidSuggestions(true); }}
                   onKeyDown={(e) => e.key === 'Enter' && addAvoid()}
@@ -280,8 +373,8 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
                 }}>
                   {avoidSuggestions.map((item) => (
                     <button
-                      key={item.name}
-                      onMouseDown={() => addAvoid(item.name)}
+                      key={item.productId ?? item.name}
+                      onMouseDown={() => addAvoid(item)}
                       style={{
                         width: '100%',
                         padding: '9px 12px',
@@ -308,7 +401,7 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {form.preferences.avoidIngredients.map((item) => (
                   <span
-                    key={item}
+                    key={item.productId ?? item.name}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -321,7 +414,7 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
                       fontWeight: 600,
                     }}
                   >
-                    {item}
+                    {item.name}
                     <button
                       onClick={() => removeAvoid(item)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.warn, padding: 0, lineHeight: 1 }}
@@ -335,8 +428,24 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
           </div>
 
           {/* Save */}
+          {saveError && (
+            <div
+              style={{
+                background: C.dangerLight,
+                color: C.danger,
+                borderRadius: '12px',
+                padding: '10px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                marginBottom: '10px',
+              }}
+            >
+              {saveError}
+            </div>
+          )}
           <button
             onClick={handleSave}
+            disabled={saving}
             style={{
               width: '100%',
               padding: '14px',
@@ -346,12 +455,12 @@ export function MyPage({ user, presetIngredients, onClose, onLogout, onUpdate, o
               borderRadius: '16px',
               fontWeight: 700,
               fontSize: '15px',
-              cursor: 'pointer',
+              cursor: saving ? 'wait' : 'pointer',
               transition: 'all 0.2s',
               marginBottom: '12px',
             }}
           >
-            {saved ? '✓ 저장되었습니다' : '프로필 저장'}
+            {saving ? '저장 중...' : saved ? '✓ 저장되었습니다' : '프로필 저장'}
           </button>
 
           {/* Logout */}
