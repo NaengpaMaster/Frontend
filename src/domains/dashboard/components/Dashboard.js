@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BarChart3, ChevronRight, Zap, TrendingDown, User, X } from 'lucide-react';
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel,
-  STATUS_COLORS, getRecipeMatch, TODAY, C,
+  STATUS_COLORS, TODAY, C,
   CATEGORY_EMOJIS,
   GRADE_TABLE,
 } from '@/shared/data/mockData';
@@ -330,7 +330,7 @@ function StatsDetailModal({
 }
 
 
-export function Dashboard({ ingredients, recipes, currentUser, discardedItems, onNavigate, onOpenMyPage }) {
+export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHomeRecipes, currentUser, discardedItems, onNavigate, onOpenMyPage, onOpenRecipe }) {
   const [showScoreDetail, setShowScoreDetail] = useState(false);
   const [showStatsDetail, setShowStatsDetail] = useState(false);
   const sorted = [...ingredients].sort(
@@ -339,20 +339,6 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
 
   const urgent = sorted.filter((i) => { const d = getDaysUntilExpiry(i.expiryDate); return d <= 3 && d >= 0; });
   const expired = sorted.filter((i) => getDaysUntilExpiry(i.expiryDate) < 0);
-
-  const recipesWithMatch = recipes
-    .map((r) => ({ ...r, match: getRecipeMatch(r, ingredients) }))
-    .filter((r) => r.match.percentage >= 80)
-    .sort((a, b) => b.match.percentage - a.match.percentage)
-    .slice(0, 4);
-
-  const urgentRecipes = recipes
-    .map((r) => ({ ...r, match: getRecipeMatch(r, ingredients) }))
-    .filter((r) => {
-      const urgentNames = urgent.map((i) => i.name);
-      return r.requiredIngredients.some((ri) => urgentNames.includes(ri)) && r.match.percentage >= 50;
-    })
-    .slice(0, 2);
 
   const dateStr = new Date(TODAY).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
   const wasteScore = getNaengpaScore(discardedItems);
@@ -495,7 +481,7 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
         {[
           { label: '전체 재료',   value: ingredients.length,                       color: C.fg,      tab: 'fridge' },
           { label: '임박 재료',   value: urgent.length + expired.length,           color: urgent.length + expired.length > 0 ? C.accent : C.primary, tab: 'fridge' },
-          { label: '가능 레시피', value: recipesWithMatch.length,                  color: C.primary, tab: 'recipe' },
+          { label: '가능 레시피', value: homeRecipesTotal,                        color: C.primary, tab: 'recipe' },
         ].map((stat, i) => (
           <button
             key={stat.label}
@@ -516,16 +502,16 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
       </div>
 
       {/* Urgent recipe recs */}
-      {urgentRecipes.length > 0 && (
+      {urgentHomeRecipes.length > 0 && (
         <div style={{ padding: '20px 20px 0' }}>
           <div style={{ fontSize: '16px', fontWeight: 700, color: C.fg, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: C.accent }}>⚡</span> 임박 재료 활용 추천
           </div>
           <div className="card-grid">
-            {urgentRecipes.map((r) => (
+            {urgentHomeRecipes.map((r) => (
               <button
                 key={r.id}
-                onClick={() => onNavigate('recipe')}
+                onClick={() => onOpenRecipe(r.id)}
                 className="card-hover"
                 style={{
                   background: C.card,
@@ -542,8 +528,8 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
                   <span style={{ fontWeight: 700, color: C.fg, fontSize: '14px' }}>{r.name}</span>
                   <span style={{ fontSize: '12px', color: C.fgMuted, whiteSpace: 'nowrap' }}>{r.cookTime}분</span>
                 </div>
-                {r.match.missingIngredients.length > 0 && (
-                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '4px' }}>부족: {r.match.missingIngredients.join(', ')}</div>
+                {r.missingIngredients.length > 0 && (
+                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '4px' }}>부족: {r.missingIngredients.join(', ')}</div>
                 )}
               </button>
             ))}
@@ -559,16 +545,16 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
             전체보기 →
           </button>
         </div>
-        {recipesWithMatch.length === 0 ? (
+        {homeRecipes.length === 0 ? (
           <div style={{ color: C.fgMuted, fontSize: '13px', textAlign: 'center', padding: '20px 0', background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
             재료를 더 등록하면 레시피를 추천해드려요
           </div>
         ) : (
           <div className="card-grid">
-            {recipesWithMatch.map((r) => (
+            {homeRecipes.map((r) => (
               <button
                 key={r.id}
-                onClick={() => onNavigate('recipe')}
+                onClick={() => onOpenRecipe(r.id)}
                 className="card-hover"
                 style={{
                   background: C.card,
@@ -587,7 +573,7 @@ export function Dashboard({ ingredients, recipes, currentUser, discardedItems, o
                   <div style={{ fontWeight: 700, color: C.fg, fontSize: '14px' }}>{r.name}</div>
                   <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px' }}>
                     {r.difficulty} · {r.cookTime}분
-                    {r.match.missingIngredients.length > 0 && ` · 부족: ${r.match.missingIngredients.join(', ')}`}
+                    {r.missingIngredients.length > 0 && ` · 부족: ${r.missingIngredients.join(', ')}`}
                   </div>
                 </div>
                 <ChevronRight size={16} color={C.fgSubtle} />

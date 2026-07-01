@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { authApi } from '@/apis/authApi';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { Sidebar } from '@/shared/components/Sidebar';
@@ -41,11 +41,13 @@ export default function App() {
     fetchIngredients, addIngredient, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
   } = useIngredientStore();
   const {
-    recipes, comments,
-    toggleFavorite, addRecipe, updateRecipe, deleteRecipe, addComment,
+    recipes, userRecipes, userRecipesLoading, userRecipesPage, userRecipesTotalPages,
+    addRecipe, updateRecipe, deleteRecipe, fetchUserRecipes, fetchUserRecipesNext, toggleUserRecipeFavorite,
+    homeRecipes, homeRecipesTotal, fetchHomeRecipes, urgentHomeRecipes, fetchUrgentHomeRecipes,
     fetchAdminRecipes, fetchAdminRecipesNext, adminUpdateRecipe, adminDeleteRecipe,
     adminLoading, adminPage, adminTotalPages,
   } = useRecipeStore();
+  const [pendingRecipeId, setPendingRecipeId] = useState(null);
   const {
     shoppingItems,
     fetchShoppingItems, addShoppingItem, toggleShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
@@ -93,7 +95,9 @@ export default function App() {
     if (!currentUser) return;
     fetchIngredients();
     fetchShoppingItems();
-  }, [currentUser, fetchIngredients, fetchShoppingItems]);
+    fetchHomeRecipes();
+    fetchUrgentHomeRecipes();
+  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
 
   useEffect(() => {
     function handleForbidden() {
@@ -258,11 +262,14 @@ export default function App() {
             {activeTab === 'home' && (
               <Dashboard
                 ingredients={ingredients}
-                recipes={recipes}
+                homeRecipes={homeRecipes}
+                homeRecipesTotal={homeRecipesTotal}
+                urgentHomeRecipes={urgentHomeRecipes}
                 currentUser={currentUser}
                 discardedItems={mockDiscardedItems}
                 onNavigate={setActiveTab}
                 onOpenMyPage={() => setShowMyPage(true)}
+                onOpenRecipe={(id) => { setPendingRecipeId(id); setActiveTab('recipe'); }}
               />
             )}
             {activeTab === 'fridge' && (
@@ -277,16 +284,19 @@ export default function App() {
             )}
             {activeTab === 'recipe' && (
               <RecipeView
-                recipes={recipes}
-                ingredients={ingredients}
-                currentUser={currentUser}
-                comments={comments}
+                recipes={userRecipes}
+                recipesLoading={userRecipesLoading}
+                onFetchRecipes={fetchUserRecipes}
+                onFetchNextPage={fetchUserRecipesNext}
+                hasNextPage={userRecipesPage + 1 < userRecipesTotalPages}
+                onToggleFavorite={toggleUserRecipeFavorite}
                 presetIngredients={presetIngredients}
-                onToggleFavorite={toggleFavorite}
                 onAddRecipe={handleAddRecipe}
                 onUpdateRecipe={updateRecipe}
                 onDeleteRecipe={deleteRecipe}
-                onAddComment={addComment}
+                onAddToShoppingList={addShoppingItem}
+                initialRecipeId={pendingRecipeId}
+                onInitialRecipeHandled={() => setPendingRecipeId(null)}
               />
             )}
             {activeTab === 'shopping' && (
