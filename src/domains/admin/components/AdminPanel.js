@@ -36,6 +36,25 @@ const TAB_ICONS = {
   inquiries:   { icon: MessageSquare, label: '문의' },
 };
 
+const CATEGORY_IDS = {
+  '채소/과일': 1,
+  '육류/어류': 3,
+  '유제품/계란': 5,
+  '양념/소스': 8,
+  '가공식품': 9,
+  '기타': 10,
+};
+
+const CATEGORY_NAMES = Object.fromEntries(Object.entries(CATEGORY_IDS).map(([name, id]) => [id, name]));
+
+const toAdminIngredient = (item) => ({
+  productId: item.productId,
+  name: item.name,
+  category: CATEGORY_NAMES[item.productCategoryId] ?? '기타',
+  defaultExpiryDays: item.defaultExpiryDays,
+  active: item.isActive,
+});
+
 // ─── Members ──────────────────────────────────────────────────────────────────
 function MembersTab({ users, onUpdate, currentUser }) {
   const [search, setSearch] = useState('');
@@ -507,27 +526,51 @@ function IngredientsTab({ items, onUpdate }) {
   const [search, setSearch] = useState('');
   const [addName, setAddName] = useState('');
   const [addCategory, setAddCategory] = useState('채소/과일');
+  const [addDefaultExpiryDays, setAddDefaultExpiryDays] = useState('');
   const [addDupError, setAddDupError] = useState(false);
   const [editIdx, setEditIdx] = useState(null);
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('채소/과일');
+  const [editDefaultExpiryDays, setEditDefaultExpiryDays] = useState('');
   const [deleteIdx, setDeleteIdx] = useState(null);
+  const [error, setError] = useState('');
 
   const inputStyle = {
     background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px',
     padding: '9px 12px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
   };
 
+  const refreshProducts = async () => {
+    const products = await adminApi.getProducts();
+    onUpdate(products.map(toAdminIngredient));
+  };
+
+  useEffect(() => {
+    refreshProducts().catch((err) => setError(err.message || '사전 재료 목록을 불러오지 못했습니다.'));
+  }, []);
+
   const handleAdd = () => {
     if (!addName.trim()) return;
     if (items.some((i) => i.name === addName.trim())) { setAddDupError(true); return; }
-    onUpdate([...items, { name: addName.trim(), category: addCategory, active: true }]);
-    setAddName('');
-    setAddDupError(false);
+    adminApi.createProduct({
+      productCategoryId: CATEGORY_IDS[addCategory],
+      name: addName.trim(),
+      defaultExpiryDays: addDefaultExpiryDays ? Number(addDefaultExpiryDays) : null,
+    })
+      .then(refreshProducts)
+      .then(() => {
+        setAddName('');
+        setAddDefaultExpiryDays('');
+        setAddDupError(false);
+      })
+      .catch((err) => setError(err.message || '사전 재료 등록에 실패했습니다.'));
   };
 
   const handleToggle = (idx) => {
-    onUpdate(items.map((item, i) => i === idx ? { ...item, active: !item.active } : item));
+    const item = items[idx];
+    adminApi.setProductActive(item.productId, !item.active)
+      .then(refreshProducts)
+      .catch((err) => setError(err.message || '사전 재료 상태 변경에 실패했습니다.'));
   };
 
   const handleDelete = (idx) => {
@@ -538,8 +581,14 @@ function IngredientsTab({ items, onUpdate }) {
   const handleEditSave = (idx) => {
     if (!editName.trim()) return;
     if (items.some((item, i) => i !== idx && item.name === editName.trim())) return;
-    onUpdate(items.map((item, i) => i === idx ? { ...item, name: editName.trim(), category: editCategory } : item));
-    setEditIdx(null);
+    adminApi.updateProduct(items[idx].productId, {
+      productCategoryId: CATEGORY_IDS[editCategory],
+      name: editName.trim(),
+      defaultExpiryDays: editDefaultExpiryDays ? Number(editDefaultExpiryDays) : null,
+    })
+      .then(refreshProducts)
+      .then(() => setEditIdx(null))
+      .catch((err) => setError(err.message || '사전 재료 수정에 실패했습니다.'));
   };
 
   const activeCount = items.filter((i) => i.active).length;
@@ -549,6 +598,12 @@ function IngredientsTab({ items, onUpdate }) {
     <div>
       <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>사전 재료 관리</div>
       <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>총 {items.length}개 · 활성 {activeCount}개 · 냉장고 재료 검색에 노출됩니다</div>
+
+      {error && (
+        <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '10px', padding: '10px 12px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ position: 'relative', marginBottom: '12px' }}>
         <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
@@ -582,6 +637,15 @@ function IngredientsTab({ items, onUpdate }) {
             placeholder="재료명"
             value={addName}
             onChange={(e) => { setAddName(e.target.value); setAddDupError(false); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          />
+          <input
+            type="number"
+            min="0"
+            style={{ ...inputStyle, width: '150px', flexShrink: 0 }}
+            placeholder="유통기한(일)"
+            value={addDefaultExpiryDays}
+            onChange={(e) => setAddDefaultExpiryDays(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           />
           <button onClick={handleAdd} style={{ padding: '9px 14px', background: C.primary, color: '#FFF', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', flexShrink: 0 }}>추가</button>
@@ -638,6 +702,15 @@ function IngredientsTab({ items, onUpdate }) {
                     >
                       {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_EMOJIS[c]} {c}</option>)}
                     </select>
+                    <input
+                      type="number"
+                      min="0"
+                      style={{ ...inputStyle, width: '120px', fontSize: '12px', flexShrink: 0 }}
+                      placeholder="유통기한"
+                      value={editDefaultExpiryDays}
+                      onChange={(e) => setEditDefaultExpiryDays(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleEditSave(idx); if (e.key === 'Escape') setEditIdx(null); }}
+                    />
                   </div>
                   <button onClick={() => handleEditSave(idx)} style={{ padding: '5px 10px', background: C.primary, color: '#FFF', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>저장</button>
                   <button onClick={() => setEditIdx(null)} style={{ padding: '5px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '12px', color: C.fgMuted, cursor: 'pointer', flexShrink: 0 }}>취소</button>
@@ -646,12 +719,19 @@ function IngredientsTab({ items, onUpdate }) {
                 <>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{item.name}</div>
-                    <div style={{ fontSize: '10px', color: C.fgMuted }}>{item.category}</div>
+                    <div style={{ fontSize: '10px', color: C.fgMuted }}>
+                      {item.category} · 기본 유통기한 {item.defaultExpiryDays != null ? `${item.defaultExpiryDays}일` : '미설정'}
+                    </div>
                   </div>
                   <button onClick={() => handleToggle(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.active ? C.primary : C.fgSubtle, padding: '2px' }}>
                     {item.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                   </button>
-                  <button onClick={() => { setEditIdx(idx); setEditName(item.name); setEditCategory(item.category); }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
+                  <button onClick={() => {
+                    setEditIdx(idx);
+                    setEditName(item.name);
+                    setEditCategory(item.category);
+                    setEditDefaultExpiryDays(item.defaultExpiryDays ?? '');
+                  }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
                     <Edit2 size={12} />
                   </button>
                   {deleteIdx === idx ? (

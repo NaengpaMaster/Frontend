@@ -39,4 +39,20 @@ export const adminApi = {
   async updateMemberRole(memberId, role) {
     await axiosClient.patch(`/api/v1/admin/members/${memberId}/role`, { role });
   },
+
+  async getProducts() {
+    return unwrap(await axiosClient.get('/api/v1/admin/products')) || [];
+  },
+
+  async createProduct(data) {
+    return unwrap(await axiosClient.post('/api/v1/admin/products', data));
+  },
+
+  async updateProduct(productId, data) {
+    return unwrap(await axiosClient.patch(`/api/v1/admin/products/${productId}`, data));
+  },
+
+  async setProductActive(productId, active) {
+    return unwrap(await axiosClient.patch(`/api/v1/admin/products/${productId}/${active ? 'activate' : 'deactivate'}`));
+  },
 };
