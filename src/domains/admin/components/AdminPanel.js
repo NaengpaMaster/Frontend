@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info } from 'lucide-react';
 import {
   C,
   mockDiscardedItems, CATEGORY_EMOJIS,
   CATEGORIES,
 } from '@/shared/data/mockData';
+import { adminApi } from '@/apis/adminApi';
 import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -20,6 +21,51 @@ const TAB_ICONS = {
 function MembersTab({ users, onUpdate, currentUser }) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('active');
+  const [loading, setLoading] = useState(false);
+  const [actionId, setActionId] = useState(null);
+  const [error, setError] = useState('');
+
+  const refreshMembers = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const members = await adminApi.getMemberOverview();
+      onUpdate(members);
+    } catch (err) {
+      setError(err.message || '회원 목록을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadMembers() {
+      setLoading(true);
+      setError('');
+      try {
+        const members = await adminApi.getMemberOverview();
+        if (mounted) {
+          onUpdate(members);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err.message || '회원 목록을 불러오지 못했습니다.');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMembers();
+
+    return () => {
+      mounted = false;
+    };
+  }, [onUpdate]);
 
   const allMembers = users.filter((u) => u.role !== 'admin');
   const activeMembers = allMembers.filter((u) => u.status === 'active');
@@ -29,12 +75,31 @@ function MembersTab({ users, onUpdate, currentUser }) {
   const baseList = viewMode === 'active' ? activeMembers : viewMode === 'inactive' ? inactiveMembers : adminUsers;
   const filtered = baseList.filter((u) => u.name.includes(search) || u.email.includes(search) || u.householdType.includes(search));
 
-  const toggle = (id) => {
-    onUpdate(users.map((u) => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
+  const toggle = async (user) => {
+    const nextStatus = user.status === 'active' ? 'INACTIVE' : 'ACTIVE';
+    setActionId(user.id);
+    setError('');
+    try {
+      await adminApi.updateMemberStatus(user.memberId, nextStatus);
+      await refreshMembers();
+    } catch (err) {
+      setError(err.message || '회원 상태 변경에 실패했습니다.');
+    } finally {
+      setActionId(null);
+    }
   };
 
-  const changeRole = (id, newRole) => {
-    onUpdate(users.map((u) => u.id === id ? { ...u, role: newRole } : u));
+  const changeRole = async (user, newRole) => {
+    setActionId(user.id);
+    setError('');
+    try {
+      await adminApi.updateMemberRole(user.memberId, newRole === 'admin' ? 'ADMIN' : 'USER');
+      await refreshMembers();
+    } catch (err) {
+      setError(err.message || '회원 권한 변경에 실패했습니다.');
+    } finally {
+      setActionId(null);
+    }
   };
 
 
@@ -42,8 +107,16 @@ function MembersTab({ users, onUpdate, currentUser }) {
     <div>
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>회원 관리</div>
-        <div style={{ fontSize: '12px', color: C.fgMuted }}>총 {allMembers.length}명 · 활성 {activeMembers.length}명</div>
+        <div style={{ fontSize: '12px', color: C.fgMuted }}>
+          {loading ? '회원 목록 불러오는 중...' : `총 ${allMembers.length}명 · 활성 ${activeMembers.length}명`}
+        </div>
       </div>
+
+      {error && (
+        <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '10px', padding: '10px 12px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ position: 'relative', marginBottom: '12px' }}>
         <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
@@ -120,13 +193,21 @@ function MembersTab({ users, onUpdate, currentUser }) {
                 <span style={{ fontSize: '9px', background: u.role === 'admin' ? C.primaryLight : C.surface, color: u.role === 'admin' ? C.primary : C.fgMuted, borderRadius: '6px', padding: '1px 5px', fontWeight: 700 }}>
                   {u.role === 'admin' ? '관리자' : '회원'}
                 </span>
+                {u.status === 'inactive' && (
+                  <span style={{ fontSize: '9px', background: C.dangerLight, color: C.danger, borderRadius: '6px', padding: '1px 5px', fontWeight: 800 }}>
+                    탈퇴됨
+                  </span>
+                )}
               </div>
-              <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{u.email} · {u.householdType} · 가입 {u.joinDate}</div>
+              <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>
+                {u.email} · {u.householdType} · 가입 {u.joinDate}{u.status === 'inactive' ? ' · 탈퇴 상태' : ''}
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
               {viewMode !== 'admin' && (
                 <button
-                  onClick={() => toggle(u.id)}
+                  onClick={() => toggle(u)}
+                  disabled={actionId === u.id}
                   style={{
                     padding: '6px 10px',
                     background: u.status === 'active' ? C.dangerLight : C.primaryLight,
@@ -134,17 +215,18 @@ function MembersTab({ users, onUpdate, currentUser }) {
                     color: u.status === 'active' ? C.danger : C.primary,
                     fontSize: '11px',
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: actionId === u.id ? 'wait' : 'pointer',
                     whiteSpace: 'nowrap',
                     border: 'none',
                   }}
                 >
-                  {u.status === 'active' ? '탈퇴 처리' : '가입 복구'}
+                  {actionId === u.id ? '처리 중' : u.status === 'active' ? '탈퇴 처리' : '가입 복구'}
                 </button>
               )}
               {viewMode === 'active' && (
                 <button
-                  onClick={() => changeRole(u.id, 'admin')}
+                  onClick={() => changeRole(u, 'admin')}
+                  disabled={actionId === u.id}
                   style={{
                     padding: '6px 10px',
                     background: C.primaryLight,
@@ -152,7 +234,7 @@ function MembersTab({ users, onUpdate, currentUser }) {
                     color: C.primary,
                     fontSize: '11px',
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: actionId === u.id ? 'wait' : 'pointer',
                     whiteSpace: 'nowrap',
                     border: `1px solid ${C.primary}`,
                   }}
@@ -162,7 +244,8 @@ function MembersTab({ users, onUpdate, currentUser }) {
               )}
               {viewMode === 'admin' && currentUser?.email !== u.email && (
                 <button
-                  onClick={() => changeRole(u.id, 'user')}
+                  onClick={() => changeRole(u, 'user')}
+                  disabled={actionId === u.id}
                   style={{
                     padding: '6px 10px',
                     background: C.warnLight,
@@ -170,7 +253,7 @@ function MembersTab({ users, onUpdate, currentUser }) {
                     color: C.warn,
                     fontSize: '11px',
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: actionId === u.id ? 'wait' : 'pointer',
                     whiteSpace: 'nowrap',
                     border: 'none',
                   }}

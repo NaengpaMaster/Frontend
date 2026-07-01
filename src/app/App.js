@@ -148,11 +148,6 @@ export default function App() {
       resetAuth();
     }
   };
-  const handleDeleteAccount = () => {
-    if (!currentUser) return;
-    setUsers(users.map((u) => u.id === currentUser.id ? { ...u, status: 'inactive' } : u));
-    handleLogout();
-  };
   const handleUpdateUser = async (updated) => {
     const saved = await authApi.updateProfile(updated);
     setCurrentUser(saved);
@@ -316,7 +311,6 @@ export default function App() {
               onClose={() => setShowMyPage(false)}
               onLogout={handleLogout}
               onUpdate={handleUpdateUser}
-              onDeleteAccount={handleDeleteAccount}
               onOpenAdmin={() => setShowAdmin(true)}
             />
           )}
