@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, AlertTriangle } from 'lucide-react';
+import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon } from 'lucide-react';
 import { fridgeApi } from '@/apis/fridgeApi';
 import { C } from '@/shared/data/mockData';
 
@@ -71,8 +71,7 @@ function normalizePreferences(user) {
   };
 }
 
-export function MyPage({ user, onClose, onLogout, onUpdate, onDeleteAccount, onOpenAdmin }) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+export function MyPage({ user, onClose, onLogout, onUpdate, onOpenAdmin }) {
   const [form, setForm] = useState({
     ...user,
     preferences: normalizePreferences(user),
@@ -486,65 +485,9 @@ export function MyPage({ user, onClose, onLogout, onUpdate, onDeleteAccount, onO
             로그아웃
           </button>
 
-          {/* Delete account */}
-          {user.role !== 'admin' && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              style={{
-                width: '100%',
-                padding: '11px',
-                background: 'none',
-                border: 'none',
-                color: C.danger,
-                fontWeight: 500,
-                fontSize: '13px',
-                cursor: 'pointer',
-                opacity: 0.7,
-                marginTop: '4px',
-              }}
-            >
-              회원 탈퇴
-            </button>
-          )}
-
           <div style={{ fontSize: '11px', color: C.fgSubtle, textAlign: 'center', marginTop: '8px' }}>
             가입일 {user.joinDate} · {user.role === 'admin' ? '관리자' : '일반 회원'}
           </div>
-
-          {/* Delete account confirmation modal */}
-          {showDeleteConfirm && (
-            <div
-              style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              <div
-                style={{ background: C.card, borderRadius: '24px', padding: '28px 24px', width: '100%', maxWidth: '340px', textAlign: 'center' }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{ width: '52px', height: '52px', background: C.dangerLight, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                  <AlertTriangle size={24} color={C.danger} />
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: C.fg, marginBottom: '8px' }}>정말 탈퇴하시겠어요?</div>
-                <div style={{ fontSize: '13px', color: C.fgMuted, lineHeight: 1.6, marginBottom: '24px' }}>
-                  탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    style={{ flex: 1, padding: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', fontWeight: 600, fontSize: '14px', color: C.fgMuted, cursor: 'pointer' }}
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={onDeleteAccount}
-                    style={{ flex: 1, padding: '12px', background: C.danger, border: 'none', borderRadius: '14px', fontWeight: 700, fontSize: '14px', color: '#FFF', cursor: 'pointer' }}
-                  >
-                    탈퇴하기
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
