@@ -10,6 +10,24 @@ import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
 import { adminRecipesApi } from '@/apis/recipesApi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
+const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
+
+function mapRecipeDetail(d) {
+  return {
+    ...d,
+    id: d.recipeId ?? d.id,
+    name: d.recipeName ?? d.name,
+    category: d.category ?? d.categoryName,
+    cookTime: d.cookTime ?? d.cookingTime,
+    difficulty: d.difficulty,
+    requiredIngredients: (d.ingredients ?? d.requiredIngredients ?? []).map((i) =>
+      typeof i === 'string' ? { productId: null, name: i } : { productId: i.ingredientId, name: i.ingredientName }
+    ),
+    steps: (d.steps ?? d.instructions ?? []).map((s) => typeof s === 'string' ? s : s.content),
+    description: d.description ?? '',
+  };
+}
+
 const TAB_ICONS = {
   members:     { icon: Users,         label: '회원' },
   recipes:     { icon: ChefHat,       label: '레시피' },
@@ -293,24 +311,29 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
     observerRef.current.observe(node);
   }, [onFetchNextPage]);
 
+  const fetchDetail = async (recipe) => {
+    const res = await adminRecipesApi.getById(recipe.recipeId ?? recipe.id);
+    const d = res.data?.data ?? res.data;
+    return mapRecipeDetail(d);
+  };
+
   const handleSelect = async (recipe) => {
     setDetailLoading(true);
     setError(null);
     try {
-      const res = await adminRecipesApi.getById(recipe.recipeId ?? recipe.id);
-      const d = res.data?.data ?? res.data;
-      console.log('[adminRecipes] detail response:', d);
-      setSelected({
-        ...d,
-        id: d.recipeId ?? d.id,
-        name: d.recipeName ?? d.name,
-        category: d.categoryName ?? d.category,
-        cookTime: d.cookingTime ?? d.cookTime,
-        difficulty: d.difficultyLabel ?? d.difficulty,
-        requiredIngredients: d.ingredients?.map((i) => typeof i === 'string' ? i : i.ingredientName) ?? d.requiredIngredients ?? [],
-        steps: (d.steps ?? d.instructions ?? []).map((s) => typeof s === 'string' ? s : s.content),
-        description: d.description ?? '',
-      });
+      setSelected(await fetchDetail(recipe));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleEditClick = async (recipe) => {
+    setDetailLoading(true);
+    setError(null);
+    try {
+      setEditing(await fetchDetail(recipe));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -328,12 +351,9 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
 
   const handleEdit = async (data) => {
     if (!editing) return;
-    try {
-      await onUpdateRecipe(editing.id, data);
-      setEditing(null);
-    } catch (err) {
-      setError(err.message);
-    }
+    // 에러를 다시 던져서 RecipeFormModal 자체의 인라인 에러 표시로 보여줌 (모달이 화면을 덮어 바깥 배너가 안 보임)
+    await onUpdateRecipe(editing.id, data);
+    setEditing(null);
   };
 
   const handleDelete = async (id) => {
@@ -396,7 +416,7 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button onClick={(e) => { e.stopPropagation(); setEditing(r); }} style={{ padding: '6px 10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, cursor: 'pointer' }}><Edit2 size={13} /></button>
+                <button onClick={(e) => { e.stopPropagation(); handleEditClick(r); }} style={{ padding: '6px 10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, cursor: 'pointer' }}><Edit2 size={13} /></button>
                 <button onClick={(e) => { e.stopPropagation(); setDeleteId(r.id); }} style={{ padding: '6px 10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, cursor: 'pointer' }}><Trash2 size={13} /></button>
               </div>
             )}
@@ -442,7 +462,7 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
               <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{selected.category}</span>
-              <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{selected.difficulty}</span>
+              <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{DIFFICULTY_LABELS[selected.difficulty] ?? selected.difficulty}</span>
               <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{selected.cookTime}분</span>
             </div>
 
@@ -450,7 +470,7 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
               <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: C.fgMuted, marginBottom: '10px' }}>필수 재료</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {selected.requiredIngredients.map((ri, idx) => (
-                  <span key={idx} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: C.primaryLight, color: C.primary }}>{ri}</span>
+                  <span key={idx} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: C.primaryLight, color: C.primary }}>{ri.name ?? ri}</span>
                 ))}
               </div>
             </div>
