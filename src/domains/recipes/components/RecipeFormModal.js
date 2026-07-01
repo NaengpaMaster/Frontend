@@ -1,10 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
 import { IngredientSearchField } from '@/domains/fridge/components/IngredientSearchField';
+import { recipesApi } from '@/apis/recipesApi';
 
-const CATEGORIES = ['찌개', '볶음', '볶음밥', '반찬', '수프', '국', '구이', '무침', '기타'];
-const DIFFICULTIES = ['쉬움', '보통', '어려움'];
+const DIFFICULTIES = [
+  { value: 'EASY', label: '쉬움' },
+  { value: 'NORMAL', label: '보통' },
+  { value: 'HARD', label: '어려움' },
+];
 
 const inputStyle = {
   width: '100%',
@@ -42,22 +46,27 @@ function ErrorBadge({ msg }) {
   );
 }
 
-function TagInput({
-  label,
-  tags,
-  placeholder,
-  color = C.primaryLight,
-  textColor = C.primary,
-  presetIngredients,
-  hasError,
-  onChange,
-}) {
+// 상세조회 응답엔 categoryId가 없고 이름만 내려오므로 카테고리 목록을 받아 역으로 ID를 찾는다
+function resolveCategoryId(initial, categories) {
+  if (initial.categoryId) return initial.categoryId;
+  const matched = categories.find((c) => c.name === initial.category);
+  return matched ? matched.recipeCategoryId : (categories[0]?.recipeCategoryId ?? null);
+}
+
+// 재료를 {productId, name} 형태로 정규화. 기존 mock 데이터처럼 문자열로만 온 경우 productId는 null.
+function normalizeIngredients(list) {
+  return (list ?? []).map((item) =>
+    typeof item === 'string' ? { productId: null, name: item } : { productId: item.productId ?? null, name: item.name }
+  );
+}
+
+function IngredientTagInput({ ingredients, presetIngredients, hasError, onChange }) {
   const [input, setInput] = useState('');
   const [fieldKey, setFieldKey] = useState(0);
 
-  const add = (name = input) => {
-    if (!name.trim() || tags.includes(name.trim())) return;
-    onChange([...tags, name.trim()]);
+  const add = (item) => {
+    if (!item.name.trim() || ingredients.some((i) => i.name === item.name.trim())) return;
+    onChange([...ingredients, { productId: item.productId ?? null, name: item.name.trim() }]);
     setInput('');
     setFieldKey((k) => k + 1);
   };
@@ -65,8 +74,8 @@ function TagInput({
   return (
     <div>
       <label style={labelStyle}>
-        {label}
-        {hasError && <ErrorBadge msg="1개 이상 입력해주세요" />}
+        필수 재료 *
+        {hasError && <ErrorBadge msg="검색 후 목록에서 선택해 1개 이상 추가해주세요" />}
       </label>
       <div style={{
         borderRadius: '12px',
@@ -75,40 +84,42 @@ function TagInput({
         background: hasError ? C.dangerLight : 'transparent',
         transition: 'all 0.15s',
       }}>
-        <div style={{ marginBottom: tags.length > 0 ? '8px' : '0' }}>
+        <div style={{ marginBottom: ingredients.length > 0 ? '8px' : '0' }}>
           <IngredientSearchField
             key={fieldKey}
             value={input}
-            placeholder={placeholder}
-            excluded={tags}
+            placeholder="재료 검색 후 선택"
+            excluded={ingredients.map((i) => i.name)}
             presetIngredients={presetIngredients}
             onSelect={(ingredient) => {
               if (!ingredient.name) { setInput(''); return; }
-              add(ingredient.name);
+              if (ingredient.productId) add(ingredient);
+              else setInput(ingredient.name);
             }}
           />
         </div>
-        {tags.length > 0 && (
+        {ingredients.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {tags.map((tag) => (
+            {ingredients.map((tag) => (
               <span
-                key={tag}
+                key={tag.name}
+                title={tag.productId ? undefined : '검색 결과에서 선택하지 않아 저장 시 제외됩니다'}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
                   padding: '4px 10px',
-                  background: color,
+                  background: tag.productId ? C.primaryLight : C.dangerLight,
                   borderRadius: '20px',
                   fontSize: '12px',
-                  color: textColor,
+                  color: tag.productId ? C.primary : C.danger,
                   fontWeight: 600,
                 }}
               >
-                {tag}
+                {tag.name}
                 <button
-                  onClick={() => onChange(tags.filter((t) => t !== tag))}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: textColor, padding: 0, lineHeight: 1 }}
+                  onClick={() => onChange(ingredients.filter((i) => i.name !== tag.name))}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1 }}
                 >
                   <X size={11} />
                 </button>
@@ -122,24 +133,54 @@ function TagInput({
 }
 
 export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시피 등록', presetIngredients }) {
+  const [recipeCategories, setRecipeCategories] = useState([]);
+  const [foodCategories, setFoodCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   const [form, setForm] = useState({
     name: initial.name ?? '',
-    category: initial.category ?? '기타',
+    categoryId: initial.categoryId ?? null,
+    foodCategoryId: null,
     description: initial.description ?? '',
-    cookTime: initial.cookTime ?? 15,
-    difficulty: initial.difficulty ?? '쉬움',
-    requiredIngredients: initial.requiredIngredients ?? [],
-    optionalIngredients: [],
-    steps: initial.steps ?? [''],
-    isFavorite: initial.isFavorite ?? false,
-    likeCount: initial.likeCount ?? 0,
+    cookingTime: initial.cookTime ?? initial.cookingTime ?? 15,
+    difficulty: initial.difficulty ?? 'EASY',
+    ingredients: normalizeIngredients(initial.requiredIngredients),
+    steps: initial.steps?.length ? initial.steps : [''],
   });
 
   const [fieldErrors, setFieldErrors] = useState({ name: false, ingredients: false, steps: false });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const nameRef = useRef(null);
   const ingredientsRef = useRef(null);
   const stepsRef = useRef(null);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const [rcRes, fcRes] = await Promise.all([
+          recipesApi.getRecipeCategories(),
+          recipesApi.getFoodCategories(),
+        ]);
+        const rc = rcRes.data?.data ?? rcRes.data ?? [];
+        const fc = fcRes.data?.data ?? fcRes.data ?? [];
+        setRecipeCategories(rc);
+        setFoodCategories(fc);
+        setForm((prev) => ({
+          ...prev,
+          categoryId: prev.categoryId ?? resolveCategoryId(initial, rc),
+          foodCategoryId: prev.foodCategoryId ?? fc[0]?.foodCategoryId ?? null,
+        }));
+      } catch {
+        // 카테고리 로드 실패 시 선택 불가 상태로 두고 저장 시 에러 노출
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+    fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateStep = (idx, val) => {
     const next = [...form.steps];
@@ -155,22 +196,44 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
 
   const removeStep = (idx) => setForm({ ...form, steps: form.steps.filter((_, i) => i !== idx) });
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const validIngredients = form.ingredients.filter((i) => i.productId);
     const errs = {
       name: !form.name.trim(),
-      ingredients: form.requiredIngredients.length === 0,
+      ingredients: validIngredients.length === 0,
       steps: form.steps.filter((s) => s.trim()).length === 0,
     };
 
     if (errs.name || errs.ingredients || errs.steps) {
       setFieldErrors(errs);
-      // 첫 번째 에러 필드로 스크롤
       const target = errs.name ? nameRef : errs.ingredients ? ingredientsRef : stepsRef;
       target.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
-    onSave({ ...form, optionalIngredients: [], steps: form.steps.filter((s) => s.trim()), likeCount: form.likeCount });
+    const payload = {
+      name: form.name.trim(),
+      description: form.description,
+      cookingTime: form.cookingTime,
+      difficulty: form.difficulty,
+      categoryId: form.categoryId,
+      foodCategoryId: form.foodCategoryId,
+      productIds: validIngredients.map((i) => i.productId),
+      steps: form.steps.filter((s) => s.trim()),
+      // 백엔드로는 전송되지만 응답에 없는 표시용 정보라 프런트 store에서 화면 갱신에만 사용함
+      _categoryName: recipeCategories.find((c) => c.recipeCategoryId === form.categoryId)?.name,
+      _ingredientNames: validIngredients.map((i) => i.name),
+    };
+
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave(payload);
+    } catch (err) {
+      setSaveError(err.message || '저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -213,6 +276,12 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
         {/* Form */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {saveError && (
+              <div style={{ background: C.dangerLight, borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: C.danger, fontWeight: 600 }}>
+                {saveError}
+              </div>
+            )}
+
             {/* Name */}
             <div ref={nameRef}>
               <label style={labelStyle}>
@@ -234,18 +303,42 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
               />
             </div>
 
-            {/* Category + Time + Difficulty */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            {/* Category + FoodCategory + Time + Difficulty */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div>
-                <label style={labelStyle}>카테고리</label>
+                <label style={labelStyle}>레시피 카테고리</label>
                 <select
                   style={{ ...inputStyle, cursor: 'pointer' }}
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  value={form.categoryId ?? ''}
+                  disabled={categoriesLoading}
+                  onChange={(e) => setForm({ ...form, categoryId: Number(e.target.value) })}
                 >
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {categoriesLoading
+                    ? <option>불러오는 중...</option>
+                    : recipeCategories.map((c) => (
+                        <option key={c.recipeCategoryId} value={c.recipeCategoryId}>{c.name}</option>
+                      ))
+                  }
                 </select>
               </div>
+              <div>
+                <label style={labelStyle}>음식 카테고리</label>
+                <select
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  value={form.foodCategoryId ?? ''}
+                  disabled={categoriesLoading}
+                  onChange={(e) => setForm({ ...form, foodCategoryId: Number(e.target.value) })}
+                >
+                  {categoriesLoading
+                    ? <option>불러오는 중...</option>
+                    : foodCategories.map((c) => (
+                        <option key={c.foodCategoryId} value={c.foodCategoryId}>{c.name}</option>
+                      ))
+                  }
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div>
                 <label style={labelStyle}>조리시간(분)</label>
                 <input
@@ -253,8 +346,8 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
                   type="number"
                   min={1}
                   max={180}
-                  value={form.cookTime}
-                  onChange={(e) => setForm({ ...form, cookTime: Number(e.target.value) })}
+                  value={form.cookingTime}
+                  onChange={(e) => setForm({ ...form, cookingTime: Number(e.target.value) })}
                 />
               </div>
               <div>
@@ -264,7 +357,7 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
                   value={form.difficulty}
                   onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
                 >
-                  {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
+                  {DIFFICULTIES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
               </div>
             </div>
@@ -282,15 +375,13 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
 
             {/* Required Ingredients */}
             <div ref={ingredientsRef}>
-              <TagInput
-                label="필수 재료 *"
-                tags={form.requiredIngredients}
-                placeholder="재료 입력 후 Enter"
+              <IngredientTagInput
+                ingredients={form.ingredients}
                 presetIngredients={presetIngredients}
                 hasError={fieldErrors.ingredients}
-                onChange={(tags) => {
-                  setForm({ ...form, requiredIngredients: tags });
-                  if (tags.length > 0) setFieldErrors((prev) => ({ ...prev, ingredients: false }));
+                onChange={(ingredients) => {
+                  setForm({ ...form, ingredients });
+                  if (ingredients.some((i) => i.productId)) setFieldErrors((prev) => ({ ...prev, ingredients: false }));
                 }}
               />
             </div>
@@ -401,19 +492,20 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
           </button>
           <button
             onClick={handleSave}
+            disabled={saving}
             style={{
               flex: 2,
               padding: '13px',
-              background: C.primary,
+              background: saving ? C.fgSubtle : C.primary,
               border: 'none',
               borderRadius: '16px',
               color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '15px',
-              cursor: 'pointer',
+              cursor: saving ? 'default' : 'pointer',
             }}
           >
-            레시피 저장
+            {saving ? '저장 중...' : '레시피 저장'}
           </button>
         </div>
       </div>

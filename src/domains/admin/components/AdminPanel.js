@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info } from 'lucide-react';
 import {
   C,
@@ -7,7 +7,26 @@ import {
 } from '@/shared/data/mockData';
 import { adminApi } from '@/apis/adminApi';
 import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
+import { adminRecipesApi } from '@/apis/recipesApi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
+
+function mapRecipeDetail(d) {
+  return {
+    ...d,
+    id: d.recipeId ?? d.id,
+    name: d.recipeName ?? d.name,
+    category: d.category ?? d.categoryName,
+    cookTime: d.cookTime ?? d.cookingTime,
+    difficulty: d.difficulty,
+    requiredIngredients: (d.ingredients ?? d.requiredIngredients ?? []).map((i) =>
+      typeof i === 'string' ? { productId: null, name: i } : { productId: i.ingredientId, name: i.ingredientName }
+    ),
+    steps: (d.steps ?? d.instructions ?? []).map((s) => typeof s === 'string' ? s : s.content),
+    description: d.description ?? '',
+  };
+}
 
 const TAB_ICONS = {
   members:     { icon: Users,         label: '회원' },
@@ -273,20 +292,77 @@ function MembersTab({ users, onUpdate, currentUser }) {
 }
 
 // ─── Recipes ──────────────────────────────────────────────────────────────────
-function RecipesTab({ recipes, onUpdate }) {
+function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages, onUpdateRecipe, onDeleteRecipe }) {
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const observerRef = useRef(null);
 
-  const handleEdit = (data) => {
+  const sentinelRef = useCallback((node) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) onFetchNextPage(); },
+      { threshold: 0.1 },
+    );
+    observerRef.current.observe(node);
+  }, [onFetchNextPage]);
+
+  const fetchDetail = async (recipe) => {
+    const res = await adminRecipesApi.getById(recipe.recipeId ?? recipe.id);
+    const d = res.data?.data ?? res.data;
+    return mapRecipeDetail(d);
+  };
+
+  const handleSelect = async (recipe) => {
+    setDetailLoading(true);
+    setError(null);
+    try {
+      setSelected(await fetchDetail(recipe));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleEditClick = async (recipe) => {
+    setDetailLoading(true);
+    setError(null);
+    try {
+      setEditing(await fetchDetail(recipe));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    onFetchRecipes()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [onFetchRecipes]);
+
+  const handleEdit = async (data) => {
     if (!editing) return;
-    onUpdate(recipes.map((r) => r.id === editing.id ? { ...data, id: editing.id } : r));
+    // 에러를 다시 던져서 RecipeFormModal 자체의 인라인 에러 표시로 보여줌 (모달이 화면을 덮어 바깥 배너가 안 보임)
+    await onUpdateRecipe(editing.id, data);
     setEditing(null);
   };
 
-  const handleDelete = (id) => {
-    onUpdate(recipes.filter((r) => r.id !== id));
-    setDeleteId(null);
+  const handleDelete = async (id) => {
+    try {
+      await onDeleteRecipe(id);
+      setDeleteId(null);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -298,11 +374,18 @@ function RecipesTab({ recipes, onUpdate }) {
         </div>
       </div>
 
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '36px 0', color: C.fgMuted, fontSize: '13px' }}>레시피 불러오는 중...</div>
+      )}
+      {error && (
+        <div style={{ textAlign: 'center', padding: '12px', marginBottom: '12px', background: C.dangerLight, borderRadius: '12px', color: C.danger, fontSize: '13px', fontWeight: 600 }}>{error}</div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {recipes.map((r) => (
           <div
             key={r.id}
-            onClick={() => setSelected(r)}
+            onClick={() => handleSelect(r)}
             className="card-hover"
             style={{
               width: '100%',
@@ -333,13 +416,25 @@ function RecipesTab({ recipes, onUpdate }) {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button onClick={(e) => { e.stopPropagation(); setEditing(r); }} style={{ padding: '6px 10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, cursor: 'pointer' }}><Edit2 size={13} /></button>
+                <button onClick={(e) => { e.stopPropagation(); handleEditClick(r); }} style={{ padding: '6px 10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, cursor: 'pointer' }}><Edit2 size={13} /></button>
                 <button onClick={(e) => { e.stopPropagation(); setDeleteId(r.id); }} style={{ padding: '6px 10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, cursor: 'pointer' }}><Trash2 size={13} /></button>
               </div>
             )}
           </div>
         ))}
       </div>
+
+      {adminPage + 1 < adminTotalPages && (
+        <div ref={sentinelRef} style={{ textAlign: 'center', padding: '20px 0', color: C.fgMuted, fontSize: '13px' }}>
+          {adminLoading ? '불러오는 중...' : ''}
+        </div>
+      )}
+
+      {detailLoading && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'grid', placeItems: 'center' }}>
+          <div style={{ color: C.fgMuted, fontWeight: 700, fontSize: '14px' }}>상세 정보 불러오는 중...</div>
+        </div>
+      )}
 
       {selected && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'flex', alignItems: 'flex-end' }} onClick={() => setSelected(null)}>
@@ -367,15 +462,15 @@ function RecipesTab({ recipes, onUpdate }) {
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
               <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{selected.category}</span>
-              <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{selected.difficulty}</span>
+              <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{DIFFICULTY_LABELS[selected.difficulty] ?? selected.difficulty}</span>
               <span style={{ fontSize: '12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '5px 10px', color: C.fgMuted }}>{selected.cookTime}분</span>
             </div>
 
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: C.fgMuted, marginBottom: '10px' }}>필수 재료</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {selected.requiredIngredients.map((ri) => (
-                  <span key={ri} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: C.primaryLight, color: C.primary }}>{ri}</span>
+                {selected.requiredIngredients.map((ri, idx) => (
+                  <span key={idx} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: C.primaryLight, color: C.primary }}>{ri.name ?? ri}</span>
                 ))}
               </div>
             </div>
@@ -878,7 +973,9 @@ function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) 
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
   currentUser, users, recipes, inquiries, presetIngredients, onClose,
-  onUpdateUsers, onUpdateRecipes, onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
+  onUpdateUsers, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages,
+  onAdminUpdateRecipe, onAdminDeleteRecipe,
+  onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState('members');
 
@@ -967,7 +1064,7 @@ export function AdminPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
         {activeTab === 'members'     && <MembersTab users={users} onUpdate={onUpdateUsers} currentUser={currentUser} />}
-        {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onUpdate={onUpdateRecipes} />}
+        {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab discarded={mockDiscardedItems} />}
         {activeTab === 'inquiries'   && <InquiriesTab inquiries={inquiries} onAnswer={onAnswerInquiry} onDeleteInquiry={onDeleteInquiry} onDeleteAnswer={onDeleteAnswer} />}
