@@ -20,6 +20,7 @@ const toSearchItem = (item) => ({
   productId: item.productId,
   name: item.name,
   category: CATEGORY_NAMES[item.productCategoryId] ?? '기타',
+  defaultExpiryDays: item.defaultExpiryDays,
 });
 
 export function IngredientSearchField({
@@ -80,14 +81,14 @@ export function IngredientSearchField({
   const handleChange = (e) => {
     setQuery(e.target.value);
     setIsOpen(true);       // 타이핑하면 드롭다운 열기
-    onSelect({ name: e.target.value, category: '기타', productId: null });
+    onSelect({ name: e.target.value, category: '기타', productId: null, defaultExpiryDays: null });
   };
 
   const handleClear = () => {
     setQuery('');
     setIsOpen(false);
     setHighlightedIndex(-1);
-    onSelect({ name: '', category: '기타', productId: null });
+    onSelect({ name: '', category: '기타', productId: null, defaultExpiryDays: null });
   };
 
   const handleKeyDown = (e) => {

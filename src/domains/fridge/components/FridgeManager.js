@@ -6,6 +6,12 @@ import {
 } from '@/shared/data/mockData';
 import { IngredientSearchField } from './IngredientSearchField';
 
+function addDays(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function DayCounter({ expiryDate }) {
   const days = getDaysUntilExpiry(expiryDate);
   const status = getExpiryStatus(days);
@@ -71,12 +77,17 @@ function IngredientModal({
                 placeholder="재료 이름을 검색하세요"
                 presetIngredients={presetIngredients}
                 onSelect={(ingredient) => {
+                  const defaultExpiryDate = Number.isInteger(ingredient.defaultExpiryDays)
+                    ? addDays(ingredient.defaultExpiryDays)
+                    : '';
+
                   setForm((prev) => ({
                     ...prev,
                     productId: ingredient.productId,
                     name: ingredient.name,
                     category: ingredient.category,
                     emoji: CATEGORY_EMOJIS[ingredient.category],
+                    expiryDate: defaultExpiryDate || prev.expiryDate,
                   }));
                 }}
                 onFormSubmit={() => {

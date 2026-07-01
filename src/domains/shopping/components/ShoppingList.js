@@ -3,6 +3,10 @@ import { Plus, Trash2, Check, ShoppingCart, X } from 'lucide-react';
 import { CATEGORIES, CATEGORY_EMOJIS, C } from '@/shared/data/mockData';
 import { IngredientSearchField } from '@/domains/fridge/components/IngredientSearchField';
 
+function openCoupangSearch(name) {
+  window.open(`https://www.coupang.com/np/search?q=${encodeURIComponent(name)}`, '_blank', 'noopener,noreferrer');
+}
+
 export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked, onMoveCheckedToFridge }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ productId: null, name: '', quantity: '', category: '채소/과일' });
@@ -180,6 +184,22 @@ export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked,
                       </span>
                       {item.quantity && <span style={{ fontSize: '11px', color: item.checked ? C.fgSubtle : C.fgMuted, marginLeft: '8px' }}>{item.quantity}</span>}
                     </div>
+                    <button
+                      onClick={() => openCoupangSearch(item.name)}
+                      style={{
+                        background: C.primaryLight,
+                        border: `1px solid ${C.primaryMid}`,
+                        borderRadius: '10px',
+                        color: C.primary,
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '6px 8px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      즉시 구매
+                    </button>
                     <button onClick={() => onDelete(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgSubtle, padding: '2px' }}>
                       <X size={14} />
                     </button>
