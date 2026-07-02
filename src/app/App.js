@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { authApi } from '@/apis/authApi';
+import { notificationApi } from '@/apis/notificationApi';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { Sidebar } from '@/shared/components/Sidebar';
 import { Dashboard } from '@/domains/dashboard/components/Dashboard';
@@ -12,6 +13,7 @@ import { InquiryPage } from '@/domains/inquiry/components/InquiryPage';
 import { AuthScreen } from '@/domains/auth/components/AuthScreen';
 import { MyPage } from '@/domains/mypage/components/MyPage';
 import { AdminPanel } from '@/domains/admin/components/AdminPanel';
+import { ExpiryNotificationPopup } from '@/shared/components/ExpiryNotificationPopup';
 
 import useAuthStore from '@/domains/auth/store/useAuthStore';
 import useUiStore from '@/shared/store/useUiStore';
@@ -22,6 +24,9 @@ import useInquiryStore from '@/domains/inquiry/store/useInquiryStore';
 
 export default function App() {
   /* MARKER-MAKE-KIT-INVOKED */
+  const [showExpiryPopup, setShowExpiryPopup] = useState(false);
+  const [expiryPopupDismissed, setExpiryPopupDismissed] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   const {
     currentUser,
@@ -99,6 +104,47 @@ export default function App() {
     fetchUrgentHomeRecipes();
     fetchInquiries();
   }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes, fetchInquiries]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchNotifications() {
+      if (!currentUser || activeTab !== 'home' || expiryPopupDismissed) return;
+
+      try {
+        const unreadNotifications = await notificationApi.getUnread();
+        if (!mounted) return;
+
+        setNotifications(unreadNotifications);
+        setShowExpiryPopup(unreadNotifications.length > 0);
+      } catch {
+        if (mounted) {
+          setNotifications([]);
+          setShowExpiryPopup(false);
+        }
+      }
+    }
+
+    fetchNotifications();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, currentUser, expiryPopupDismissed]);
+
+  const dismissExpiryPopup = () => {
+    setExpiryPopupDismissed(true);
+    setShowExpiryPopup(false);
+  };
+
+  const confirmNotifications = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications([]);
+    } finally {
+      dismissExpiryPopup();
+    }
+  };
 
   useEffect(() => {
     function handleForbidden() {
@@ -324,6 +370,18 @@ export default function App() {
               onLogout={handleLogout}
               onUpdate={handleUpdateUser}
               onOpenAdmin={() => setShowAdmin(true)}
+            />
+          )}
+
+          {showExpiryPopup && (
+            <ExpiryNotificationPopup
+              notifications={notifications}
+              onClose={dismissExpiryPopup}
+              onConfirm={confirmNotifications}
+              onGoFridge={async () => {
+                await confirmNotifications();
+                setActiveTab('fridge');
+              }}
             />
           )}
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BarChart3, ChevronRight, Zap, TrendingDown, User, X } from 'lucide-react';
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel,
-  STATUS_COLORS, TODAY, C,
+  STATUS_COLORS, C,
   CATEGORY_EMOJIS,
   GRADE_TABLE,
 } from '@/shared/data/mockData';
@@ -48,10 +48,6 @@ function getGradeEntry(score) {
   return (
     [...GRADE_TABLE].reverse().find((g) => score >= g.minScore) ?? GRADE_TABLE[0]
   );
-}
-
-function getNaengpaGrade(score) {
-  return getGradeEntry(score).label;
 }
 
 function getGradeEmoji(score) {
@@ -389,9 +385,8 @@ export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHo
     return () => { mounted = false; };
   }, []);
 
-  const dateStr = new Date(TODAY).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-  const grade = getNaengpaGrade(wasteScore);
-  const gradeEmoji = getGradeEmoji(wasteScore);
+  const gradeEntry = getGradeEntry(wasteScore);
+  const grade = gradeEntry.label;
 
   return (
     <div style={{ padding: '0 0 24px', background: C.bg }}>
@@ -406,14 +401,49 @@ export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHo
           alignItems: 'flex-start',
         }}
       >
-        <div>
-          <div style={{ fontSize: '11px', color: C.fgMuted, letterSpacing: '0.06em', marginBottom: '2px' }}>{dateStr}</div>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: C.fg, letterSpacing: '-0.02em', lineHeight: 1.1 }}>냉파 마스터</div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '7px', marginBottom: '3px', padding: '2px 8px', borderRadius: '20px', background: C.primaryLight, color: C.primary, fontSize: '10px', fontWeight: 700 }}>
-            <span>{gradeEmoji}</span>
-            <span>{grade}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+          <div
+            style={{
+              width: '96px',
+              height: '96px',
+              borderRadius: '26px',
+              background: C.primaryLight,
+              border: '1px solid rgb(179, 225, 217)',
+              boxShadow: '0 10px 24px rgba(14,132,120,0.14)',
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src={gradeEntry.characterImage}
+              alt={`${grade} 캐릭터`}
+              style={{
+                width: '110px',
+                height: '110px',
+                objectFit: 'contain',
+                objectPosition: 'center',
+              }}
+            />
           </div>
-          <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '2px' }}>안녕하세요, {currentUser.name}님 👋</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '20px', fontWeight: 900, color: C.fg, lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+              <span>안녕하세요,</span>
+              <span
+                style={{
+                  color: 'rgb(14, 132, 120)',
+                  fontWeight: 900,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {grade}
+              </span>
+            </div>
+            <div style={{ fontSize: '17px', fontWeight: 800, color: C.fgMuted, lineHeight: 1.35, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser.name}님
+            </div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
