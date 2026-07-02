@@ -53,8 +53,9 @@ export default function App() {
     fetchShoppingItems, addShoppingItem, toggleShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
   } = useShoppingStore();
   const {
-    inquiries, users,
-    addInquiry, updateInquiry, deleteInquiry, answerInquiry, deleteAnswer, setUsers,
+    inquiries, adminInquiries, users,
+    fetchInquiries, addInquiry, updateInquiry, deleteInquiry,
+    adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
   } = useInquiryStore();
 
   useEffect(() => {
@@ -97,7 +98,8 @@ export default function App() {
     fetchShoppingItems();
     fetchHomeRecipes();
     fetchUrgentHomeRecipes();
-  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
+    fetchInquiries();
+  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes, fetchInquiries]);
 
   useEffect(() => {
     function handleForbidden() {
@@ -165,17 +167,9 @@ export default function App() {
   const handleAddRecipe = (data) => addRecipe(data, currentUser?.id);
 
   // ─── Inquiry handlers ───────────────────────────────────────────────────────
-  const handleAddInquiry = (subject, content) => {
+  const handleAddInquiry = async (subject, content) => {
     if (!currentUser) return;
-    addInquiry({
-      id: `q_${Date.now()}`,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      subject,
-      content,
-      status: 'pending',
-      createdAt: new Date().toISOString().split('T')[0],
-    });
+    await addInquiry(subject, content);
   };
 
   // ─── Shopping → Fridge ─────────────────────────────────────────────────────
@@ -213,7 +207,7 @@ export default function App() {
             currentUser={currentUser}
             users={users}
             recipes={recipes}
-            inquiries={inquiries}
+            inquiries={adminInquiries}
             presetIngredients={presetIngredients}
             onClose={handleLogout}
             onUpdateUsers={setUsers}
@@ -224,9 +218,9 @@ export default function App() {
             adminTotalPages={adminTotalPages}
             onAdminUpdateRecipe={adminUpdateRecipe}
             onAdminDeleteRecipe={adminDeleteRecipe}
-            onAnswerInquiry={answerInquiry}
-            onDeleteInquiry={deleteInquiry}
-            onDeleteAnswer={deleteAnswer}
+            onAnswerInquiry={adminAnswerInquiry}
+            onDeleteInquiry={adminDeleteInquiry}
+            onDeleteAnswer={adminDeleteAnswer}
             onUpdatePresetIngredients={setPresetIngredients}
           />
         </div>
