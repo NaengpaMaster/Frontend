@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { initialPresetIngredients } from '@/shared/data/mockData';
 import { fridgeApi } from '@/apis/fridgeApi';
 
-const CATEGORY_NAMES = {
+export const CATEGORY_NAMES = {
   1: '채소/과일',
   2: '채소/과일',
   3: '육류/어류',
