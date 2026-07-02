@@ -10,13 +10,17 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
   const [editContent, setEditContent] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  const myInquiries = inquiries.filter((inq) => inq.userId === currentUser.id);
+  const myInquiries = inquiries;
 
-  const submit = () => {
+  const submit = async () => {
     if (!subject.trim() || !content.trim()) return;
-    onAddInquiry(subject.trim(), content.trim());
-    setSubject('');
-    setContent('');
+    try {
+      await onAddInquiry(subject.trim(), content.trim());
+      setSubject('');
+      setContent('');
+    } catch (err) {
+      alert(err.message || '문의 등록 중 오류가 발생했습니다.');
+    }
   };
 
   const startEdit = (inq) => {
@@ -25,10 +29,24 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
     setEditContent(inq.content);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId || !editSubject.trim() || !editContent.trim()) return;
-    onUpdateInquiry(editingId, editSubject.trim(), editContent.trim());
-    setEditingId(null);
+    try {
+      await onUpdateInquiry(editingId, editSubject.trim(), editContent.trim());
+      setEditingId(null);
+    } catch (err) {
+      alert(err.message || '문의 수정 중 오류가 발생했습니다.');
+    }
+  };
+
+  const removeInquiry = async (id) => {
+    try {
+      await onDeleteInquiry(id);
+    } catch (err) {
+      alert(err.message || '문의 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
   const status = (inq) => {
@@ -153,25 +171,27 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
                           <div style={{ fontSize: '10px', color: C.fgSubtle }}>{inq.createdAt}</div>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {inq.status === 'pending' && (
-                              <button
-                                onClick={() => startEdit(inq)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 9px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}
-                              >
-                                <Edit2 size={11} /> 수정
-                              </button>
-                            )}
-                            {isDeleteConfirm ? (
                               <>
-                                <button onClick={() => { onDeleteInquiry(inq.id); setDeleteConfirmId(null); }} style={{ padding: '4px 9px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제 확인</button>
-                                <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                                <button
+                                  onClick={() => startEdit(inq)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 9px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}
+                                >
+                                  <Edit2 size={11} /> 수정
+                                </button>
+                                {isDeleteConfirm ? (
+                                  <>
+                                    <button onClick={() => removeInquiry(inq.id)} style={{ padding: '4px 9px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제 확인</button>
+                                    <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirmId(inq.id)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 9px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}
+                                  >
+                                    <Trash2 size={11} /> 삭제
+                                  </button>
+                                )}
                               </>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirmId(inq.id)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 9px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}
-                              >
-                                <Trash2 size={11} /> 삭제
-                              </button>
                             )}
                           </div>
                         </div>
