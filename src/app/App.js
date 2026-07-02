@@ -22,10 +22,18 @@ import useRecipeStore from '@/domains/recipes/store/useRecipeStore';
 import useShoppingStore from '@/domains/shopping/store/useShoppingStore';
 import useInquiryStore from '@/domains/inquiry/store/useInquiryStore';
 
+function getNotificationKey(notifications) {
+  return notifications
+    .map((notification) => notification.notificationId)
+    .filter(Boolean)
+    .sort((a, b) => a - b)
+    .join(',');
+}
+
 export default function App() {
   /* MARKER-MAKE-KIT-INVOKED */
   const [showExpiryPopup, setShowExpiryPopup] = useState(false);
-  const [expiryPopupDismissed, setExpiryPopupDismissed] = useState(false);
+  const [dismissedNotificationKey, setDismissedNotificationKey] = useState('');
   const [notifications, setNotifications] = useState([]);
 
   const {
@@ -109,14 +117,15 @@ export default function App() {
     let mounted = true;
 
     async function fetchNotifications() {
-      if (!currentUser || activeTab !== 'home' || expiryPopupDismissed) return;
+      if (!currentUser || activeTab !== 'home') return;
 
       try {
         const unreadNotifications = await notificationApi.getUnread();
         if (!mounted) return;
 
+        const notificationKey = getNotificationKey(unreadNotifications);
         setNotifications(unreadNotifications);
-        setShowExpiryPopup(unreadNotifications.length > 0);
+        setShowExpiryPopup(unreadNotifications.length > 0 && notificationKey !== dismissedNotificationKey);
       } catch {
         if (mounted) {
           setNotifications([]);
@@ -130,10 +139,10 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [activeTab, currentUser, expiryPopupDismissed]);
+  }, [activeTab, currentUser, dismissedNotificationKey]);
 
   const dismissExpiryPopup = () => {
-    setExpiryPopupDismissed(true);
+    setDismissedNotificationKey(getNotificationKey(notifications));
     setShowExpiryPopup(false);
   };
 

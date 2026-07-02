@@ -165,7 +165,7 @@ export function ExpiryNotificationPopup({ notifications, onClose, onConfirm, onG
             <div>
               <div style={{ color: C.fg, fontSize: '17px', fontWeight: 900, lineHeight: 1.25 }}>소비기한 알림</div>
               <div style={{ color: C.fgMuted, fontSize: '12px', lineHeight: 1.4, marginTop: '2px' }}>
-                확인이 필요한 재료 {totalCount}개가 있어요
+                확인이 필요한 알림 {totalCount}개가 있어요
               </div>
             </div>
           </div>
