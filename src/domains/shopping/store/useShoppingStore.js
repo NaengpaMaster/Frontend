@@ -41,12 +41,13 @@ const useShoppingStore = create((set, get) => ({
   },
 
   addShoppingItem: async (item) => {
-    await shoppingApi.create({
+    const created = await shoppingApi.create({
       productId: item.productId,
       quantity: item.quantity,
     });
 
     await get().fetchShoppingItems();
+    return created;
   },
 
   toggleShoppingItem: async (id) => {
