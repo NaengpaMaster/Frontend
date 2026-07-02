@@ -38,34 +38,62 @@ function mapDetail(d) {
 
 function RecipeDetail({
   recipe, comments, commentsLoading,
-  onClose, onFavorite, onEdit, onDelete, onAddComment, onUpdateComment, onDeleteComment, onAddToShoppingList,
+  onClose, onFavorite, onEdit, onDelete, onAddComment, onUpdateComment, onDeleteComment, onAddToShoppingList, onRemoveFromShoppingList,
 }) {
   const [commentText, setCommentText] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingText, setEditingText] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState(null);
-  const [addedIngredientIds, setAddedIngredientIds] = useState([]);
+  // ingredientId → shoppingItemId
+  const [addedMap, setAddedMap] = useState({});
   const [addingAll, setAddingAll] = useState(false);
+  const [showAddAllConfirm, setShowAddAllConfirm] = useState(false);
   const canManage = recipe.canManage;
   const missingItems = recipe.ingredients.filter((ing) => !ing.owned);
 
   const handleAddIngredient = async (ing) => {
     try {
-      await onAddToShoppingList({ productId: ing.ingredientId, quantity: '1개' });
-      setAddedIngredientIds((prev) => [...prev, ing.ingredientId]);
+      const created = await onAddToShoppingList({ productId: ing.ingredientId, quantity: '1개' });
+      const shoppingItemId = created?.shoppingItemId ?? created?.id;
+      setAddedMap((prev) => ({ ...prev, [ing.ingredientId]: shoppingItemId }));
     } catch (err) {
       alert(err.message || '장보기 목록 추가 중 오류가 발생했습니다.');
     }
   };
 
+  const handleRemoveIngredient = async (ing) => {
+    const shoppingItemId = addedMap[ing.ingredientId];
+    if (!shoppingItemId) return;
+    try {
+      await onRemoveFromShoppingList(shoppingItemId);
+      setAddedMap((prev) => {
+        const next = { ...prev };
+        delete next[ing.ingredientId];
+        return next;
+      });
+    } catch (err) {
+      alert(err.message || '장보기 목록 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleAddAllMissing = async () => {
-    const targets = missingItems.filter((ing) => !addedIngredientIds.includes(ing.ingredientId));
+    const targets = missingItems.filter((ing) => !(ing.ingredientId in addedMap));
     if (targets.length === 0) return;
     setAddingAll(true);
+    setShowAddAllConfirm(false);
     try {
-      await Promise.all(targets.map((ing) => onAddToShoppingList({ productId: ing.ingredientId, quantity: '1개' })));
-      setAddedIngredientIds((prev) => [...prev, ...targets.map((ing) => ing.ingredientId)]);
+      const results = await Promise.all(
+        targets.map((ing) => onAddToShoppingList({ productId: ing.ingredientId, quantity: '1개' })),
+      );
+      setAddedMap((prev) => {
+        const next = { ...prev };
+        targets.forEach((ing, idx) => {
+          const created = results[idx];
+          next[ing.ingredientId] = created?.shoppingItemId ?? created?.id;
+        });
+        return next;
+      });
     } catch (err) {
       alert(err.message || '장보기 목록 추가 중 오류가 발생했습니다.');
     } finally {
@@ -154,31 +182,39 @@ function RecipeDetail({
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: C.fgMuted }}>필요 재료</div>
             {missingItems.length > 0 && (
               <button
-                onClick={handleAddAllMissing}
-                disabled={addingAll || missingItems.every((ing) => addedIngredientIds.includes(ing.ingredientId))}
+                onClick={() => setShowAddAllConfirm(true)}
+                disabled={addingAll || missingItems.every((ing) => ing.ingredientId in addedMap)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none',
-                  cursor: addingAll ? 'default' : 'pointer', color: C.primary, fontSize: '11px', fontWeight: 700, padding: 0,
+                  cursor: addingAll || missingItems.every((ing) => ing.ingredientId in addedMap) ? 'default' : 'pointer',
+                  color: missingItems.every((ing) => ing.ingredientId in addedMap) ? C.fgMuted : C.primary,
+                  fontSize: '11px', fontWeight: 700, padding: 0,
                 }}
               >
-                <ShoppingCart size={12} /> 부족한 재료 장보기 담기
+                <ShoppingCart size={12} /> 부족한 재료 전부 장보기에 담기
               </button>
             )}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {recipe.ingredients.map((ing) => {
-              const isAdded = addedIngredientIds.includes(ing.ingredientId);
+              const isAdded = ing.ingredientId in addedMap;
               return (
                 <span key={ing.ingredientId} style={{
                   display: 'flex', alignItems: 'center', gap: '5px',
                   padding: '5px 8px 5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
-                  background: ing.owned ? C.primaryLight : C.dangerLight,
-                  color: ing.owned ? C.primary : C.danger,
+                  background: ing.owned ? C.primaryLight : isAdded ? C.primaryLight : C.dangerLight,
+                  color: ing.owned ? C.primary : isAdded ? C.primary : C.danger,
                 }}>
                   {ing.owned ? '✓ ' : '✗ '}{ing.ingredientName}
                   {!ing.owned && (
                     isAdded ? (
-                      <Check size={13} color={C.primary} />
+                      <button
+                        onClick={() => handleRemoveIngredient(ing)}
+                        title="장보기 목록에서 제거"
+                        style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: C.primary, padding: 0 }}
+                      >
+                        <Check size={13} />
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleAddIngredient(ing)}
@@ -194,6 +230,43 @@ function RecipeDetail({
             })}
           </div>
         </div>
+
+        {showAddAllConfirm && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}
+            onClick={() => setShowAddAllConfirm(false)}
+          >
+            <div
+              style={{ background: C.bg, borderRadius: '20px', padding: '24px 20px', width: '100%', maxWidth: '360px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontSize: '15px', fontWeight: 700, color: C.fg, marginBottom: '6px' }}>부족한 재료 전체 담기</div>
+              <div style={{ fontSize: '13px', color: C.fgMuted, marginBottom: '16px' }}>아래 재료를 장보기 목록에 모두 추가할까요?</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '20px' }}>
+                {missingItems.filter((ing) => !(ing.ingredientId in addedMap)).map((ing) => (
+                  <span key={ing.ingredientId} style={{ padding: '4px 10px', background: C.dangerLight, color: C.danger, borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>
+                    {ing.ingredientName}
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setShowAddAllConfirm(false)}
+                  style={{ flex: 1, padding: '10px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '12px', fontSize: '13px', color: C.fgMuted, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleAddAllMissing}
+                  disabled={addingAll}
+                  style={{ flex: 1, padding: '10px', background: C.primary, border: 'none', borderRadius: '12px', fontSize: '13px', color: '#FFF', cursor: addingAll ? 'default' : 'pointer', fontWeight: 700 }}
+                >
+                  {addingAll ? '담는 중...' : '전부 담기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: '24px' }}>
           <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: C.fgMuted, marginBottom: '12px' }}>조리 과정</div>
@@ -308,7 +381,7 @@ function RecipeDetail({
 
 export function RecipeView({
   recipes, recipesLoading, onFetchRecipes, onFetchNextPage, hasNextPage,
-  onToggleFavorite, presetIngredients, onAddRecipe, onUpdateRecipe, onDeleteRecipe, onAddToShoppingList,
+  onToggleFavorite, presetIngredients, onAddRecipe, onUpdateRecipe, onDeleteRecipe, onAddToShoppingList, onRemoveFromShoppingList,
   initialRecipeId, onInitialRecipeHandled,
 }) {
   const [search, setSearch] = useState('');
@@ -600,6 +673,7 @@ export function RecipeView({
           onUpdateComment={handleUpdateComment}
           onDeleteComment={handleDeleteComment}
           onAddToShoppingList={onAddToShoppingList}
+          onRemoveFromShoppingList={onRemoveFromShoppingList}
         />
       )}
 

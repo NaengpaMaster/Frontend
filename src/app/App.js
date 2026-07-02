@@ -295,6 +295,7 @@ export default function App() {
                 onUpdateRecipe={updateRecipe}
                 onDeleteRecipe={deleteRecipe}
                 onAddToShoppingList={addShoppingItem}
+                onRemoveFromShoppingList={deleteShoppingItem}
                 initialRecipeId={pendingRecipeId}
                 onInitialRecipeHandled={() => setPendingRecipeId(null)}
               />
