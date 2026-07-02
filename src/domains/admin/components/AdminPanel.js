@@ -864,12 +864,17 @@ function StatsTab({ discarded }) {
 }
 
 // ─── Inquiries ────────────────────────────────────────────────────────────────
-function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
+function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
   const [activeTab, setActiveTab] = useState('pending');
   const [expanded, setExpanded] = useState(null);
   const [answerText, setAnswerText] = useState('');
   const [editingAnswerId, setEditingAnswerId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    onFetchInquiries();
+  }, [onFetchInquiries]);
 
   const pendingList = inquiries
     .filter((i) => i.status === 'pending')
@@ -888,6 +893,40 @@ function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) 
       setExpanded(inq.id);
       setAnswerText(inq.answer ?? '');
       setEditingAnswerId(inq.answer ? null : inq.id);
+    }
+  };
+
+  const handleDeleteInquiry = async (id) => {
+    try {
+      await onDeleteInquiry(id);
+    } catch (err) {
+      alert(err.message || '문의 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleteConfirmId(null);
+      if (expanded === id) setExpanded(null);
+    }
+  };
+
+  const handleDeleteAnswer = async (id) => {
+    try {
+      await onDeleteAnswer(id);
+      setExpanded(null);
+    } catch (err) {
+      alert(err.message || '답변 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleSubmitAnswer = async (id) => {
+    if (!answerText.trim()) return;
+    setSubmitting(true);
+    try {
+      await onAnswer(id, answerText.trim());
+      setEditingAnswerId(null);
+      setExpanded(null);
+    } catch (err) {
+      alert(err.message || '답변 등록 중 오류가 발생했습니다.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -959,7 +998,7 @@ function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) 
                 </button>
                 {deleteConfirmId === inq.id ? (
                   <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-                    <button onClick={() => { onDeleteInquiry(inq.id); setDeleteConfirmId(null); if (expanded === inq.id) setExpanded(null); }} style={{ padding: '4px 8px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제</button>
+                    <button onClick={() => handleDeleteInquiry(inq.id)} style={{ padding: '4px 8px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제</button>
                     <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '4px 7px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}>취소</button>
                   </div>
                 ) : (
@@ -984,7 +1023,7 @@ function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) 
                             <Edit2 size={11} /> 수정
                           </button>
                           <button
-                            onClick={() => { onDeleteAnswer(inq.id); setExpanded(null); }}
+                            onClick={() => handleDeleteAnswer(inq.id)}
                             style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '3px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: '6px', color: C.danger, fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
                           >
                             <Trash2 size={11} /> 삭제
@@ -1012,19 +1051,14 @@ function InquiriesTab({ inquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) 
                       />
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
-                          onClick={() => {
-                            if (!answerText.trim()) return;
-                            onAnswer(inq.id, answerText.trim());
-                            setEditingAnswerId(null);
-                            setExpanded(null);
-                          }}
-                          disabled={!answerText.trim()}
+                          onClick={() => handleSubmitAnswer(inq.id)}
+                          disabled={!answerText.trim() || submitting}
                           style={{
                             flex: 2, padding: '9px 16px',
                             background: answerText.trim() ? C.primary : C.surface,
                             color: answerText.trim() ? '#FFF' : C.fgMuted,
                             border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-                            cursor: answerText.trim() ? 'pointer' : 'not-allowed',
+                            cursor: answerText.trim() && !submitting ? 'pointer' : 'not-allowed',
                           }}
                         >
                           {inq.answer ? '저장' : '답변 등록'}
@@ -1055,7 +1089,7 @@ export function AdminPanel({
   currentUser, users, recipes, inquiries, presetIngredients, onClose,
   onUpdateUsers, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages,
   onAdminUpdateRecipe, onAdminDeleteRecipe,
-  onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
+  onFetchInquiries, onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState('members');
 
@@ -1147,7 +1181,7 @@ export function AdminPanel({
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab discarded={mockDiscardedItems} />}
-        {activeTab === 'inquiries'   && <InquiriesTab inquiries={inquiries} onAnswer={onAnswerInquiry} onDeleteInquiry={onDeleteInquiry} onDeleteAnswer={onDeleteAnswer} />}
+        {activeTab === 'inquiries'   && <InquiriesTab inquiries={inquiries} onFetchInquiries={onFetchInquiries} onAnswer={onAnswerInquiry} onDeleteInquiry={onDeleteInquiry} onDeleteAnswer={onDeleteAnswer} />}
       </div>
     </div>
   );
