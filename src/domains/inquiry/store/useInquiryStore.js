@@ -1,9 +1,21 @@
 import { create } from 'zustand';
-import { inquiriesApi } from '@/apis/inquiriesApi';
-import { mockInquiries, mockUsers } from '@/shared/data/mockData';
+import { inquiriesApi, adminInquiriesApi } from '@/apis/inquiriesApi';
+import { mockUsers } from '@/shared/data/mockData';
 
 const toViewInquiry = (inq) => ({
   id: inq.inquiryId,
+  subject: inq.title,
+  content: inq.content,
+  status: inq.isAnswered ? 'answered' : 'pending',
+  answer: inq.answerContent ?? undefined,
+  createdAt: inq.createdAt ? inq.createdAt.split('T')[0] : '',
+});
+
+const toAdminViewInquiry = (inq) => ({
+  id: inq.inquiryId,
+  answerId: inq.answerId,
+  userId: inq.memberId,
+  userName: inq.nickname,
   subject: inq.title,
   content: inq.content,
   status: inq.isAnswered ? 'answered' : 'pending',
@@ -17,8 +29,8 @@ const useInquiryStore = create((set, get) => ({
   error: null,
   users: mockUsers,
 
-  // 관리자 문의 관리 화면은 이번 작업 범위 밖이라 기존 목데이터를 그대로 유지한다.
-  adminInquiries: mockInquiries,
+  adminInquiries: [],
+  adminLoading: false,
 
   fetchInquiries: async () => {
     set({ loading: true, error: null });
@@ -49,17 +61,41 @@ const useInquiryStore = create((set, get) => ({
     await get().fetchInquiries();
   },
 
-  adminAnswerInquiry: (id, answer) => set((state) => ({
-    adminInquiries: state.adminInquiries.map((q) => q.id === id ? { ...q, answer, status: 'answered' } : q),
-  })),
+  fetchAdminInquiries: async () => {
+    set({ adminLoading: true, error: null });
+    try {
+      const page = await adminInquiriesApi.getAll({ size: 100, sort: 'createdAt,desc' });
+      const list = page?.content ?? [];
+      const details = await Promise.all(list.map((item) => adminInquiriesApi.getById(item.inquiryId)));
+      set({ adminInquiries: details.map(toAdminViewInquiry) });
+    } catch (error) {
+      set({ error: error.message });
+    } finally {
+      set({ adminLoading: false });
+    }
+  },
 
-  adminDeleteInquiry: (id) => set((state) => ({
-    adminInquiries: state.adminInquiries.filter((q) => q.id !== id),
-  })),
+  adminAnswerInquiry: async (id, answer) => {
+    const inquiry = get().adminInquiries.find((q) => q.id === id);
+    if (inquiry?.answerId) {
+      await adminInquiriesApi.updateAnswer(id, inquiry.answerId, answer);
+    } else {
+      await adminInquiriesApi.createAnswer(id, answer);
+    }
+    await get().fetchAdminInquiries();
+  },
 
-  adminDeleteAnswer: (id) => set((state) => ({
-    adminInquiries: state.adminInquiries.map((q) => q.id === id ? { ...q, answer: undefined, status: 'pending' } : q),
-  })),
+  adminDeleteInquiry: async (id) => {
+    await adminInquiriesApi.delete(id);
+    await get().fetchAdminInquiries();
+  },
+
+  adminDeleteAnswer: async (id) => {
+    const inquiry = get().adminInquiries.find((q) => q.id === id);
+    if (!inquiry?.answerId) return;
+    await adminInquiriesApi.deleteAnswer(id, inquiry.answerId);
+    await get().fetchAdminInquiries();
+  },
 
   setUsers: (usersOrFn) => set((state) => ({
     users: typeof usersOrFn === 'function'

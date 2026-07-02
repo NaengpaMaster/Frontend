@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart3, ChevronRight, Zap, TrendingDown, User, X } from 'lucide-react';
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel,
@@ -6,6 +6,14 @@ import {
   CATEGORY_EMOJIS,
   GRADE_TABLE,
 } from '@/shared/data/mockData';
+import { scoreApi } from '@/apis/scoreApi';
+import { memberStatsApi } from '@/apis/memberStatsApi';
+
+const SCORE_REASON_META = {
+  EXPIRED_PRODUCT: { icon: '🗑️', meta: '만료 재료 1일' },
+  RECIPE_CREATED: { icon: '📒', meta: '레시피 1건 등록' },
+  NO_EXPIRED_4DAYS: { icon: '✅', meta: '만료 재료 없음 4일 유지' },
+};
 
 function DayBadge({ expiryDate }) {
   const days = getDaysUntilExpiry(expiryDate);
@@ -50,30 +58,36 @@ function getGradeEmoji(score) {
   return getGradeEntry(score).emoji;
 }
 
-function getNaengpaScore(discarded) {
-  const expiredCount = discarded.filter((item) => item.reason === '유통기한 만료').length;
-  return Math.max(0, Math.min(100, 100 - expiredCount * 2 + 3 + 5));
-}
-
 function ScoreDetailModal({
   score,
   grade,
-  discarded,
   onClose,
 }) {
-  const expiredDiscarded = discarded.filter((item) => item.reason === '유통기한 만료');
-  const scoreHistory = [
-    ...expiredDiscarded.slice(0, 5).map((item) => ({
-      id: item.id,
-      icon: CATEGORY_EMOJIS[item.category],
-      title: item.name,
-      meta: '만료 재료 1일',
-      date: item.date,
-      score: -2,
-    })),
-    { id: 'recipe-1', icon: '📒', title: '된장찌개 등록', meta: '레시피 1건 등록', date: '2026-06-01', score: 3 },
-    { id: 'streak-1', icon: '✅', title: '만료 재료 없음 4일 유지', meta: '', date: '', score: 5 },
-  ];
+  const [scoreHistory, setScoreHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    scoreApi.getHistories({ size: 20 })
+      .then((page) => {
+        if (!mounted) return;
+        const list = page?.content ?? [];
+        setScoreHistory(list.map((h, idx) => {
+          const meta = SCORE_REASON_META[h.scoreReason] ?? { icon: '📌', meta: '' };
+          return {
+            id: `${h.scoreReason}-${idx}`,
+            icon: meta.icon,
+            title: h.targetType || meta.meta,
+            meta: h.targetType ? meta.meta : '',
+            date: h.createdAt ? h.createdAt.split('T')[0] : '',
+            score: h.scoreDelta,
+          };
+        }));
+      })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
   const cardStyle = {
     background: C.card,
     borderRadius: '18px',
@@ -189,7 +203,11 @@ function ScoreDetailModal({
 
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
           <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>점수 산정 내역</div>
-          {scoreHistory.map((item) => (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: C.fgMuted, fontSize: '12px' }}>불러오는 중...</div>
+          ) : scoreHistory.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: C.fgMuted, fontSize: '12px' }}>산정 내역이 없어요</div>
+          ) : scoreHistory.map((item) => (
             <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
                 <span style={{ width: '28px', fontSize: '18px', textAlign: 'center' }}>{item.icon}</span>
@@ -214,27 +232,37 @@ function ScoreDetailModal({
 }
 
 function StatsDetailModal({
-  discarded,
   onClose,
 }) {
-  const expiredDiscarded = discarded.filter((item) => item.reason === '유통기한 만료');
-  const recentExpired = expiredDiscarded.slice(0, 5);
-  const categoryCounts = Object.entries(
-    expiredDiscarded.reduce((acc, item) => {
-      acc[item.category] = (acc[item.category] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .map(([name, count]) => ({ name: name.split('/')[0], count }))
-    .sort((a, b) => b.count - a.count);
-  const topExpired = Object.entries(
-    expiredDiscarded.reduce((acc, item) => {
-      acc[item.name] = (acc[item.name] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const [topExpired, setTopExpired] = useState([]);
+  const [categoryCounts, setCategoryCounts] = useState([]);
+  const [recentExpired, setRecentExpired] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      memberStatsApi.getTopIngredients(),
+      memberStatsApi.getExpiredCategories(),
+      memberStatsApi.getExpiredRecords(),
+    ])
+      .then(([topIngredients, expiredCategories, expiredRecords]) => {
+        if (!mounted) return;
+        setTopExpired((topIngredients ?? []).map((item) => [item.ingredientName, item.expiredCount]));
+        setCategoryCounts((expiredCategories ?? []).map((item) => ({
+          name: item.categoryName.split('/')[0],
+          count: item.expiredCount,
+        })));
+        setRecentExpired((expiredRecords ?? []).slice(0, 5).map((item, idx) => ({
+          id: `${item.ingredientName}-${idx}`,
+          name: item.ingredientName,
+          date: item.expiredDate,
+        })));
+      })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
   const maxCategoryCount = Math.max(...categoryCounts.map((item) => item.count), 1);
   const cardStyle = {
     background: C.card,
@@ -281,7 +309,11 @@ function StatsDetailModal({
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           <div style={{ ...cardStyle, marginBottom: '14px' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>가장 많이 만료된 재료 TOP 5</div>
-            {topExpired.map(([name, count], idx) => (
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: C.fgMuted, fontSize: '12px' }}>불러오는 중...</div>
+            ) : topExpired.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: C.fgMuted, fontSize: '12px' }}>만료 기록이 없어요</div>
+            ) : topExpired.map(([name, count], idx) => (
               <div key={name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{name}</div>
@@ -292,31 +324,39 @@ function StatsDetailModal({
 
           <div style={cardStyle}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px' }}>카테고리별 만료량</div>
-            <div style={{ height: '160px', display: 'grid', gridTemplateColumns: '28px 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: C.fgMuted, fontSize: '11px', fontWeight: 600 }}>
-                {[4, 3, 2, 1, 0].map((n) => <span key={n}>{n}</span>)}
+            {!loading && categoryCounts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: C.fgMuted, fontSize: '12px' }}>만료 기록이 없어요</div>
+            ) : (
+              <div style={{ height: '160px', display: 'grid', gridTemplateColumns: '28px 1fr', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: C.fgMuted, fontSize: '11px', fontWeight: 600 }}>
+                  {[4, 3, 2, 1, 0].map((n) => <span key={n}>{n}</span>)}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(categoryCounts.length, 1)}, 1fr)`, alignItems: 'end', gap: '12px', borderBottom: `1px solid ${C.border}`, paddingTop: '4px' }}>
+                  {categoryCounts.map((item) => (
+                    <div key={item.name} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', color: C.fg, fontWeight: 700, marginBottom: '6px' }}>{item.count}</div>
+                      <div style={{ height: `${(item.count / maxCategoryCount) * 112}px`, background: 'linear-gradient(180deg, #069B8D, #0E8478)', borderRadius: '2px 2px 0 0' }} />
+                      <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '8px', whiteSpace: 'nowrap' }}>{item.name}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${categoryCounts.length}, 1fr)`, alignItems: 'end', gap: '12px', borderBottom: `1px solid ${C.border}`, paddingTop: '4px' }}>
-                {categoryCounts.map((item) => (
-                  <div key={item.name} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '11px', color: C.fg, fontWeight: 700, marginBottom: '6px' }}>{item.count}</div>
-                    <div style={{ height: `${(item.count / maxCategoryCount) * 112}px`, background: 'linear-gradient(180deg, #069B8D, #0E8478)', borderRadius: '2px 2px 0 0' }} />
-                    <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '8px', whiteSpace: 'nowrap' }}>{item.name}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
           <div style={{ ...cardStyle, marginTop: '14px' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>최근 만료 기록</div>
-            {recentExpired.map((d) => (
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: C.fgMuted, fontSize: '12px' }}>불러오는 중...</div>
+            ) : recentExpired.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: C.fgMuted, fontSize: '12px' }}>만료 기록이 없어요</div>
+            ) : recentExpired.map((d) => (
               <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category]}</span>
+                  <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>🍱</span>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{d.name}</div>
-                    <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{d.reason}</div>
+                    <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>유통기한 만료</div>
                   </div>
                 </div>
                 <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
@@ -330,9 +370,10 @@ function StatsDetailModal({
 }
 
 
-export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHomeRecipes, currentUser, discardedItems, onNavigate, onOpenMyPage, onOpenRecipe }) {
+export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHomeRecipes, currentUser, onNavigate, onOpenMyPage, onOpenRecipe }) {
   const [showScoreDetail, setShowScoreDetail] = useState(false);
   const [showStatsDetail, setShowStatsDetail] = useState(false);
+  const [wasteScore, setWasteScore] = useState(0);
   const sorted = [...ingredients].sort(
     (a, b) => getDaysUntilExpiry(a.expiryDate) - getDaysUntilExpiry(b.expiryDate)
   );
@@ -340,8 +381,15 @@ export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHo
   const urgent = sorted.filter((i) => { const d = getDaysUntilExpiry(i.expiryDate); return d <= 3 && d >= 0; });
   const expired = sorted.filter((i) => getDaysUntilExpiry(i.expiryDate) < 0);
 
+  useEffect(() => {
+    let mounted = true;
+    scoreApi.getScore()
+      .then((data) => { if (mounted) setWasteScore(data?.score ?? 0); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
   const dateStr = new Date(TODAY).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-  const wasteScore = getNaengpaScore(discardedItems);
   const grade = getNaengpaGrade(wasteScore);
   const gradeEmoji = getGradeEmoji(wasteScore);
 
@@ -435,13 +483,11 @@ export function Dashboard({ ingredients, homeRecipes, homeRecipesTotal, urgentHo
         <ScoreDetailModal
           score={wasteScore}
           grade={grade}
-          discarded={discardedItems}
           onClose={() => setShowScoreDetail(false)}
         />
       )}
       {showStatsDetail && (
         <StatsDetailModal
-          discarded={discardedItems}
           onClose={() => setShowStatsDetail(false)}
         />
       )}

@@ -12,7 +12,6 @@ import { InquiryPage } from '@/domains/inquiry/components/InquiryPage';
 import { AuthScreen } from '@/domains/auth/components/AuthScreen';
 import { MyPage } from '@/domains/mypage/components/MyPage';
 import { AdminPanel } from '@/domains/admin/components/AdminPanel';
-import { mockDiscardedItems } from '@/shared/data/mockData';
 
 import useAuthStore from '@/domains/auth/store/useAuthStore';
 import useUiStore from '@/shared/store/useUiStore';
@@ -55,7 +54,7 @@ export default function App() {
   const {
     inquiries, adminInquiries, users,
     fetchInquiries, addInquiry, updateInquiry, deleteInquiry,
-    adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
+    fetchAdminInquiries, adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
   } = useInquiryStore();
 
   useEffect(() => {
@@ -218,6 +217,7 @@ export default function App() {
             adminTotalPages={adminTotalPages}
             onAdminUpdateRecipe={adminUpdateRecipe}
             onAdminDeleteRecipe={adminDeleteRecipe}
+            onFetchInquiries={fetchAdminInquiries}
             onAnswerInquiry={adminAnswerInquiry}
             onDeleteInquiry={adminDeleteInquiry}
             onDeleteAnswer={adminDeleteAnswer}
@@ -260,7 +260,6 @@ export default function App() {
                 homeRecipesTotal={homeRecipesTotal}
                 urgentHomeRecipes={urgentHomeRecipes}
                 currentUser={currentUser}
-                discardedItems={mockDiscardedItems}
                 onNavigate={setActiveTab}
                 onOpenMyPage={() => setShowMyPage(true)}
                 onOpenRecipe={(id) => { setPendingRecipeId(id); setActiveTab('recipe'); }}
