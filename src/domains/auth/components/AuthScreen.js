@@ -37,7 +37,9 @@ export function AuthScreen({ onLogin }) {
   const [loginPw, setLoginPw] = useState('');
 
   const [signupEmail, setSignupEmail] = useState('');
-  const [emailChecked, setEmailChecked] = useState(false);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   const [signupNickname, setSignupNickname] = useState('');
   const [signupPw, setSignupPw] = useState('');
   const [signupPwConfirm, setSignupPwConfirm] = useState('');
@@ -75,8 +77,8 @@ export function AuthScreen({ onLogin }) {
       setError('이메일과 비밀번호를 입력해주세요.');
       return;
     }
-    if (!emailChecked) {
-      setError('이메일 중복 검사를 먼저 진행해주세요.');
+    if (!emailVerified) {
+      setError('이메일 인증을 먼저 완료해주세요.');
       return;
     }
     if (signupPw !== signupPwConfirm) {
@@ -102,7 +104,13 @@ export function AuthScreen({ onLogin }) {
     }
   };
 
-  const handleEmailCheck = async () => {
+  const resetEmailVerification = () => {
+    setEmailVerificationSent(false);
+    setEmailVerified(false);
+    setVerificationCode('');
+  };
+
+  const handleSendVerificationCode = async () => {
     setError('');
 
     if (!signupEmail.trim()) {
@@ -112,14 +120,37 @@ export function AuthScreen({ onLogin }) {
 
     setLoading(true);
     try {
-      const available = await authApi.checkEmail(signupEmail.trim());
-      setEmailChecked(Boolean(available));
-      if (!available) {
-        setError('이미 사용 중인 이메일입니다.');
-      }
+      await authApi.sendEmailVerification(signupEmail.trim());
+      setEmailVerificationSent(true);
+      setEmailVerified(false);
+      setVerificationCode('');
     } catch (err) {
-      setEmailChecked(false);
-      setError(err.message || '이메일 중복 검사 중 오류가 발생했습니다.');
+      resetEmailVerification();
+      setError(err.message || '인증 코드 발송 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmVerificationCode = async () => {
+    setError('');
+
+    if (!signupEmail.trim()) {
+      setError('이메일을 입력해주세요.');
+      return;
+    }
+    if (!verificationCode.trim()) {
+      setError('인증 코드를 입력해주세요.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authApi.confirmEmailVerification(signupEmail.trim(), verificationCode.trim());
+      setEmailVerified(true);
+    } catch (err) {
+      setEmailVerified(false);
+      setError(err.message || '이메일 인증 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -273,28 +304,66 @@ export function AuthScreen({ onLogin }) {
                     value={signupEmail}
                     onChange={(e) => {
                       setSignupEmail(e.target.value);
-                      setEmailChecked(false);
+                      resetEmailVerification();
                     }}
+                    disabled={emailVerified}
                   />
                   <button
-                    onClick={handleEmailCheck}
-                    disabled={loading}
+                    onClick={handleSendVerificationCode}
+                    disabled={loading || emailVerified}
                     style={{
                       padding: '0 12px',
-                      background: emailChecked ? C.primaryLight : C.surface,
-                      border: `1px solid ${emailChecked ? C.primaryMid : C.border}`,
+                      background: emailVerified ? C.primaryLight : C.surface,
+                      border: `1px solid ${emailVerified ? C.primaryMid : C.border}`,
                       borderRadius: '10px',
-                      color: emailChecked ? C.primary : C.fgMuted,
+                      color: emailVerified ? C.primary : C.fgMuted,
                       fontSize: '12px',
                       fontWeight: 800,
-                      cursor: loading ? 'default' : 'pointer',
+                      cursor: loading || emailVerified ? 'default' : 'pointer',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {emailChecked ? '확인완료' : '중복검사'}
+                    {emailVerified ? '인증완료' : emailVerificationSent ? '재발송' : '인증코드 발송'}
                   </button>
                 </div>
               </div>
+              {emailVerificationSent && !emailVerified && (
+                <div>
+                  <label style={labelStyle}>인증 코드</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      style={{ ...inputStyle, flex: 1 }}
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6자리 코드"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    />
+                    <button
+                      onClick={handleConfirmVerificationCode}
+                      disabled={loading}
+                      style={{
+                        padding: '0 12px',
+                        background: C.surface,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: '10px',
+                        color: C.fgMuted,
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: loading ? 'default' : 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      인증 확인
+                    </button>
+                  </div>
+                </div>
+              )}
+              {emailVerified && (
+                <div style={{ fontSize: '12px', color: C.primary, fontWeight: 700 }}>
+                  이메일 인증이 완료되었습니다.
+                </div>
+              )}
               <div>
                 <label style={labelStyle}>닉네임</label>
                 <input
