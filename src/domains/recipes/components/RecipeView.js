@@ -33,6 +33,7 @@ function mapDetail(d) {
     requiredIngredients: (d.ingredients ?? []).map((i) => ({ productId: i.ingredientId, name: i.ingredientName })),
     missingIngredients: d.missingIngredients ?? [],
     steps: (d.steps ?? []).map((s) => s.content),
+    expiredIngredientIncluded: d.expiredIngredientIncluded ?? false,
   };
 }
 
@@ -131,6 +132,9 @@ function RecipeDetail({
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', marginBottom: '4px', fontWeight: 700 }}>{recipe.category?.toUpperCase()}</div>
             <h2 style={{ fontSize: '24px', fontWeight: 700, color: C.fg, margin: 0, lineHeight: 1.1 }}>{recipe.name}</h2>
+            {recipe.expiredIngredientIncluded && (
+              <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '10px', background: C.dangerLight, color: C.danger, borderRadius: '4px', padding: '2px 6px', fontWeight: 700 }}>만료 재료 포함</span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {canManage && (
@@ -612,6 +616,9 @@ export function RecipeView({
                         <span style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>{recipe.name}</span>
                         {isUrgentRecipe && (
                           <span style={{ fontSize: '9px', background: C.accentLight, color: C.accent, borderRadius: '4px', padding: '1px 5px', fontWeight: 700 }}>임박재료</span>
+                        )}
+                        {recipe.expiredIngredientIncluded && (
+                          <span style={{ fontSize: '9px', background: C.dangerLight, color: C.danger, borderRadius: '4px', padding: '1px 5px', fontWeight: 700 }}>만료 재료 포함</span>
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
