@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { authApi } from '@/apis/authApi';
+import { notificationApi } from '@/apis/notificationApi';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { Sidebar } from '@/shared/components/Sidebar';
 import { Dashboard } from '@/domains/dashboard/components/Dashboard';
@@ -12,7 +13,7 @@ import { InquiryPage } from '@/domains/inquiry/components/InquiryPage';
 import { AuthScreen } from '@/domains/auth/components/AuthScreen';
 import { MyPage } from '@/domains/mypage/components/MyPage';
 import { AdminPanel } from '@/domains/admin/components/AdminPanel';
-import { mockDiscardedItems } from '@/shared/data/mockData';
+import { ExpiryNotificationPopup } from '@/shared/components/ExpiryNotificationPopup';
 
 import useAuthStore from '@/domains/auth/store/useAuthStore';
 import useUiStore from '@/shared/store/useUiStore';
@@ -21,8 +22,19 @@ import useRecipeStore from '@/domains/recipes/store/useRecipeStore';
 import useShoppingStore from '@/domains/shopping/store/useShoppingStore';
 import useInquiryStore from '@/domains/inquiry/store/useInquiryStore';
 
+function getNotificationKey(notifications) {
+  return notifications
+    .map((notification) => notification.notificationId)
+    .filter(Boolean)
+    .sort((a, b) => a - b)
+    .join(',');
+}
+
 export default function App() {
   /* MARKER-MAKE-KIT-INVOKED */
+  const [showExpiryPopup, setShowExpiryPopup] = useState(false);
+  const [dismissedNotificationKey, setDismissedNotificationKey] = useState('');
+  const [notifications, setNotifications] = useState([]);
 
   const {
     currentUser,
@@ -41,16 +53,21 @@ export default function App() {
     fetchIngredients, addIngredient, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
   } = useIngredientStore();
   const {
-    recipes, comments,
-    toggleFavorite, addRecipe, updateRecipe, deleteRecipe, addComment, setRecipes,
+    recipes, userRecipes, userRecipesLoading, userRecipesPage, userRecipesTotalPages,
+    addRecipe, updateRecipe, deleteRecipe, fetchUserRecipes, fetchUserRecipesNext, toggleUserRecipeFavorite,
+    homeRecipes, homeRecipesTotal, fetchHomeRecipes, urgentHomeRecipes, fetchUrgentHomeRecipes,
+    fetchAdminRecipes, fetchAdminRecipesNext, adminUpdateRecipe, adminDeleteRecipe,
+    adminLoading, adminPage, adminTotalPages,
   } = useRecipeStore();
+  const [pendingRecipeId, setPendingRecipeId] = useState(null);
   const {
     shoppingItems,
     fetchShoppingItems, addShoppingItem, toggleShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
   } = useShoppingStore();
   const {
-    inquiries, users,
-    addInquiry, updateInquiry, deleteInquiry, answerInquiry, deleteAnswer, setUsers,
+    inquiries, adminInquiries, users,
+    fetchInquiries, addInquiry, updateInquiry, deleteInquiry,
+    fetchAdminInquiries, adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
   } = useInquiryStore();
 
   useEffect(() => {
@@ -91,7 +108,52 @@ export default function App() {
     if (!currentUser) return;
     fetchIngredients();
     fetchShoppingItems();
-  }, [currentUser, fetchIngredients, fetchShoppingItems]);
+    fetchHomeRecipes();
+    fetchUrgentHomeRecipes();
+    fetchInquiries();
+  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes, fetchInquiries]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchNotifications() {
+      if (!currentUser || activeTab !== 'home') return;
+
+      try {
+        const unreadNotifications = await notificationApi.getUnread();
+        if (!mounted) return;
+
+        const notificationKey = getNotificationKey(unreadNotifications);
+        setNotifications(unreadNotifications);
+        setShowExpiryPopup(unreadNotifications.length > 0 && notificationKey !== dismissedNotificationKey);
+      } catch {
+        if (mounted) {
+          setNotifications([]);
+          setShowExpiryPopup(false);
+        }
+      }
+    }
+
+    fetchNotifications();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, currentUser, dismissedNotificationKey]);
+
+  const dismissExpiryPopup = () => {
+    setDismissedNotificationKey(getNotificationKey(notifications));
+    setShowExpiryPopup(false);
+  };
+
+  const confirmNotifications = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications([]);
+    } finally {
+      dismissExpiryPopup();
+    }
+  };
 
   useEffect(() => {
     function handleForbidden() {
@@ -159,17 +221,9 @@ export default function App() {
   const handleAddRecipe = (data) => addRecipe(data, currentUser?.id);
 
   // ─── Inquiry handlers ───────────────────────────────────────────────────────
-  const handleAddInquiry = (subject, content) => {
+  const handleAddInquiry = async (subject, content) => {
     if (!currentUser) return;
-    addInquiry({
-      id: `q_${Date.now()}`,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      subject,
-      content,
-      status: 'pending',
-      createdAt: new Date().toISOString().split('T')[0],
-    });
+    await addInquiry(subject, content);
   };
 
   // ─── Shopping → Fridge ─────────────────────────────────────────────────────
@@ -207,14 +261,21 @@ export default function App() {
             currentUser={currentUser}
             users={users}
             recipes={recipes}
-            inquiries={inquiries}
+            inquiries={adminInquiries}
             presetIngredients={presetIngredients}
             onClose={handleLogout}
             onUpdateUsers={setUsers}
-            onUpdateRecipes={setRecipes}
-            onAnswerInquiry={answerInquiry}
-            onDeleteInquiry={deleteInquiry}
-            onDeleteAnswer={deleteAnswer}
+            onFetchRecipes={fetchAdminRecipes}
+            onFetchNextPage={fetchAdminRecipesNext}
+            adminLoading={adminLoading}
+            adminPage={adminPage}
+            adminTotalPages={adminTotalPages}
+            onAdminUpdateRecipe={adminUpdateRecipe}
+            onAdminDeleteRecipe={adminDeleteRecipe}
+            onFetchInquiries={fetchAdminInquiries}
+            onAnswerInquiry={adminAnswerInquiry}
+            onDeleteInquiry={adminDeleteInquiry}
+            onDeleteAnswer={adminDeleteAnswer}
             onUpdatePresetIngredients={setPresetIngredients}
           />
         </div>
@@ -250,11 +311,13 @@ export default function App() {
             {activeTab === 'home' && (
               <Dashboard
                 ingredients={ingredients}
-                recipes={recipes}
+                homeRecipes={homeRecipes}
+                homeRecipesTotal={homeRecipesTotal}
+                urgentHomeRecipes={urgentHomeRecipes}
                 currentUser={currentUser}
-                discardedItems={mockDiscardedItems}
                 onNavigate={setActiveTab}
                 onOpenMyPage={() => setShowMyPage(true)}
+                onOpenRecipe={(id) => { setPendingRecipeId(id); setActiveTab('recipe'); }}
               />
             )}
             {activeTab === 'fridge' && (
@@ -269,16 +332,20 @@ export default function App() {
             )}
             {activeTab === 'recipe' && (
               <RecipeView
-                recipes={recipes}
-                ingredients={ingredients}
-                currentUser={currentUser}
-                comments={comments}
+                recipes={userRecipes}
+                recipesLoading={userRecipesLoading}
+                onFetchRecipes={fetchUserRecipes}
+                onFetchNextPage={fetchUserRecipesNext}
+                hasNextPage={userRecipesPage + 1 < userRecipesTotalPages}
+                onToggleFavorite={toggleUserRecipeFavorite}
                 presetIngredients={presetIngredients}
-                onToggleFavorite={toggleFavorite}
                 onAddRecipe={handleAddRecipe}
                 onUpdateRecipe={updateRecipe}
                 onDeleteRecipe={deleteRecipe}
-                onAddComment={addComment}
+                onAddToShoppingList={addShoppingItem}
+                onRemoveFromShoppingList={deleteShoppingItem}
+                initialRecipeId={pendingRecipeId}
+                onInitialRecipeHandled={() => setPendingRecipeId(null)}
               />
             )}
             {activeTab === 'shopping' && (
@@ -312,6 +379,18 @@ export default function App() {
               onLogout={handleLogout}
               onUpdate={handleUpdateUser}
               onOpenAdmin={() => setShowAdmin(true)}
+            />
+          )}
+
+          {showExpiryPopup && (
+            <ExpiryNotificationPopup
+              notifications={notifications}
+              onClose={dismissExpiryPopup}
+              onConfirm={confirmNotifications}
+              onGoFridge={async () => {
+                await confirmNotifications();
+                setActiveTab('fridge');
+              }}
             />
           )}
         </div>
