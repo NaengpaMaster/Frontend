@@ -6,6 +6,8 @@ const SESSION_EXPIRED_MESSAGE = '로그인 세션이 만료되었습니다. 다�
 const PUBLIC_ENDPOINTS = [
   { method: 'post', url: '/api/v1/auth/login' },
   { method: 'post', url: '/api/v1/auth/refresh' },
+  { method: 'post', url: '/api/v1/auth/email-verifications' },
+  { method: 'post', url: '/api/v1/auth/email-verifications/confirm' },
   { method: 'post', url: '/api/v1/members' },
   { method: 'get', url: '/api/v1/members/check-email' },
 ];
@@ -45,6 +47,11 @@ axiosClient.interceptors.response.use(
     let fallbackMessage = '';
 
     if (error.response?.status === 401) {
+      if (isPublicEndpoint(originalRequest)) {
+        const message = error.response?.data?.message || error.message;
+        return Promise.reject(new Error(message));
+      }
+
       if (canRetryWithRefresh(originalRequest)) {
         try {
           const accessToken = await refreshAccessToken();

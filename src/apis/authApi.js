@@ -100,6 +100,22 @@ export const authApi = {
     return unwrap(await axiosClient.get('/api/v1/members/check-email', { params: { email } }));
   },
 
+  async sendEmailVerification(email) {
+    return unwrap(await axiosClient.post(
+      '/api/v1/auth/email-verifications',
+      { email },
+      { skipUnauthorizedRedirect: true }
+    ));
+  },
+
+  async confirmEmailVerification(email, code) {
+    return unwrap(await axiosClient.post(
+      '/api/v1/auth/email-verifications/confirm',
+      { email, code },
+      { skipUnauthorizedRedirect: true }
+    ));
+  },
+
   async getMe() {
     const member = unwrap(await axiosClient.get('/api/v1/members/me'));
     return toFrontendUser(member);
