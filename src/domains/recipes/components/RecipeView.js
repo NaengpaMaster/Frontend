@@ -24,6 +24,8 @@ function mapDetail(d) {
     name: d.recipeName,
     description: d.description,
     category: d.category,
+    foodCategoryId: d.foodCategoryId ?? null,
+    foodCategoryName: d.foodCategoryName ?? null,
     cookTime: d.cookTime,
     difficulty: d.difficulty,
     likeCount: d.likeCount,

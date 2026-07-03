@@ -140,7 +140,7 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
   const [form, setForm] = useState({
     name: initial.name ?? '',
     categoryId: initial.categoryId ?? null,
-    foodCategoryId: null,
+    foodCategoryId: initial.foodCategoryId ?? null,
     description: initial.description ?? '',
     cookingTime: initial.cookTime ?? initial.cookingTime ?? 15,
     difficulty: initial.difficulty ?? 'EASY',
@@ -306,7 +306,7 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
             {/* Category + FoodCategory + Time + Difficulty */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div>
-                <label style={labelStyle}>레시피 카테고리</label>
+                <label style={labelStyle}>레시피 카테고리 *</label>
                 <select
                   style={{ ...inputStyle, cursor: 'pointer' }}
                   value={form.categoryId ?? ''}
@@ -322,7 +322,7 @@ export function RecipeFormModal({ initial = {}, onSave, onClose, title = '레시
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>음식 카테고리</label>
+                <label style={labelStyle}>음식 카테고리 *</label>
                 <select
                   style={{ ...inputStyle, cursor: 'pointer' }}
                   value={form.foodCategoryId ?? ''}
