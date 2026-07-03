@@ -16,6 +16,7 @@ const mapUserRecipe = (r) => ({
   liked: r.liked ?? false,
   missingIngredients: r.missingIngredients ?? [],
   recommendReasons: r.recommendReasons ?? [],
+  expiredIngredientIncluded: r.expiredIngredientIncluded ?? false,
 });
 
 const useRecipeStore = create((set) => ({
