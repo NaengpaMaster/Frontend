@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   C,
-  mockDiscardedItems, CATEGORY_EMOJIS,
+  CATEGORY_EMOJIS,
   CATEGORIES,
 } from '@/shared/data/mockData';
 import { adminApi } from '@/apis/adminApi';
+import { adminStatsApi } from '@/apis/adminStatsApi';
 import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
 import { adminRecipesApi } from '@/apis/recipesApi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -755,24 +756,61 @@ function IngredientsTab({ items, onUpdate }) {
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
-function StatsTab({ discarded }) {
-  const expiredItems = discarded.filter((d) => d.reason === '유통기한 만료');
-  const byCategory = Object.entries(
-    expiredItems.reduce((acc, d) => {
-      acc[d.category] = (acc[d.category] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .map(([name, count]) => ({ name: name.split('/')[0], count }))
+function StatsTab() {
+  const [period, setPeriod] = useState(7);
+  const [scoreAverage, setScoreAverage] = useState(null);
+  const [expiredCount, setExpiredCount] = useState(null);
+  const [categoryStats, setCategoryStats] = useState([]);
+  const [topIngredients, setTopIngredients] = useState([]);
+  const [weeklyTrend, setWeeklyTrend] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadStats() {
+      setLoading(true);
+      setError('');
+      try {
+        const [score, expired, categories, ingredients, trend] = await Promise.all([
+          adminStatsApi.getScoreAverage(),
+          adminStatsApi.getExpiredCount(),
+          adminStatsApi.getCategoryStats(period),
+          adminStatsApi.getTopIngredients(),
+          adminStatsApi.getWeeklyTrend(),
+        ]);
+        if (mounted) {
+          setScoreAverage(score);
+          setExpiredCount(expired);
+          setCategoryStats(categories);
+          setTopIngredients(ingredients);
+          setWeeklyTrend(trend?.weeks || []);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err.message || '통계를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadStats();
+
+    return () => {
+      mounted = false;
+    };
+  }, [period]);
+
+  const byCategory = categoryStats
+    .map((c) => ({ name: c.categoryName.split('/')[0], count: c.expiredCount }))
     .sort((a, b) => b.count - a.count);
-  const nameCounts = expiredItems.reduce((acc, d) => {
-    acc[d.name] = (acc[d.name] ?? 0) + 1;
-    return acc;
-  }, {});
-  const topWasted = Object.entries(nameCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const totalExpired = expiredItems.length;
-  const wasteScore = Math.max(0, Math.min(100, 100 - totalExpired * 2 + 3 + 5));
-  const recentExpired = expiredItems.slice(0, 5);
+
+  const weekChangePct = expiredCount?.weekChangePct;
+
   const statCardStyle = {
     background: C.card,
     borderRadius: '16px',
@@ -788,6 +826,12 @@ function StatsTab({ discarded }) {
       <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>냉파 통계</div>
       <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '16px' }}>사용자들의 냉파 활동을 한눈에 파악하세요.</div>
 
+      {error && (
+        <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '10px', padding: '10px 12px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
+          {error}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
         <div style={statCardStyle}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary, flexShrink: 0 }}>
@@ -797,8 +841,12 @@ function StatsTab({ discarded }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
               냉파 점수 평균 <Info size={12} color={C.fgMuted} />
             </div>
-            <div style={{ fontSize: '22px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{wasteScore}점</div>
-            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>사용자 냉파 점수 평균</div>
+            <div style={{ fontSize: '22px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>
+              {loading ? '-' : `${scoreAverage?.averageScore ?? 0}점`}
+            </div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>
+              {loading ? '불러오는 중...' : `활성 회원 ${scoreAverage?.memberCount ?? 0}명 기준`}
+            </div>
           </div>
         </div>
         <div style={statCardStyle}>
@@ -809,24 +857,56 @@ function StatsTab({ discarded }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
               유통기한 만료 건수 <Info size={12} color={C.fgMuted} />
             </div>
-            <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>{totalExpired}건</div>
-            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>최근 7일 기준</div>
+            <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>
+              {loading ? '-' : `${expiredCount?.thisWeekCount ?? 0}건`}
+            </div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              이번주 기준
+              {!loading && weekChangePct != null && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: weekChangePct > 0 ? C.danger : weekChangePct < 0 ? C.primary : C.fgMuted, fontWeight: 700 }}>
+                  {weekChangePct > 0 ? <TrendingUp size={11} /> : weekChangePct < 0 ? <TrendingDown size={11} /> : <Minus size={11} />}
+                  {Math.abs(weekChangePct)}%
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Bar chart by category */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>카테고리별 만료량</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>카테고리별 만료량</div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {[7, 30].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                style={{
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: period === p ? C.primary : C.surface,
+                  color: period === p ? '#FFF' : C.fgMuted,
+                }}
+              >
+                {p}일
+              </button>
+            ))}
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={byCategory} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
+          <BarChart data={byCategory} margin={{ top: 24, right: 16, left: -6, bottom: 0 }}>
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, 4]} />
+            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, (dataMax) => (dataMax > 0 ? Math.ceil(dataMax * 1.25) : 1)]} />
             <Tooltip
               contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
               cursor={{ fill: C.surface }}
             />
-            <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" barSize={150} label={{ position: 'top', fill: C.fg, fontSize: 11, fontWeight: 700 }} />
+            <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" maxBarSize={48} label={{ position: 'top', fill: C.fg, fontSize: 11, fontWeight: 700 }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -834,30 +914,35 @@ function StatsTab({ discarded }) {
       {/* Top wasted */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>가장 많이 만료된 재료 TOP 5</div>
-        {topWasted.map(([name, count], idx) => (
-          <div key={name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
-            <div style={{ minWidth: '20px', fontSize: '13px', fontWeight: 700, color: idx === 0 ? C.accent : C.fgMuted }}>{idx + 1}</div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{name}</div>
-            <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{count}회</div>
+        {topIngredients.map((item) => (
+          <div key={item.rank} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
+            <div style={{ minWidth: '20px', fontSize: '13px', fontWeight: 700, color: item.rank === 1 ? C.accent : C.fgMuted }}>{item.rank}</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{item.productName}</div>
+            <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 600 }}>{item.discardedCount}회</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', fontWeight: 700, color: item.rankChange > 0 ? C.primary : item.rankChange < 0 ? C.danger : C.fgSubtle, minWidth: '30px', justifyContent: 'flex-end' }}>
+              {item.rankChange == null ? 'NEW' : item.rankChange === 0 ? <Minus size={11} /> : item.rankChange > 0 ? <><TrendingUp size={11} />{item.rankChange}</> : <><TrendingDown size={11} />{Math.abs(item.rankChange)}</>}
+            </div>
           </div>
         ))}
+        {!loading && topIngredients.length === 0 && (
+          <div style={{ fontSize: '12px', color: C.fgMuted, textAlign: 'center', padding: '12px 0' }}>이번주 만료된 재료가 없습니다.</div>
+        )}
       </div>
 
-      {/* Recent discarded */}
+      {/* Weekly trend */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>최근 만료 기록</div>
-        {recentExpired.map((d) => (
-          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{CATEGORY_EMOJIS[d.category]}</span>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: C.fg }}>{d.name}</div>
-                <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '1px' }}>{d.reason}</div>
-              </div>
-            </div>
-            <span style={{ fontSize: '11px', color: C.fgMuted }}>{d.date}</span>
-          </div>
-        ))}
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>주간 만료 추이</div>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={weeklyTrend} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
+              cursor={{ fill: C.surface }}
+            />
+            <Bar dataKey="count" fill={C.accent} radius={[2, 2, 0, 0]} name="만료 건수" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -1180,7 +1265,7 @@ export function AdminPanel({
         {activeTab === 'members'     && <MembersTab users={users} onUpdate={onUpdateUsers} currentUser={currentUser} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
-        {activeTab === 'stats'       && <StatsTab discarded={mockDiscardedItems} />}
+        {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'inquiries'   && <InquiriesTab inquiries={inquiries} onFetchInquiries={onFetchInquiries} onAnswer={onAnswerInquiry} onDeleteInquiry={onDeleteInquiry} onDeleteAnswer={onDeleteAnswer} />}
       </div>
     </div>
