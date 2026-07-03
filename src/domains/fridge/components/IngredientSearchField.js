@@ -38,7 +38,6 @@ export function IngredientSearchField({
   // 외부에서 value가 바뀌면 (ex. 수정 모달 초기값) query도 동기화
   useEffect(() => {
     setQuery(value);
-    setIsOpen(false);
   }, [value]);
 
   const keyword = query.trim();
