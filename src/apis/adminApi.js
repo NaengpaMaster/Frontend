@@ -5,31 +5,22 @@ function unwrap(response) {
   return response.data?.data;
 }
 
-function unwrapPage(response) {
-  return unwrap(response)?.content || [];
-}
-
 export const adminApi = {
-  async getMembers({ role, status, search }) {
-    const members = unwrapPage(await axiosClient.get('/api/v1/admin/members', {
+  async getMembers({ role, status, search, page = 0, size = 10 }) {
+    const data = unwrap(await axiosClient.get('/api/v1/admin/members', {
       params: {
         role,
         status,
         search: search || undefined,
-        size: 100,
+        page,
+        size,
       },
     }));
-    return members.map(toFrontendUser);
-  },
-
-  async getMemberOverview(search) {
-    const [activeUsers, inactiveUsers, admins] = await Promise.all([
-      this.getMembers({ role: 'USER', status: 'ACTIVE', search }),
-      this.getMembers({ role: 'USER', status: 'INACTIVE', search }),
-      this.getMembers({ role: 'ADMIN', status: 'ACTIVE', search }),
-    ]);
-
-    return [...activeUsers, ...inactiveUsers, ...admins];
+    return {
+      content: (data?.content ?? []).map(toFrontendUser),
+      totalPages: data?.totalPages ?? 0,
+      totalElements: data?.totalElements ?? 0,
+    };
   },
 
   async updateMemberStatus(memberId, status) {

@@ -31,16 +31,20 @@ const useInquiryStore = create((set, get) => ({
 
   adminInquiries: [],
   adminLoading: false,
+  adminPendingCount: 0,
+  adminAnsweredCount: 0,
 
-  fetchInquiries: async () => {
+  fetchInquiries: async ({ page = 0, size = 10 } = {}) => {
     set({ loading: true, error: null });
     try {
-      const page = await inquiriesApi.getAll({ size: 50, sort: 'createdAt,desc' });
-      const list = page?.content ?? [];
+      const result = await inquiriesApi.getAll({ page, size, sort: 'createdAt,desc' });
+      const list = result?.content ?? [];
       const details = await Promise.all(list.map((item) => inquiriesApi.getById(item.inquiryId)));
       set({ inquiries: details.map(toViewInquiry) });
+      return { totalPages: result?.totalPages ?? 0, totalElements: result?.totalElements ?? 0 };
     } catch (error) {
       set({ error: error.message });
+      return { totalPages: 0, totalElements: 0 };
     } finally {
       set({ loading: false });
     }
@@ -48,31 +52,41 @@ const useInquiryStore = create((set, get) => ({
 
   addInquiry: async (subject, content) => {
     await inquiriesApi.create({ title: subject, content });
-    await get().fetchInquiries();
   },
 
   updateInquiry: async (id, subject, content) => {
     await inquiriesApi.update(id, { title: subject, content });
-    await get().fetchInquiries();
   },
 
   deleteInquiry: async (id) => {
     await inquiriesApi.delete(id);
-    await get().fetchInquiries();
   },
 
-  fetchAdminInquiries: async () => {
+  fetchAdminInquiries: async ({ isAnswered, page = 0, size = 10 } = {}) => {
     set({ adminLoading: true, error: null });
     try {
-      const page = await adminInquiriesApi.getAll({ size: 100, sort: 'createdAt,desc' });
-      const list = page?.content ?? [];
+      const result = await adminInquiriesApi.getAll({ isAnswered, page, size, sort: 'createdAt,desc' });
+      const list = result?.content ?? [];
       const details = await Promise.all(list.map((item) => adminInquiriesApi.getById(item.inquiryId)));
       set({ adminInquiries: details.map(toAdminViewInquiry) });
+      return { totalPages: result?.totalPages ?? 0, totalElements: result?.totalElements ?? 0 };
     } catch (error) {
       set({ error: error.message });
+      return { totalPages: 0, totalElements: 0 };
     } finally {
       set({ adminLoading: false });
     }
+  },
+
+  fetchAdminInquiryCounts: async () => {
+    const [pending, answered] = await Promise.all([
+      adminInquiriesApi.getAll({ isAnswered: false, page: 0, size: 1 }),
+      adminInquiriesApi.getAll({ isAnswered: true, page: 0, size: 1 }),
+    ]);
+    set({
+      adminPendingCount: pending?.totalElements ?? 0,
+      adminAnsweredCount: answered?.totalElements ?? 0,
+    });
   },
 
   adminAnswerInquiry: async (id, answer) => {
@@ -82,19 +96,16 @@ const useInquiryStore = create((set, get) => ({
     } else {
       await adminInquiriesApi.createAnswer(id, answer);
     }
-    await get().fetchAdminInquiries();
   },
 
   adminDeleteInquiry: async (id) => {
     await adminInquiriesApi.delete(id);
-    await get().fetchAdminInquiries();
   },
 
   adminDeleteAnswer: async (id) => {
     const inquiry = get().adminInquiries.find((q) => q.id === id);
     if (!inquiry?.answerId) return;
     await adminInquiriesApi.deleteAnswer(id, inquiry.answerId);
-    await get().fetchAdminInquiries();
   },
 
   setUsers: (usersOrFn) => set((state) => ({

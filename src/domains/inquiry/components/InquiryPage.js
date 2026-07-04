@@ -1,16 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, Clock, MessageSquare, Plus, Edit2, Trash2 } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
+import { PageControls } from '@/shared/components/PageControls';
 
-export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInquiry, onDeleteInquiry }) {
+const INQUIRY_PAGE_SIZE = 5;
+
+export function InquiryPage({ inquiries, currentUser, onFetchInquiries, onAddInquiry, onUpdateInquiry, onDeleteInquiry }) {
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editSubject, setEditSubject] = useState('');
   const [editContent, setEditContent] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const myInquiries = inquiries;
+
+  const loadList = async (targetPage = page) => {
+    const meta = await onFetchInquiries({ page: targetPage, size: INQUIRY_PAGE_SIZE });
+    setTotalPages(meta?.totalPages ?? 0);
+  };
+
+  useEffect(() => {
+    loadList(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const submit = async () => {
     if (!subject.trim() || !content.trim()) return;
@@ -18,6 +33,8 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
       await onAddInquiry(subject.trim(), content.trim());
       setSubject('');
       setContent('');
+      setPage(0);
+      await loadList(0);
     } catch (err) {
       alert(err.message || '문의 등록 중 오류가 발생했습니다.');
     }
@@ -34,6 +51,7 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
     try {
       await onUpdateInquiry(editingId, editSubject.trim(), editContent.trim());
       setEditingId(null);
+      await loadList(page);
     } catch (err) {
       alert(err.message || '문의 수정 중 오류가 발생했습니다.');
     }
@@ -42,6 +60,7 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
   const removeInquiry = async (id) => {
     try {
       await onDeleteInquiry(id);
+      await loadList(page);
     } catch (err) {
       alert(err.message || '문의 삭제 중 오류가 발생했습니다.');
     } finally {
@@ -202,6 +221,7 @@ export function InquiryPage({ inquiries, currentUser, onAddInquiry, onUpdateInqu
               })}
             </div>
           )}
+          <PageControls page={page} totalPages={totalPages} onChange={setPage} />
         </div>
       </div>
     </div>

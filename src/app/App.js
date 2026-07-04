@@ -65,9 +65,9 @@ export default function App() {
     fetchShoppingItems, addShoppingItem, toggleShoppingItem, updateShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
   } = useShoppingStore();
   const {
-    inquiries, adminInquiries, users,
+    inquiries, adminInquiries, users, adminPendingCount, adminAnsweredCount,
     fetchInquiries, addInquiry, updateInquiry, deleteInquiry,
-    fetchAdminInquiries, adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
+    fetchAdminInquiries, fetchAdminInquiryCounts, adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
   } = useInquiryStore();
 
   useEffect(() => {
@@ -110,8 +110,7 @@ export default function App() {
     fetchShoppingItems();
     fetchHomeRecipes();
     fetchUrgentHomeRecipes();
-    fetchInquiries();
-  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes, fetchInquiries]);
+  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
 
   useEffect(() => {
     let mounted = true;
@@ -259,12 +258,10 @@ export default function App() {
         <div style={{ width: '100%', maxWidth: '720px', height: '100%', position: 'relative', overflow: 'hidden' }}>
           <AdminPanel
             currentUser={currentUser}
-            users={users}
             recipes={recipes}
             inquiries={adminInquiries}
             presetIngredients={presetIngredients}
             onClose={handleLogout}
-            onUpdateUsers={setUsers}
             onFetchRecipes={fetchAdminRecipes}
             onFetchNextPage={fetchAdminRecipesNext}
             adminLoading={adminLoading}
@@ -273,6 +270,9 @@ export default function App() {
             onAdminUpdateRecipe={adminUpdateRecipe}
             onAdminDeleteRecipe={adminDeleteRecipe}
             onFetchInquiries={fetchAdminInquiries}
+            onFetchInquiryCounts={fetchAdminInquiryCounts}
+            pendingInquiriesCount={adminPendingCount}
+            answeredInquiriesCount={adminAnsweredCount}
             onAnswerInquiry={adminAnswerInquiry}
             onDeleteInquiry={adminDeleteInquiry}
             onDeleteAnswer={adminDeleteAnswer}
@@ -363,6 +363,7 @@ export default function App() {
               <InquiryPage
                 inquiries={inquiries}
                 currentUser={currentUser}
+                onFetchInquiries={fetchInquiries}
                 onAddInquiry={handleAddInquiry}
                 onUpdateInquiry={updateInquiry}
                 onDeleteInquiry={deleteInquiry}
