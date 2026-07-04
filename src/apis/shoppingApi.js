@@ -12,6 +12,9 @@ export const shoppingApi = {
   toggle: (id, isPurchased) =>
     axiosClient.patch(`/api/v1/shopping-items/${id}/check`, { isPurchased }).then(unwrap),
 
+  update: (id, data) =>
+    axiosClient.patch(`/api/v1/shopping-items/${id}`, data).then(unwrap),
+
   delete: (id) =>
     axiosClient.delete(`/api/v1/shopping-items/${id}`),
 

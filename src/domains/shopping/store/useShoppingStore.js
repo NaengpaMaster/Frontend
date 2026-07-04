@@ -58,6 +58,11 @@ const useShoppingStore = create((set, get) => ({
     await get().fetchShoppingItems();
   },
 
+  updateShoppingItem: async (id, quantity) => {
+    await shoppingApi.update(id, { quantity });
+    await get().fetchShoppingItems();
+  },
+
   deleteShoppingItem: async (id) => {
     await shoppingApi.delete(id);
     await get().fetchShoppingItems();
