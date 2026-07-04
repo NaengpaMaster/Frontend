@@ -61,6 +61,17 @@ function getGradeEmoji(score) {
     return getGradeEntry(score).emoji;
 }
 
+function getGradeProgress(score) {
+    const currentIndex = GRADE_TABLE.reduce((acc, g, i) => (score >= g.minScore ? i : acc), 0);
+    const current = GRADE_TABLE[currentIndex];
+    const next = GRADE_TABLE[currentIndex + 1] ?? null;
+    const rangeMin = current.minScore;
+    const rangeMax = next ? next.minScore : current.maxScore;
+    const percentage = Math.min(100, Math.max(0, ((score - rangeMin) / (rangeMax - rangeMin)) * 100));
+    const pointsToNext = next ? Math.max(0, next.minScore - score) : 0;
+    return {next, rangeMin, rangeMax, percentage, pointsToNext};
+}
+
 function ScoreDetailModal({
                               score,
                               grade,
@@ -71,6 +82,7 @@ function ScoreDetailModal({
 
     useEffect(() => {
         let alive = true;
+
         scoreApi.getScoreHistories(7)
             .then((page) => {
                 if (!alive) return;
@@ -78,13 +90,16 @@ function ScoreDetailModal({
                     const reasonMeta = SCORE_REASON_META[item.scoreReason] ?? {icon: '✅', meta: ''};
                     const icon = item.scoreReason === 'EXPIRED_PRODUCT'
                         ? CATEGORY_EMOJIS[
-                            CATEGORY_NAMES[item.productCategoryId] || '기타'
-                            ]
+                        CATEGORY_NAMES[item.productCategoryId] || '기타']
                         : reasonMeta.icon;
+                    // NO_EXPIRED_4DAYS는 targetType이 없으니 meta를 title로 사용
+                    const title = item.scoreReason === 'NO_EXPIRED_4DAYS'
+                        ? '신선 유지 4일 달성' : item.targetType;
+
                     return {
                         id: idx,
                         icon,
-                        title: item.targetType,
+                        title,
                         meta: reasonMeta.meta,
                         date: item.createdAt?.slice(0, 10) ?? "",
                         score: item.scoreDelta,
@@ -100,16 +115,33 @@ function ScoreDetailModal({
         };
     }, []);
 
+    const {next, rangeMax, percentage, pointsToNext} = getGradeProgress(score);
+
     const cardStyle = {
         background: C.card,
         borderRadius: '18px',
         padding: '18px',
         boxShadow: '0 8px 24px rgba(17,32,29,0.08)',
     };
-    const tableRows = [
-        ['만료 재료 1일당', '-2점', C.accent],
-        ['레시피 1건 등록', '+3점', C.primary],
-        ['만료 재료 없음 유지 4일마다', '+5점', C.primary],
+    const policyItems = [
+        {
+            label: '만료 재료 1일당',
+            subtitle: '냉장고 속 재료가 만료되면 1일당 -2점',
+            point: '-2점',
+            isPlus: false,
+        },
+        {
+            label: '만료 재료 없음 유지 4일',
+            subtitle: '만료 재료가 없으면 4일마다 +5점',
+            point: '+5점',
+            isPlus: true,
+        },
+        {
+            label: '레시피 1건 등록',
+            subtitle: '레시피를 등록하면 +3점 즉시 반영',
+            point: '+3점',
+            isPlus: true,
+        },
     ];
 
     return (
@@ -171,7 +203,18 @@ function ScoreDetailModal({
                         padding: '20px',
                         marginBottom: '16px'
                     }}>
-                        <div style={{fontSize: '13px', fontWeight: 900, opacity: 0.9}}>현재 등급</div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                            <div style={{fontSize: '13px', fontWeight: 900, opacity: 0.9}}>현재 등급</div>
+                            <div style={{
+                                background: 'rgba(255,255,255,0.2)',
+                                borderRadius: '999px',
+                                padding: '4px 10px',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                            }}>⚙ 자동 산정
+                            </div>
+                        </div>
                         <div style={{
                             display: 'flex',
                             alignItems: 'flex-end',
@@ -179,9 +222,47 @@ function ScoreDetailModal({
                             gap: '14px',
                             marginTop: '8px'
                         }}>
-                            <div style={{fontSize: '22px', fontWeight: 900}}>{getGradeEmoji(score)} {grade}</div>
+                            <div>
+                                <div style={{fontSize: '22px', fontWeight: 900}}>{getGradeEmoji(score)} {grade}</div>
+                                <div style={{fontSize: '11px', opacity: 0.85, marginTop: '4px'}}>
+                                    {next ? `다음 등급까지 ${pointsToNext}점 남았어요!` : '최고 등급을 달성했어요!'}
+                                </div>
+                            </div>
                             <div style={{fontSize: '44px', fontWeight: 900, lineHeight: 0.9}}>{score}<span
                                 style={{fontSize: '16px', marginLeft: '3px'}}>점</span></div>
+                        </div>
+
+                        <div style={{
+                            position: 'relative',
+                            height: '16px',
+                            background: C.border,
+                            borderRadius: '999px',
+                            overflow: 'hidden',
+                            marginTop: '14px',
+                        }}>
+                            <div style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                height: '100%',
+                                width: `${percentage}%`,
+                                background: '#3DDC97',
+                                borderRadius: '999px',
+                                transition: 'width 0.3s ease',
+                            }}/>
+                            <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                color: '#FFF',
+                                textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                            }}>
+                                {score} / {rangeMax}
+                            </div>
                         </div>
                     </div>
 
@@ -247,40 +328,70 @@ function ScoreDetailModal({
                     </div>
 
                     <div style={{...cardStyle, marginBottom: '14px'}}>
-                        <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '8px'}}>점수 산정 기준
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginBottom: '14px'
+                        }}>
+                            <div style={{fontSize: '14px', fontWeight: 700, color: C.fg}}>자동 점수 정책</div>
+                            <div style={{
+                                background: '#E6F7F5',
+                                color: C.primary,
+                                borderRadius: '999px',
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                            }}>✓ 현재 적용 중
+                            </div>
                         </div>
-                        <div style={{fontSize: '12px', color: C.fgMuted, lineHeight: 1.6, marginBottom: '12px'}}>
-                            만료 점수, 레시피/재료 등록을 반영해 산정합니다.
-                        </div>
-                        {tableRows.map(([label, point, color]) => {
-                            const isPlus = point.startsWith('+');
-                            return (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                            gap: '8px',
+                        }}>
+                            {policyItems.map(({label, subtitle, point, isPlus}) => (
                                 <div key={label} style={{
+                                    background: isPlus ? '#F3FBFA' : '#FDF4F3',
+                                    border: `1px solid ${C.border}`,
+                                    borderRadius: '14px',
+                                    padding: '10px 6px',
                                     display: 'flex',
+                                    flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '9px 0',
-                                    borderBottom: `1px solid ${C.border}`
+                                    textAlign: 'center',
+                                    gap: '5px',
                                 }}>
                                     <div style={{
-                                        width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                                        width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
                                         background: isPlus ? '#E6F7F5' : '#FDECEA',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         fontSize: '13px', fontWeight: 900, color: isPlus ? C.primary : C.accent,
                                     }}>
                                         {isPlus ? '+' : '−'}
                                     </div>
-                                    <span style={{fontSize: '13px', color: C.fg, flex: 1}}>{label}</span>
-                                    <span style={{
-                                        fontSize: '13px',
-                                        color,
+                                    <div style={{
+                                        fontSize: '11px',
                                         fontWeight: 700,
-                                        whiteSpace: 'nowrap'
-                                    }}>{point}</span>
+                                        color: C.fg,
+                                        lineHeight: 1.25,
+                                    }}>{label}</div>
+                                    <div style={{
+                                        fontSize: '9px',
+                                        color: C.fgMuted,
+                                        lineHeight: 1.35,
+                                    }}>{subtitle}</div>
+                                    <div style={{
+                                        fontSize: '13px',
+                                        fontWeight: 900,
+                                        color: isPlus ? C.primary : C.accent,
+                                        marginTop: '2px',
+                                    }}>{point}</div>
                                 </div>
-                            );
-                        })}
-                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '12px'}}>ⓘ 레시피 등록 점수는 즉시 반영되며, 만료/유지
+                            ))}
+                        </div>
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '14px'}}>ⓘ 레시피 등록 점수는 즉시 반영되며, 만료/유지
                             점수는 매일 00:00에 반영 됩니다.
                         </div>
                     </div>
@@ -288,7 +399,16 @@ function ScoreDetailModal({
                     <div style={{...cardStyle, marginBottom: '14px'}}>
                         <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px'}}>점수 산정 내역
                         </div>
-                        {scoreHistory.map((item) => (
+                        {scoreHistory.length === 0 ? (
+                            <div style={{
+                                color: C.fgMuted,
+                                fontSize: '13px',
+                                textAlign: 'center',
+                                padding: '20px 0',
+                            }}>
+                                최근 점수 산정 내역이 없습니다.
+                            </div>
+                        ) : scoreHistory.map((item) => (
                             <div key={item.id} style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -457,7 +577,16 @@ function StatsDetailModal({
                         <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px'}}>가장 많이 만료된 재료
                             TOP 5
                         </div>
-                        {topExpired.map(([name, count], idx) => (
+                        {topExpired.length === 0 ? (
+                            <div style={{
+                                color: C.fgMuted,
+                                fontSize: '13px',
+                                textAlign: 'center',
+                                padding: '20px 0',
+                            }}>
+                                최근 만료된 재료가 없습니다.
+                            </div>
+                        ) : topExpired.map(([name, count], idx) => (
                             <div key={name} style={{
                                 display: 'grid',
                                 gridTemplateColumns: '24px 1fr auto',
@@ -485,56 +614,76 @@ function StatsDetailModal({
                     <div style={cardStyle}>
                         <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px'}}>카테고리별 만료량
                         </div>
-                        <div style={{height: '160px', display: 'grid', gridTemplateColumns: '28px 1fr', gap: '10px'}}>
+                        {categoryCounts.length === 0 ? (
                             <div style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between',
                                 color: C.fgMuted,
-                                fontSize: '11px',
-                                fontWeight: 600
+                                fontSize: '13px',
+                                textAlign: 'center',
+                                padding: '20px 0',
                             }}>
-                                {[4, 3, 2, 1, 0].map((n) => <span
-                                    key={n}>{Math.round((maxCategoryCount * n) / 4)}</span>)}
+                                최근 만료된 재료가 없습니다.
                             </div>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: `repeat(${categoryCounts.length}, 1fr)`,
-                                alignItems: 'end',
-                                gap: '12px',
-                                borderBottom: `1px solid ${C.border}`,
-                                paddingTop: '4px'
-                            }}>
-                                {categoryCounts.map((item) => (
-                                    <div key={item.name} style={{textAlign: 'center'}}>
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: C.fg,
-                                            fontWeight: 700,
-                                            marginBottom: '6px'
-                                        }}>{item.count}</div>
-                                        <div style={{
-                                            height: `${(item.count / maxCategoryCount) * 112}px`,
-                                            background: 'linear-gradient(180deg, #069B8D, #0E8478)',
-                                            borderRadius: '2px 2px 0 0'
-                                        }}/>
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: C.fgMuted,
-                                            marginTop: '8px',
-                                            whiteSpace: 'nowrap'
-                                        }}>{item.name}</div>
-                                    </div>
-                                ))}
+                        ) : (
+                            <div style={{height: '160px', display: 'grid', gridTemplateColumns: '28px 1fr', gap: '10px'}}>
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    color: C.fgMuted,
+                                    fontSize: '11px',
+                                    fontWeight: 600
+                                }}>
+                                    {[4, 3, 2, 1, 0].map((n) => <span
+                                        key={n}>{Math.round((maxCategoryCount * n) / 4)}</span>)}
+                                </div>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: `repeat(${categoryCounts.length}, 1fr)`,
+                                    alignItems: 'end',
+                                    gap: '12px',
+                                    borderBottom: `1px solid ${C.border}`,
+                                    paddingTop: '4px'
+                                }}>
+                                    {categoryCounts.map((item) => (
+                                        <div key={item.name} style={{textAlign: 'center'}}>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: C.fg,
+                                                fontWeight: 700,
+                                                marginBottom: '6px'
+                                            }}>{item.count}</div>
+                                            <div style={{
+                                                height: `${(item.count / maxCategoryCount) * 112}px`,
+                                                background: 'linear-gradient(180deg, #069B8D, #0E8478)',
+                                                borderRadius: '2px 2px 0 0'
+                                            }}/>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: C.fgMuted,
+                                                marginTop: '8px',
+                                                whiteSpace: 'nowrap'
+                                            }}>{item.name}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div style={{...cardStyle, marginTop: '14px'}}>
                         <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px'}}>최근 만료 기록
                         </div>
                         <div style={{maxHeight: '280px', overflowY: 'auto', paddingRight: '8px'}}>
-                            {recentExpired.map((d) => (
+                            {recentExpired.length === 0 ? (
+                                <div style={{
+                                    color: C.fgMuted,
+                                    fontSize: '13px',
+                                    textAlign: 'center',
+                                    padding: '20px 0',
+                                }}>
+                                    최근 만료된 재료가 없습니다.
+                                </div>
+                            ) : recentExpired.map((d) => (
                                 <div key={d.id} style={{
                                     display: 'flex',
                                     justifyContent: 'space-between',
