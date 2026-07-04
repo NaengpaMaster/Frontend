@@ -5,6 +5,7 @@ import {
   CATEGORY_EMOJIS,
   CATEGORIES,
 } from '@/shared/data/mockData';
+import { PageControls } from '@/shared/components/PageControls';
 import { adminApi } from '@/apis/adminApi';
 import { adminStatsApi } from '@/apis/adminStatsApi';
 import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
@@ -56,20 +57,60 @@ const toAdminIngredient = (item) => ({
   active: item.isActive,
 });
 
+const MEMBER_PAGE_SIZE = 10;
+
+function roleStatusForMode(mode) {
+  if (mode === 'admin') return { role: 'ADMIN', status: 'ACTIVE' };
+  if (mode === 'inactive') return { role: 'USER', status: 'INACTIVE' };
+  return { role: 'USER', status: 'ACTIVE' };
+}
+
 // ─── Members ──────────────────────────────────────────────────────────────────
-function MembersTab({ users, onUpdate, currentUser }) {
+function MembersTab({ currentUser }) {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState('active');
+  const [page, setPage] = useState(0);
+  const [members, setMembers] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [counts, setCounts] = useState({ active: 0, inactive: 0, admin: 0 });
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState(null);
   const [error, setError] = useState('');
 
-  const refreshMembers = async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const loadCounts = async () => {
+    try {
+      const [active, inactive, admin] = await Promise.all([
+        adminApi.getMembers({ role: 'USER', status: 'ACTIVE', size: 1 }),
+        adminApi.getMembers({ role: 'USER', status: 'INACTIVE', size: 1 }),
+        adminApi.getMembers({ role: 'ADMIN', status: 'ACTIVE', size: 1 }),
+      ]);
+      setCounts({ active: active.totalElements, inactive: inactive.totalElements, admin: admin.totalElements });
+    } catch {
+      // 통계 카드는 목록 로딩 에러와 별개로 조용히 무시
+    }
+  };
+
+  useEffect(() => {
+    loadCounts();
+  }, []);
+
+  const loadMembers = async () => {
     setLoading(true);
     setError('');
     try {
-      const members = await adminApi.getMemberOverview();
-      onUpdate(members);
+      const { role, status } = roleStatusForMode(viewMode);
+      const result = await adminApi.getMembers({ role, status, search: debouncedSearch, page, size: MEMBER_PAGE_SIZE });
+      setMembers(result.content);
+      setTotalPages(result.totalPages);
     } catch (err) {
       setError(err.message || '회원 목록을 불러오지 못했습니다.');
     } finally {
@@ -78,41 +119,9 @@ function MembersTab({ users, onUpdate, currentUser }) {
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadMembers() {
-      setLoading(true);
-      setError('');
-      try {
-        const members = await adminApi.getMemberOverview();
-        if (mounted) {
-          onUpdate(members);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err.message || '회원 목록을 불러오지 못했습니다.');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
     loadMembers();
-
-    return () => {
-      mounted = false;
-    };
-  }, [onUpdate]);
-
-  const allMembers = users.filter((u) => u.role !== 'admin');
-  const activeMembers = allMembers.filter((u) => u.status === 'active');
-  const inactiveMembers = allMembers.filter((u) => u.status === 'inactive');
-  const adminUsers = users.filter((u) => u.role === 'admin');
-
-  const baseList = viewMode === 'active' ? activeMembers : viewMode === 'inactive' ? inactiveMembers : adminUsers;
-  const filtered = baseList.filter((u) => u.name.includes(search) || u.email.includes(search) || u.householdType.includes(search));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, debouncedSearch, page]);
 
   const toggle = async (user) => {
     const nextStatus = user.status === 'active' ? 'INACTIVE' : 'ACTIVE';
@@ -120,7 +129,7 @@ function MembersTab({ users, onUpdate, currentUser }) {
     setError('');
     try {
       await adminApi.updateMemberStatus(user.memberId, nextStatus);
-      await refreshMembers();
+      await Promise.all([loadMembers(), loadCounts()]);
     } catch (err) {
       setError(err.message || '회원 상태 변경에 실패했습니다.');
     } finally {
@@ -133,7 +142,7 @@ function MembersTab({ users, onUpdate, currentUser }) {
     setError('');
     try {
       await adminApi.updateMemberRole(user.memberId, newRole === 'admin' ? 'ADMIN' : 'USER');
-      await refreshMembers();
+      await Promise.all([loadMembers(), loadCounts()]);
     } catch (err) {
       setError(err.message || '회원 권한 변경에 실패했습니다.');
     } finally {
@@ -141,13 +150,19 @@ function MembersTab({ users, onUpdate, currentUser }) {
     }
   };
 
+  const selectView = (mode) => {
+    setViewMode(mode);
+    setSearch('');
+    setDebouncedSearch('');
+    setPage(0);
+  };
 
   return (
     <div>
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>회원 관리</div>
         <div style={{ fontSize: '12px', color: C.fgMuted }}>
-          {loading ? '회원 목록 불러오는 중...' : `총 ${allMembers.length}명 · 활성 ${activeMembers.length}명`}
+          {loading ? '회원 목록 불러오는 중...' : `총 ${counts.active + counts.inactive}명 · 활성 ${counts.active}명`}
         </div>
       </div>
 
@@ -164,7 +179,7 @@ function MembersTab({ users, onUpdate, currentUser }) {
             width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
             padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
           }}
-          placeholder="회원 이름, 이메일, 가구 유형 검색"
+          placeholder="회원 이름, 이메일 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -173,14 +188,14 @@ function MembersTab({ users, onUpdate, currentUser }) {
       {/* Stats row - 클릭하면 해당 뷰로 필터 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
         {[
-          { label: '관리자 수', value: adminUsers.length, color: C.fg, mode: 'admin' },
-          { label: '전체 회원', value: allMembers.length, color: C.primary, mode: 'active' },
-          { label: '탈퇴 회원', value: inactiveMembers.length, color: C.accent, mode: 'inactive' },
+          { label: '관리자 수', value: counts.admin, color: C.fg, mode: 'admin' },
+          { label: '전체 회원', value: counts.active, color: C.primary, mode: 'active' },
+          { label: '탈퇴 회원', value: counts.inactive, color: C.accent, mode: 'inactive' },
         ].map((s) => (
           <div
             key={s.label}
             className="stat-card-hover"
-            onClick={() => { setViewMode(s.mode); setSearch(''); }}
+            onClick={() => selectView(s.mode)}
             style={{
               background: C.card,
               borderRadius: '14px',
@@ -197,7 +212,7 @@ function MembersTab({ users, onUpdate, currentUser }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {filtered.map((u) => (
+        {members.map((u) => (
           <div
             key={u.id}
             style={{
@@ -303,10 +318,12 @@ function MembersTab({ users, onUpdate, currentUser }) {
             </div>
           </div>
         ))}
-        {filtered.length === 0 && (
+        {!loading && members.length === 0 && (
           <div style={{ textAlign: 'center', padding: '36px 0', color: C.fgMuted, fontSize: '13px' }}>검색 결과가 없어요</div>
         )}
       </div>
+
+      <PageControls page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }
@@ -949,26 +966,43 @@ function StatsTab() {
 }
 
 // ─── Inquiries ────────────────────────────────────────────────────────────────
-function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
+const INQUIRY_PAGE_SIZE = 10;
+
+function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendingCount, answeredCount, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
   const [activeTab, setActiveTab] = useState('pending');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [answerText, setAnswerText] = useState('');
   const [editingAnswerId, setEditingAnswerId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const loadList = async () => {
+    setLoading(true);
+    try {
+      const meta = await onFetchInquiries({ isAnswered: activeTab === 'answered', page, size: INQUIRY_PAGE_SIZE });
+      setTotalPages(meta?.totalPages ?? 0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    onFetchInquiries();
-  }, [onFetchInquiries]);
+    onFetchInquiryCounts();
+  }, [onFetchInquiryCounts]);
 
-  const pendingList = inquiries
-    .filter((i) => i.status === 'pending')
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const answeredList = inquiries
-    .filter((i) => i.status === 'answered')
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  useEffect(() => {
+    loadList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, page]);
 
-  const currentList = activeTab === 'pending' ? pendingList : answeredList;
+  const currentList = inquiries;
+
+  const refreshAfterMutation = async () => {
+    await Promise.all([loadList(), onFetchInquiryCounts()]);
+  };
 
   const handleExpand = (inq) => {
     if (expanded === inq.id) {
@@ -984,6 +1018,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, 
   const handleDeleteInquiry = async (id) => {
     try {
       await onDeleteInquiry(id);
+      await refreshAfterMutation();
     } catch (err) {
       alert(err.message || '문의 삭제 중 오류가 발생했습니다.');
     } finally {
@@ -995,6 +1030,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, 
   const handleDeleteAnswer = async (id) => {
     try {
       await onDeleteAnswer(id);
+      await refreshAfterMutation();
       setExpanded(null);
     } catch (err) {
       alert(err.message || '답변 삭제 중 오류가 발생했습니다.');
@@ -1006,6 +1042,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, 
     setSubmitting(true);
     try {
       await onAnswer(id, answerText.trim());
+      await refreshAfterMutation();
       setEditingAnswerId(null);
       setExpanded(null);
     } catch (err) {
@@ -1019,7 +1056,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, 
     const isActive = activeTab === tab;
     return (
       <button
-        onClick={() => { setActiveTab(tab); setExpanded(null); setEditingAnswerId(null); }}
+        onClick={() => { setActiveTab(tab); setPage(0); setExpanded(null); setEditingAnswerId(null); }}
         style={{
           flex: 1, padding: '9px 0', background: 'none', border: 'none',
           borderBottom: `2px solid ${isActive ? C.primary : 'transparent'}`,
@@ -1047,15 +1084,15 @@ function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, 
     <div>
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '2px' }}>문의 관리</div>
-        <div style={{ fontSize: '12px', color: C.fgMuted }}>전체 {inquiries.length}건</div>
+        <div style={{ fontSize: '12px', color: C.fgMuted }}>전체 {pendingCount + answeredCount}건</div>
       </div>
 
       <div style={{ display: 'flex', background: C.card, borderRadius: '14px 14px 0 0', borderBottom: `1px solid ${C.border}`, marginBottom: '12px' }}>
-        {tabBtn('pending', '미답변', pendingList.length, Clock)}
-        {tabBtn('answered', '답변완료', answeredList.length, CheckCircle)}
+        {tabBtn('pending', '미답변', pendingCount, Clock)}
+        {tabBtn('answered', '답변완료', answeredCount, CheckCircle)}
       </div>
 
-      {currentList.length === 0 ? (
+      {!loading && currentList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: C.fgMuted, fontSize: '13px' }}>
           {activeTab === 'pending' ? '미답변 문의가 없어요' : '답변 완료된 문의가 없어요'}
         </div>
@@ -1165,20 +1202,26 @@ function InquiriesTab({ inquiries, onFetchInquiries, onAnswer, onDeleteInquiry, 
           ))}
         </div>
       )}
+
+      <PageControls page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }
 
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
-  currentUser, users, recipes, inquiries, presetIngredients, onClose,
-  onUpdateUsers, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages,
+  currentUser, recipes, inquiries, presetIngredients, onClose,
+  onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages,
   onAdminUpdateRecipe, onAdminDeleteRecipe,
-  onFetchInquiries, onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
+  onFetchInquiries, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
+  onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState('members');
 
-  const pendingInquiries = inquiries.filter((i) => i.status === 'pending').length;
+  useEffect(() => {
+    onFetchInquiryCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 500, display: 'flex', flexDirection: 'column' }}>
@@ -1215,7 +1258,7 @@ export function AdminPanel({
       >
         {Object.entries(TAB_ICONS).map(([key, { icon: Icon, label }]) => {
           const isActive = activeTab === key;
-          const badge = key === 'inquiries' && pendingInquiries > 0 ? pendingInquiries : null;
+          const badge = key === 'inquiries' && pendingInquiriesCount > 0 ? pendingInquiriesCount : null;
           return (
             <button
               key={key}
@@ -1262,11 +1305,22 @@ export function AdminPanel({
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
-        {activeTab === 'members'     && <MembersTab users={users} onUpdate={onUpdateUsers} currentUser={currentUser} />}
+        {activeTab === 'members'     && <MembersTab currentUser={currentUser} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
-        {activeTab === 'inquiries'   && <InquiriesTab inquiries={inquiries} onFetchInquiries={onFetchInquiries} onAnswer={onAnswerInquiry} onDeleteInquiry={onDeleteInquiry} onDeleteAnswer={onDeleteAnswer} />}
+        {activeTab === 'inquiries'   && (
+          <InquiriesTab
+            inquiries={inquiries}
+            onFetchInquiries={onFetchInquiries}
+            onFetchInquiryCounts={onFetchInquiryCounts}
+            pendingCount={pendingInquiriesCount}
+            answeredCount={answeredInquiriesCount}
+            onAnswer={onAnswerInquiry}
+            onDeleteInquiry={onDeleteInquiry}
+            onDeleteAnswer={onDeleteAnswer}
+          />
+        )}
       </div>
     </div>
   );
