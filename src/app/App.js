@@ -62,7 +62,7 @@ export default function App() {
   const [pendingRecipeId, setPendingRecipeId] = useState(null);
   const {
     shoppingItems,
-    fetchShoppingItems, addShoppingItem, toggleShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
+    fetchShoppingItems, addShoppingItem, toggleShoppingItem, updateShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
   } = useShoppingStore();
   const {
     inquiries, adminInquiries, users,
@@ -352,6 +352,7 @@ export default function App() {
               <ShoppingList
                 items={shoppingItems}
                 onToggle={toggleShoppingItem}
+                onUpdate={updateShoppingItem}
                 onDelete={deleteShoppingItem}
                 onAdd={addShoppingItem}
                 onClearChecked={clearChecked}

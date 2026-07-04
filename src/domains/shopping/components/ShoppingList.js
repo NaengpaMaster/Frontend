@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Check, ShoppingCart, X } from 'lucide-react';
+import { Plus, Trash2, Check, ShoppingCart, X, Edit2 } from 'lucide-react';
 import { CATEGORIES, CATEGORY_EMOJIS, C } from '@/shared/data/mockData';
 import { IngredientSearchField } from '@/domains/fridge/components/IngredientSearchField';
 
@@ -7,9 +7,11 @@ function openCoupangSearch(name) {
   window.open(`https://www.coupang.com/np/search?q=${encodeURIComponent(name)}`, '_blank', 'noopener,noreferrer');
 }
 
-export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked, onMoveCheckedToFridge }) {
+export function ShoppingList({ items, onToggle, onUpdate, onDelete, onAdd, onClearChecked, onMoveCheckedToFridge }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ productId: null, name: '', quantity: '', category: '채소/과일' });
+  const [editingId, setEditingId] = useState(null);
+  const [editingQuantity, setEditingQuantity] = useState('');
 
   const checkedCount = items.filter((i) => i.checked).length;
 
@@ -24,6 +26,18 @@ export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked,
     onAdd({ ...form, checked: false });
     setForm({ productId: null, name: '', quantity: '', category: '채소/과일' });
     setShowAdd(false);
+  };
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setEditingQuantity(item.quantity || '');
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editingQuantity.trim()) return;
+    await onUpdate(editingId, editingQuantity.trim());
+    setEditingId(null);
+    setEditingQuantity('');
   };
 
   const inputStyle = {
@@ -182,8 +196,39 @@ export function ShoppingList({ items, onToggle, onDelete, onAdd, onClearChecked,
                       <span style={{ fontSize: '14px', fontWeight: 500, color: item.checked ? C.fgSubtle : C.fg, textDecoration: item.checked ? 'line-through' : 'none' }}>
                         {item.name}
                       </span>
-                      {item.quantity && <span style={{ fontSize: '11px', color: item.checked ? C.fgSubtle : C.fgMuted, marginLeft: '8px' }}>{item.quantity}</span>}
+                      {editingId === item.id ? (
+                        <input
+                          value={editingQuantity}
+                          onChange={(e) => setEditingQuantity(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                          autoFocus
+                          style={{
+                            width: '90px',
+                            marginLeft: '8px',
+                            padding: '4px 6px',
+                            border: `1px solid ${C.border}`,
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            outline: 'none',
+                          }}
+                        />
+                      ) : (
+                        item.quantity && <span style={{ fontSize: '11px', color: item.checked ? C.fgSubtle : C.fgMuted, marginLeft: '8px' }}>{item.quantity}</span>
+                      )}
                     </div>
+                    {editingId === item.id ? (
+                      <button
+                        onClick={saveEdit}
+                        disabled={!editingQuantity.trim()}
+                        style={{ background: C.primary, border: 'none', borderRadius: '10px', color: '#FFF', cursor: 'pointer', padding: '6px 8px' }}
+                      >
+                        저장
+                      </button>
+                    ) : (
+                      <button onClick={() => startEdit(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgSubtle, padding: '2px' }}>
+                        <Edit2 size={14} />
+                      </button>
+                    )}
                     <button
                       onClick={() => openCoupangSearch(item.name)}
                       style={{
