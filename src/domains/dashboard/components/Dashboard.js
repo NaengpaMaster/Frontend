@@ -11,8 +11,9 @@ import {statsApi} from '@/apis/statsApi';
 import {scoreApi} from '@/apis/scoreApi';
 
 const SCORE_REASON_META = {
-    RECIPE_CREATED: {icon: '📒', meta: '레시피 1건 등록'},
-    EXPIRED_PRODUCT: {icon: null, meta: '만료 재료 1일'},
+    EXPIRED_PRODUCT: {icon: null, meta: '냉장고 만료 1일 방치 페널티'},
+    NO_EXPIRED_4DAYS: {icon: '✅', meta: '4일 연속 냉장고 방어 보너스'},
+    RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'}
 };
 
 function DayBadge({expiryDate}) {
@@ -92,9 +93,8 @@ function ScoreDetailModal({
                         ? CATEGORY_EMOJIS[
                         CATEGORY_NAMES[item.productCategoryId] || '기타']
                         : reasonMeta.icon;
-                    // NO_EXPIRED_4DAYS는 targetType이 없으니 meta를 title로 사용
                     const title = item.scoreReason === 'NO_EXPIRED_4DAYS'
-                        ? '신선 유지 4일 달성' : item.targetType;
+                        ? '만료 방어 성공' : item.targetType;
 
                     return {
                         id: idx,
@@ -125,20 +125,20 @@ function ScoreDetailModal({
     };
     const policyItems = [
         {
-            label: '만료 재료 1일당',
-            subtitle: '냉장고 속 재료가 만료되면 1일당 -2점',
+            label: '재료 만료 방치',
+            subtitle: '냉장고 속 재료가 만료된 후 하루가 지날 때마다',
             point: '-2점',
             isPlus: false,
         },
         {
-            label: '만료 재료 없음 유지 4일',
-            subtitle: '만료 재료가 없으면 4일마다 +5점',
+            label: '만료 방어 성공',
+            subtitle: '만료 재료 없이 4일 연속 냉장고 유지 시',
             point: '+5점',
             isPlus: true,
         },
         {
-            label: '레시피 1건 등록',
-            subtitle: '레시피를 등록하면 +3점 즉시 반영',
+            label: '냉파 레시피 등록',
+            subtitle: '나만의 요리법을 등록할 때마다 즉시',
             point: '+3점',
             isPlus: true,
         },
