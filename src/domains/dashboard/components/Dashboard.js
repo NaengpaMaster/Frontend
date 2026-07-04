@@ -16,6 +16,36 @@ const SCORE_REASON_META = {
     RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'}
 };
 
+function highlightKeywords(text, keywordColors = {
+    '레시피': {bg: '#FDECEA', color: '#E4572E'},
+    '냉장고': {bg: '#D6F5E3', color: '#0E8478'},
+}) {
+    if (!text) return text;
+    const keywords = Object.keys(keywordColors);
+    const pattern = new RegExp(`(${keywords.join('|')})`, 'g');
+    const parts = text.split(pattern);
+
+    return parts.map((part, idx) => {
+        const style = keywordColors[part];
+        if (!style) return part;
+
+        return (
+            <span
+                key={idx}
+                style={{
+                    background: style.bg,
+                    color: style.color,
+                    fontWeight: 800,
+                    borderRadius: '4px',
+                    padding: '0 3px',
+                }}
+            >
+                {part}
+            </span>
+        );
+    });
+}
+
 function DayBadge({expiryDate}) {
     const days = getDaysUntilExpiry(expiryDate);
     const status = getExpiryStatus(days);
@@ -138,7 +168,7 @@ function ScoreDetailModal({
         },
         {
             label: '냉파 레시피 등록',
-            subtitle: '나만의 요리법을 등록할 때마다 즉시',
+            subtitle: '나만의 레시피를 등록할 때마다 즉시',
             point: '+3점',
             isPlus: true,
         },
@@ -381,7 +411,9 @@ function ScoreDetailModal({
                                         fontSize: '9px',
                                         color: C.fgMuted,
                                         lineHeight: 1.35,
-                                    }}>{subtitle}</div>
+                                        wordBreak: 'keep-all',
+                                        overflowWrap: 'break-word'
+                                    }}>{highlightKeywords(subtitle)}</div>
                                     <div style={{
                                         fontSize: '13px',
                                         fontWeight: 900,
@@ -427,7 +459,7 @@ function ScoreDetailModal({
                                         <div style={{fontSize: '13px', fontWeight: 700, color: C.fg}}>{item.title}</div>
                                         {(item.meta || item.date) && (
                                             <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '2px'}}>
-                                                {item.meta}{item.meta && item.date && ' · '}{item.date}
+                                                {highlightKeywords(item.meta)}{item.meta && item.date && ' · '}{item.date}
                                             </div>
                                         )}
                                     </div>
