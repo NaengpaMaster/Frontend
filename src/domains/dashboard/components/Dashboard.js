@@ -423,8 +423,9 @@ function ScoreDetailModal({
                                 </div>
                             ))}
                         </div>
-                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '14px'}}>ⓘ 레시피 등록 점수는 즉시 반영되며, 만료/유지
-                            점수는 매일 00:00에 반영 됩니다.
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '14px'}}>ⓘ 만료/유지점수는 매일 00:00에 반영 되며, 레시피 등록 점수는 즉시 반영 됩니다.
+                        </div>
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 회원 가입 시 초기 점수 10점이 지급 됩니다.
                         </div>
                     </div>
 
