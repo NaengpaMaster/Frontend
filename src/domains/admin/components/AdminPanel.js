@@ -551,7 +551,6 @@ function IngredientsTab({ items, onUpdate }) {
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('채소/과일');
   const [editDefaultExpiryDays, setEditDefaultExpiryDays] = useState('');
-  const [deleteIdx, setDeleteIdx] = useState(null);
   const [error, setError] = useState('');
 
   const inputStyle = {
@@ -590,11 +589,6 @@ function IngredientsTab({ items, onUpdate }) {
     adminApi.setProductActive(item.productId, !item.active)
       .then(refreshProducts)
       .catch((err) => setError(err.message || '사전 재료 상태 변경에 실패했습니다.'));
-  };
-
-  const handleDelete = (idx) => {
-    onUpdate(items.filter((_, i) => i !== idx));
-    setDeleteIdx(null);
   };
 
   const handleEditSave = (idx) => {
@@ -753,16 +747,6 @@ function IngredientsTab({ items, onUpdate }) {
                   }} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
                     <Edit2 size={12} />
                   </button>
-                  {deleteIdx === idx ? (
-                    <>
-                      <button onClick={() => handleDelete(idx)} style={{ padding: '5px 8px', background: C.dangerLight, border: 'none', borderRadius: '8px', color: C.danger, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>삭제</button>
-                      <button onClick={() => setDeleteIdx(null)} style={{ padding: '5px 6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.fgMuted, fontSize: '11px', cursor: 'pointer' }}>취소</button>
-                    </>
-                  ) : (
-                    <button onClick={() => setDeleteIdx(idx)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', color: C.fgMuted }}>
-                      <Trash2 size={12} />
-                    </button>
-                  )}
                 </>
               )}
             </div>
