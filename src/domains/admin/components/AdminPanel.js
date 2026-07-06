@@ -11,6 +11,7 @@ import { adminStatsApi } from '@/apis/adminStatsApi';
 import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
 import { adminRecipesApi } from '@/apis/recipesApi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {scoreApi} from '@/apis/scoreApi';
 
 const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
 
@@ -1217,11 +1218,22 @@ export function AdminPanel({
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState('members');
+  const [schedulerRunning, setSchedulerRunning] = useState(false);
 
   useEffect(() => {
     onFetchInquiryCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleRunScheduler = async () => {
+    if (schedulerRunning) return;
+    setSchedulerRunning(true);
+    try {
+      await scoreApi.postScheduler();
+    } finally {
+      setSchedulerRunning(false);
+    }
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 500, display: 'flex', flexDirection: 'column' }}>
@@ -1241,9 +1253,18 @@ export function AdminPanel({
           <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700 }}>ADMIN</div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: C.fg, letterSpacing: '-0.02em', lineHeight: 1.1 }}>관리자 대시보드</div>
         </div>
-        <button onClick={onClose} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <X size={14} /> 닫기
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={handleRunScheduler}
+            disabled={schedulerRunning}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: schedulerRunning ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Clock size={14} /> {schedulerRunning ? '실행 중...' : '스케줄러 실행'}
+          </button>
+          <button onClick={onClose} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <X size={14} /> 닫기
+          </button>
+        </div>
       </div>
 
       {/* Tab bar */}

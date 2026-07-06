@@ -124,7 +124,7 @@ function ScoreDetailModal({
                         CATEGORY_NAMES[item.productCategoryId] || '기타']
                         : reasonMeta.icon;
                     const title = item.scoreReason === 'NO_EXPIRED_4DAYS'
-                        ? '만료 방어 성공' : item.targetType;
+                        ? '만료 방어 성공' : item.targetName;
 
                     return {
                         id: idx,

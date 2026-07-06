@@ -8,4 +8,7 @@ export const scoreApi = {
 
     getScoreHistories: (size = 7) =>
         axiosClient.get('/api/v1/scores/histories', {params: {size}}).then(unwrap),
+
+    postScheduler: () =>
+        axiosClient.post('/api/v1/admin/scores/run-scheduler').then(unwrap)
 };
