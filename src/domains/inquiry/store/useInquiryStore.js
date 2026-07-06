@@ -37,7 +37,7 @@ const useInquiryStore = create((set, get) => ({
   fetchInquiries: async ({ page = 0, size = 10 } = {}) => {
     set({ loading: true, error: null });
     try {
-      const result = await inquiriesApi.getAll({ page, size, sort: 'createdAt,desc' });
+      const result = await inquiriesApi.getAll({ page, size });
       const list = result?.content ?? [];
       const details = await Promise.all(list.map((item) => inquiriesApi.getById(item.inquiryId)));
       set({ inquiries: details.map(toViewInquiry) });
@@ -65,7 +65,8 @@ const useInquiryStore = create((set, get) => ({
   fetchAdminInquiries: async ({ isAnswered, page = 0, size = 10 } = {}) => {
     set({ adminLoading: true, error: null });
     try {
-      const result = await adminInquiriesApi.getAll({ isAnswered, page, size, sort: 'createdAt,desc' });
+      const sort = isAnswered ? 'createdAt,desc' : 'createdAt,asc';
+      const result = await adminInquiriesApi.getAll({ isAnswered, page, size, sort });
       const list = result?.content ?? [];
       const details = await Promise.all(list.map((item) => adminInquiriesApi.getById(item.inquiryId)));
       set({ adminInquiries: details.map(toAdminViewInquiry) });
