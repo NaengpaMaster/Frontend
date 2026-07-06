@@ -15,6 +15,40 @@ import {scoreApi} from '@/apis/scoreApi';
 
 const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
 
+function InfoTooltip({ text }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'help' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <Info size={12} color={C.fgMuted} />
+      {show && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: '140%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: C.fg,
+            color: C.card,
+            fontSize: '11px',
+            fontWeight: 500,
+            padding: '6px 10px',
+            borderRadius: '6px',
+            whiteSpace: 'nowrap',
+            zIndex: 10,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          }}
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function mapRecipeDetail(d) {
   return {
     ...d,
@@ -857,7 +891,7 @@ function StatsTab() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
-              유통기한 만료 건수 <Info size={12} color={C.fgMuted} />
+              이번주 유통기한 만료 건수 <InfoTooltip text="이번 주 월요일부터 일요일까지 등록된 만료 건수입니다." />
             </div>
             <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>
               {loading ? '-' : `${expiredCount?.thisWeekCount ?? 0}건`}
