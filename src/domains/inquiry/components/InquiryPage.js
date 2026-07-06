@@ -70,7 +70,7 @@ export function InquiryPage({ inquiries, currentUser, onFetchInquiries, onAddInq
 
   const status = (inq) => {
     if (inq.status === 'answered') return { label: '답변완료', Icon: CheckCircle, color: C.primary, bg: C.primaryLight };
-    return { label: '미답변', Icon: Clock, color: C.accent, bg: C.accentLight };
+    return { label: '답변대기', Icon: Clock, color: C.accent, bg: C.accentLight };
   };
 
   const inputStyle = {
