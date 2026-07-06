@@ -880,7 +880,7 @@ function StatsTab() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>카테고리별 만료량</div>
           <div style={{ display: 'flex', gap: '4px' }}>
-            {[7, 30].map((p) => (
+            {[7, 30, 'all'].map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
@@ -895,7 +895,7 @@ function StatsTab() {
                   color: period === p ? '#FFF' : C.fgMuted,
                 }}
               >
-                {p}일
+                {p === 'all' ? '전체' : `${p}일`}
               </button>
             ))}
           </div>

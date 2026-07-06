@@ -14,7 +14,8 @@ export const adminStatsApi = {
   },
 
   async getCategoryStats(period = 7) {
-    return unwrap(await axiosClient.get('/api/v1/admin/statistics/category', { params: { period } })) || [];
+    const resolvedPeriod = period === 'all' ? 0 : period;
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/category', { params: { period: resolvedPeriod } })) || [];
   },
 
   async getTopIngredients() {
