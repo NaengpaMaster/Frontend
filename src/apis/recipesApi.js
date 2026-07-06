@@ -30,8 +30,8 @@ export const recipesApi = {
 };
 
 export const adminRecipesApi = {
-  getAll: (page = 0, size = 20) =>
-    axiosClient.get('/api/v1/admin/recipes', { params: { page, size } }),
+  getAll: ({ search, page = 0, size = 20 } = {}) =>
+    axiosClient.get('/api/v1/admin/recipes', { params: { search: search || undefined, page, size } }),
   getById: (id) =>
     axiosClient.get(`/api/v1/admin/recipes/${id}`),
   update: (id, data) =>
