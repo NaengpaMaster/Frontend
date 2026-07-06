@@ -863,12 +863,13 @@ function StatsTab() {
               {loading ? '-' : `${expiredCount?.thisWeekCount ?? 0}건`}
             </div>
             <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              이번주 기준
-              {!loading && weekChangePct != null && (
+              {!loading && weekChangePct != null ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: weekChangePct > 0 ? C.danger : weekChangePct < 0 ? C.primary : C.fgMuted, fontWeight: 700 }}>
                   {weekChangePct > 0 ? <TrendingUp size={11} /> : weekChangePct < 0 ? <TrendingDown size={11} /> : <Minus size={11} />}
-                  {Math.abs(weekChangePct)}%
+                  지난주 대비 {Math.abs(weekChangePct).toFixed(1)}% {weekChangePct > 0 ? '상승' : weekChangePct < 0 ? '하락' : '변동없음'}
                 </span>
+              ) : (
+                '이번주 기준'
               )}
             </div>
           </div>
