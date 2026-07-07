@@ -5,6 +5,8 @@ import { C } from '@/shared/data/mockData';
 
 const HOUSEHOLD_TYPES = ['1인', '2인', '3인 이상', '기타'];
 const FAVORITE_FOODS_LIST = ['한식', '중식', '양식', '일식', '아시안', '후식', '분식'];
+const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9 ]+$/;
+const INVALID_NICKNAME_MESSAGE = '닉네임은 한글, 영문, 숫자, 공백만 사용할 수 있습니다.';
 
 const inputStyle = {
   width: '100%',
@@ -163,6 +165,12 @@ export function MyPage({ user, onClose, onLogout, onUpdate, onOpenAdmin }) {
   const handleSave = async () => {
     setSaving(true);
     setSaveError('');
+    const nickname = (form.name || form.nickname || '').trim();
+    if (!NICKNAME_PATTERN.test(nickname)) {
+      setSaveError(INVALID_NICKNAME_MESSAGE);
+      setSaving(false);
+      return;
+    }
     try {
       const savedUser = await onUpdate({ ...form, preferences: { ...form.preferences, allergies: [] } });
       if (savedUser) {
