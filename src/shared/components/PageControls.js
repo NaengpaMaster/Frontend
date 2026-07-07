@@ -1,16 +1,35 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
+
+const PAGE_WINDOW_SIZE = 10;
 
 export function PageControls({ page, totalPages, onChange }) {
   if (totalPages <= 1) return null;
-  const pages = Array.from({ length: totalPages }, (_, i) => i);
+  const groupStart = Math.floor(page / PAGE_WINDOW_SIZE) * PAGE_WINDOW_SIZE;
+  const groupEnd = Math.min(groupStart + PAGE_WINDOW_SIZE, totalPages);
+  const pages = Array.from({ length: groupEnd - groupStart }, (_, i) => groupStart + i);
+  const hasPrevGroup = groupStart > 0;
+  const hasNextGroup = groupEnd < totalPages;
+
+  const navButtonStyle = (disabled) => ({
+    width: '28px', height: '28px', border: 'none', borderRadius: '8px', background: C.surface,
+    color: disabled ? C.fgSubtle : C.fgMuted, cursor: disabled ? 'default' : 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  });
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', marginTop: '16px', flexWrap: 'wrap' }}>
       <button
+        onClick={() => onChange(groupStart - PAGE_WINDOW_SIZE)}
+        disabled={!hasPrevGroup}
+        style={navButtonStyle(!hasPrevGroup)}
+      >
+        <ChevronsLeft size={14} />
+      </button>
+      <button
         onClick={() => onChange(Math.max(0, page - 1))}
         disabled={page === 0}
-        style={{ width: '28px', height: '28px', border: 'none', borderRadius: '8px', background: C.surface, color: page === 0 ? C.fgSubtle : C.fgMuted, cursor: page === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={navButtonStyle(page === 0)}
       >
         <ChevronLeft size={14} />
       </button>
@@ -31,9 +50,16 @@ export function PageControls({ page, totalPages, onChange }) {
       <button
         onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
         disabled={page >= totalPages - 1}
-        style={{ width: '28px', height: '28px', border: 'none', borderRadius: '8px', background: C.surface, color: page >= totalPages - 1 ? C.fgSubtle : C.fgMuted, cursor: page >= totalPages - 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={navButtonStyle(page >= totalPages - 1)}
       >
         <ChevronRight size={14} />
+      </button>
+      <button
+        onClick={() => onChange(groupEnd)}
+        disabled={!hasNextGroup}
+        style={navButtonStyle(!hasNextGroup)}
+      >
+        <ChevronsRight size={14} />
       </button>
     </div>
   );
