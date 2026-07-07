@@ -8,6 +8,8 @@ async function proxy(request, { params }) {
   const headers = new Headers(request.headers);
   headers.delete('host');
   headers.delete('content-length');
+  headers.delete('origin');
+  headers.delete('referer');
 
   const hasBody = !['GET', 'HEAD'].includes(request.method);
 
