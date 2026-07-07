@@ -157,16 +157,21 @@ const useRecipeStore = create((set) => ({
   })),
 
   adminPage: 0,
+  adminSize: 20,
   adminTotalPages: 0,
   adminTotalElements: 0,
   adminLoading: false,
   adminParams: {},
 
-  // 관리자 레시피 목록 - 사용자 레시피 추천 목록과 동일한 무한스크롤 방식(10개 단위 조회 + 다음 페이지 이어붙이기)
+  // 관리자 레시피 목록 - 페이지 번호 선택 방식 (페이지당 개수 설정 가능)
   fetchAdminRecipes: async (params = {}) => {
-    set({ adminLoading: true, adminPage: 0, adminParams: params });
+    const state = useRecipeStore.getState();
+    const page = params.page ?? 0;
+    const size = params.size ?? state.adminSize;
+    const search = params.search !== undefined ? params.search : state.adminParams.search;
+    set({ adminLoading: true, adminParams: { search }, adminSize: size });
     try {
-      const res = await adminRecipesApi.getAll({ ...params, page: 0 });
+      const res = await adminRecipesApi.getAll({ search, page, size });
       const body = res.data?.data ?? res.data;
       const list = body?.content ?? [];
       const mapped = (Array.isArray(list) ? list : []).map((r, idx) => ({
@@ -181,44 +186,9 @@ const useRecipeStore = create((set) => ({
       }));
       set({
         recipes: mapped,
-        adminPage: 0,
+        adminPage: page,
         adminTotalPages: body?.totalPages ?? 0,
-        // 목록 헤더의 "총 N개"는 로드된 개수가 아니라 서버가 내려주는 실제 총 개수를 써야
-        // 스크롤로 더 불러올 때마다 총 개수가 달라 보이는 문제가 생기지 않는다.
         adminTotalElements: body?.totalElements ?? mapped.length,
-      });
-    } finally {
-      set({ adminLoading: false });
-    }
-  },
-
-  fetchAdminRecipesNext: async () => {
-    const { adminPage, adminTotalPages, adminLoading, adminParams } = useRecipeStore.getState();
-    const nextPage = adminPage + 1;
-    if (adminLoading || nextPage >= adminTotalPages) return;
-    set({ adminLoading: true });
-    try {
-      const res = await adminRecipesApi.getAll({ ...adminParams, page: nextPage });
-      const body = res.data?.data ?? res.data;
-      const list = body?.content ?? [];
-      const mapped = (Array.isArray(list) ? list : []).map((r, idx) => ({
-        ...r,
-        id: r.recipeId ?? r.id ?? `${nextPage}_${idx}`,
-        category: r.categoryName ?? r.category,
-        cookTime: r.cookingTime ?? r.cookTime,
-        difficulty: r.difficultyLabel ?? r.difficulty,
-        requiredIngredients: r.requiredIngredients ?? Array(r.ingredientCount ?? 0).fill(''),
-        description: r.description ?? '',
-        steps: r.steps ?? [],
-      }));
-      set((state) => {
-        const existingIds = new Set(state.recipes.map((r) => r.id));
-        const newRecipes = mapped.filter((r) => !existingIds.has(r.id));
-        return {
-          recipes: [...state.recipes, ...newRecipes],
-          adminPage: nextPage,
-          adminTotalElements: body?.totalElements ?? state.adminTotalElements,
-        };
       });
     } finally {
       set({ adminLoading: false });

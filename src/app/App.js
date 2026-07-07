@@ -56,8 +56,8 @@ export default function App() {
     recipes, userRecipes, userRecipesLoading, userRecipesPage, userRecipesTotalPages,
     addRecipe, updateRecipe, deleteRecipe, fetchUserRecipes, fetchUserRecipesNext, toggleUserRecipeFavorite,
     homeRecipes, homeRecipesTotal, fetchHomeRecipes, urgentHomeRecipes, fetchUrgentHomeRecipes,
-    fetchAdminRecipes, fetchAdminRecipesNext, adminUpdateRecipe, adminDeleteRecipe,
-    adminLoading, adminPage, adminTotalPages, adminTotalElements,
+    fetchAdminRecipes, adminUpdateRecipe, adminDeleteRecipe,
+    adminPage, adminTotalPages, adminTotalElements, adminSize,
   } = useRecipeStore();
   const [pendingRecipeId, setPendingRecipeId] = useState(null);
   const {
@@ -263,11 +263,10 @@ export default function App() {
             presetIngredients={presetIngredients}
             onClose={handleLogout}
             onFetchRecipes={fetchAdminRecipes}
-            onFetchNextPage={fetchAdminRecipesNext}
-            adminLoading={adminLoading}
             adminPage={adminPage}
             adminTotalPages={adminTotalPages}
             adminTotalElements={adminTotalElements}
+            adminSize={adminSize}
             onAdminUpdateRecipe={adminUpdateRecipe}
             onAdminDeleteRecipe={adminDeleteRecipe}
             onFetchInquiries={fetchAdminInquiries}

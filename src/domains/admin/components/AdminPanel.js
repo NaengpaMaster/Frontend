@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   C,
@@ -364,9 +364,12 @@ function MembersTab({ currentUser }) {
 }
 
 // ─── Recipes ──────────────────────────────────────────────────────────────────
-function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages, adminTotalElements, onUpdateRecipe, onDeleteRecipe }) {
+const RECIPE_PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
+
+function RecipesTab({ recipes, onFetchRecipes, adminPage, adminTotalPages, adminTotalElements, adminSize, onUpdateRecipe, onDeleteRecipe }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [pageSize, setPageSize] = useState(adminSize ?? 20);
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
@@ -376,7 +379,6 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState(null);
-  const observerRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -386,21 +388,19 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
   useEffect(() => {
     setLoading(true);
     setError(null);
-    onFetchRecipes({ search: debouncedSearch })
+    onFetchRecipes({ search: debouncedSearch, page: 0, size: pageSize })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+  }, [debouncedSearch, pageSize]);
 
-  const sentinelRef = useCallback((node) => {
-    if (observerRef.current) observerRef.current.disconnect();
-    if (!node) return;
-    observerRef.current = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) onFetchNextPage(); },
-      { threshold: 0.1 },
-    );
-    observerRef.current.observe(node);
-  }, [onFetchNextPage]);
+  const handlePageChange = (nextPage) => {
+    setLoading(true);
+    setError(null);
+    onFetchRecipes({ search: debouncedSearch, page: nextPage, size: pageSize })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
 
   const fetchDetail = async (recipe) => {
     const res = await adminRecipesApi.getById(recipe.recipeId ?? recipe.id);
@@ -460,7 +460,7 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
       await onDeleteRecipe(id);
       setDeleteId(null);
       // 삭제 후 총 개수/목록을 서버 기준으로 다시 맞춤
-      await onFetchRecipes({ search: debouncedSearch });
+      await onFetchRecipes({ search: debouncedSearch, page: adminPage, size: pageSize });
     } catch (err) {
       setError(err.message);
     }
@@ -487,17 +487,31 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
         </div>
       </div>
 
-      <div style={{ position: 'relative', marginBottom: '12px' }}>
-        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
-        <input
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
+          <input
+            style={{
+              width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
+              padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+            }}
+            placeholder="레시피 이름 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
           style={{
-            width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
-            padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+            background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
+            padding: '0 10px', color: C.fg, fontSize: '13px', outline: 'none', cursor: 'pointer',
           }}
-          placeholder="레시피 이름 검색"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        >
+          {RECIPE_PAGE_SIZE_OPTIONS.map((n) => (
+            <option key={n} value={n}>{n}개씩</option>
+          ))}
+        </select>
       </div>
 
       {loading && (
@@ -553,13 +567,7 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
         )}
       </div>
 
-      {adminPage + 1 < adminTotalPages && (
-        // 로딩 텍스트 유무로 높이가 바뀌면 스크롤 앵커링 때문에 화면이 튀어 보이므로
-        // 텍스트는 항상 렌더링하고 visibility만 토글해 박스 높이를 고정한다.
-        <div ref={sentinelRef} style={{ textAlign: 'center', padding: '20px 0', color: C.fgMuted, fontSize: '13px' }}>
-          <span style={{ visibility: adminLoading ? 'visible' : 'hidden' }}>불러오는 중...</span>
-        </div>
-      )}
+      <PageControls page={adminPage} totalPages={adminTotalPages} onChange={handlePageChange} />
 
       {detailLoading && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'grid', placeItems: 'center' }}>
@@ -1328,7 +1336,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
   currentUser, recipes, inquiries, presetIngredients, onClose,
-  onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages, adminTotalElements,
+  onFetchRecipes, adminPage, adminTotalPages, adminTotalElements, adminSize,
   onAdminUpdateRecipe, onAdminDeleteRecipe,
   onFetchInquiries, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
@@ -1443,7 +1451,7 @@ export function AdminPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
         {activeTab === 'members'     && <MembersTab currentUser={currentUser} />}
-        {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
+        {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} adminSize={adminSize} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'inquiries'   && (
