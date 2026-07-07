@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart } from 'lucide-react';
 import {
   C,
   CATEGORY_EMOJIS,
@@ -62,6 +62,7 @@ function mapRecipeDetail(d) {
     ),
     steps: (d.steps ?? d.instructions ?? []).map((s) => typeof s === 'string' ? s : s.content),
     description: d.description ?? '',
+    likeCount: d.likeCount ?? 0,
   };
 }
 
@@ -584,7 +585,12 @@ function RecipesTab({ recipes, onFetchRecipes, adminPage, adminTotalPages, admin
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
                 <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '4px' }}>RECIPE DETAIL</div>
-                <h2 style={{ fontSize: '24px', fontWeight: 700, color: C.fg, margin: 0, lineHeight: 1.1 }}>{selected.name}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700, color: C.fg, margin: 0, lineHeight: 1.1 }}>{selected.name}</h2>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: C.accent, fontWeight: 700 }}>
+                    <Heart size={14} fill={C.accent} color={C.accent} /> {selected.likeCount}
+                  </span>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
