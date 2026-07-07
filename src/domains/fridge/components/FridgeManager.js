@@ -131,8 +131,12 @@ function IngredientModal({
                 style={{ ...inputStyle, height: '52px', resize: 'none' }}
                 placeholder="예: 반찬용, 소분 완료, 빨리 먹기"
                 value={form.memo}
+                maxLength={1000}
                 onChange={(e) => setForm({ ...form, memo: e.target.value })}
               />
+              <div style={{ marginTop: '4px', textAlign: 'right', fontSize: '10px', color: C.fgSubtle }}>
+                {form.memo.length}/1000
+              </div>
             </div>
           </div>
         </div>

@@ -106,11 +106,6 @@ export function ShoppingList({ items, onToggle, onUpdate, onDelete, onAdd, onCle
             </>
           )}
         </div>
-        {checkedCount > 0 && (
-          <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '8px', lineHeight: 1.5 }}>
-            냉장고 반영 시 유통기한은 기본값 "기한없음"으로 등록되고, 냉장고 탭에서 직접 수정할 수 있어요.
-          </div>
-        )}
       </div>
 
       {/* Add form */}
