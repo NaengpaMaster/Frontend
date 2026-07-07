@@ -9,7 +9,7 @@ import { PageControls } from '@/shared/components/PageControls';
 import { adminApi } from '@/apis/adminApi';
 import { adminStatsApi } from '@/apis/adminStatsApi';
 import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
-import { adminRecipesApi } from '@/apis/recipesApi';
+import { recipesApi, adminRecipesApi } from '@/apis/recipesApi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {scoreApi} from '@/apis/scoreApi';
 
@@ -364,14 +364,33 @@ function MembersTab({ currentUser }) {
 }
 
 // ─── Recipes ──────────────────────────────────────────────────────────────────
-function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages, onUpdateRecipe, onDeleteRecipe }) {
+function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages, adminTotalElements, onUpdateRecipe, onDeleteRecipe }) {
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [deleteCommentId, setDeleteCommentId] = useState(null);
   const observerRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    onFetchRecipes({ search: debouncedSearch })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const sentinelRef = useCallback((node) => {
     if (observerRef.current) observerRef.current.disconnect();
@@ -389,11 +408,27 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
     return mapRecipeDetail(d);
   };
 
+  const loadComments = async (recipeId) => {
+    setCommentsLoading(true);
+    try {
+      const res = await recipesApi.getComments(recipeId);
+      const body = res.data?.data ?? res.data;
+      setComments(body?.comments ?? []);
+    } catch {
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
   const handleSelect = async (recipe) => {
     setDetailLoading(true);
     setError(null);
+    setDeleteCommentId(null);
     try {
-      setSelected(await fetchDetail(recipe));
+      const detail = await fetchDetail(recipe);
+      setSelected(detail);
+      loadComments(detail.id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -413,14 +448,6 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
     }
   };
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    onFetchRecipes()
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [onFetchRecipes]);
-
   const handleEdit = async (data) => {
     if (!editing) return;
     // 에러를 다시 던져서 RecipeFormModal 자체의 인라인 에러 표시로 보여줌 (모달이 화면을 덮어 바깥 배너가 안 보임)
@@ -432,8 +459,22 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
     try {
       await onDeleteRecipe(id);
       setDeleteId(null);
+      // 삭제 후 총 개수/목록을 서버 기준으로 다시 맞춤
+      await onFetchRecipes({ search: debouncedSearch });
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!selected) return;
+    try {
+      await recipesApi.deleteComment(commentId);
+      await loadComments(selected.id);
+    } catch (err) {
+      alert(err.message || '댓글 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleteCommentId(null);
     }
   };
 
@@ -442,8 +483,21 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>레시피 관리</div>
-          <div style={{ fontSize: '12px', color: C.fgMuted }}>총 {recipes.length}개 · 기존 레시피 수정/삭제</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>총 {adminTotalElements}개 · 기존 레시피 수정/삭제</div>
         </div>
+      </div>
+
+      <div style={{ position: 'relative', marginBottom: '12px' }}>
+        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
+        <input
+          style={{
+            width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
+            padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+          }}
+          placeholder="레시피 이름 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       {loading && (
@@ -494,11 +548,16 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
             )}
           </div>
         ))}
+        {!loading && recipes.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '36px 0', color: C.fgMuted, fontSize: '13px' }}>검색 결과가 없어요</div>
+        )}
       </div>
 
       {adminPage + 1 < adminTotalPages && (
+        // 로딩 텍스트 유무로 높이가 바뀌면 스크롤 앵커링 때문에 화면이 튀어 보이므로
+        // 텍스트는 항상 렌더링하고 visibility만 토글해 박스 높이를 고정한다.
         <div ref={sentinelRef} style={{ textAlign: 'center', padding: '20px 0', color: C.fgMuted, fontSize: '13px' }}>
-          {adminLoading ? '불러오는 중...' : ''}
+          <span style={{ visibility: adminLoading ? 'visible' : 'hidden' }}>불러오는 중...</span>
         </div>
       )}
 
@@ -509,9 +568,9 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
       )}
 
       {selected && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'flex', alignItems: 'flex-end' }} onClick={() => setSelected(null)}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={() => setSelected(null)}>
           <div
-            style={{ background: C.bg, borderRadius: '24px 24px 0 0', padding: '24px 20px 40px', width: '100%', maxWidth: '480px', margin: '0 auto', maxHeight: '88vh', overflowY: 'auto' }}
+            style={{ background: C.bg, borderRadius: '20px', padding: '24px 24px 28px', width: '100%', maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(17,32,29,0.25)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -547,7 +606,7 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
               </div>
             </div>
 
-            <div>
+            <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: C.fgMuted, marginBottom: '12px' }}>조리 과정</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {selected.steps.map((step, idx) => (
@@ -556,6 +615,44 @@ function RecipesTab({ recipes, onFetchRecipes, onFetchNextPage, adminLoading, ad
                     <p style={{ fontSize: '13px', color: C.fg, lineHeight: 1.6, margin: 0, paddingTop: '3px' }}>{step}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: C.fgMuted, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MessageSquare size={13} /> 댓글 {comments.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {commentsLoading ? (
+                  <div style={{ fontSize: '12px', color: C.fgSubtle, textAlign: 'center', padding: '16px 0' }}>불러오는 중...</div>
+                ) : comments.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: C.fgSubtle, textAlign: 'center', padding: '16px 0' }}>등록된 댓글이 없어요</div>
+                ) : (
+                  comments.map((c) => (
+                    <div key={c.commentId} style={{ background: C.surface, borderRadius: '14px', padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: C.fg }}>
+                          {c.writerNickname}
+                          {c.modified && <span style={{ fontSize: '10px', color: C.fgSubtle, fontWeight: 400 }}> (수정됨)</span>}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '10px', color: C.fgSubtle }}>{c.createdAt?.split('T')[0]}</span>
+                          {deleteCommentId === c.commentId ? (
+                            <span style={{ display: 'flex', gap: '4px' }}>
+                              <button onClick={() => handleDeleteComment(c.commentId)} style={{ fontSize: '10px', fontWeight: 700, color: C.danger, background: 'none', border: 'none', cursor: 'pointer' }}>삭제</button>
+                              <button onClick={() => setDeleteCommentId(null)} style={{ fontSize: '10px', color: C.fgSubtle, background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
+                            </span>
+                          ) : (
+                            <button onClick={() => setDeleteCommentId(c.commentId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgSubtle, padding: '2px' }}>
+                              <Trash2 size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '13px', color: C.fg, lineHeight: 1.5 }}>{c.content}</div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1231,7 +1328,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
   currentUser, recipes, inquiries, presetIngredients, onClose,
-  onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages,
+  onFetchRecipes, onFetchNextPage, adminLoading, adminPage, adminTotalPages, adminTotalElements,
   onAdminUpdateRecipe, onAdminDeleteRecipe,
   onFetchInquiries, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
@@ -1346,7 +1443,7 @@ export function AdminPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
         {activeTab === 'members'     && <MembersTab currentUser={currentUser} />}
-        {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
+        {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} onFetchNextPage={onFetchNextPage} adminLoading={adminLoading} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'inquiries'   && (

@@ -57,7 +57,7 @@ export default function App() {
     addRecipe, updateRecipe, deleteRecipe, fetchUserRecipes, fetchUserRecipesNext, toggleUserRecipeFavorite,
     homeRecipes, homeRecipesTotal, fetchHomeRecipes, urgentHomeRecipes, fetchUrgentHomeRecipes,
     fetchAdminRecipes, fetchAdminRecipesNext, adminUpdateRecipe, adminDeleteRecipe,
-    adminLoading, adminPage, adminTotalPages,
+    adminLoading, adminPage, adminTotalPages, adminTotalElements,
   } = useRecipeStore();
   const [pendingRecipeId, setPendingRecipeId] = useState(null);
   const {
@@ -267,6 +267,7 @@ export default function App() {
             adminLoading={adminLoading}
             adminPage={adminPage}
             adminTotalPages={adminTotalPages}
+            adminTotalElements={adminTotalElements}
             onAdminUpdateRecipe={adminUpdateRecipe}
             onAdminDeleteRecipe={adminDeleteRecipe}
             onFetchInquiries={fetchAdminInquiries}
