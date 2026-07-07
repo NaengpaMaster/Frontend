@@ -14,6 +14,10 @@ const HOUSEHOLD_VALUES = {
   '기타': 'ETC',
 };
 
+const toBackendHouseholdType = (householdType) => (
+  HOUSEHOLD_VALUES[householdType] || householdType || undefined
+);
+
 const toAvoidIngredient = (item) => {
   if (typeof item === 'string') {
     return { productId: null, name: item, productCategoryId: null };
@@ -91,7 +95,7 @@ export const authApi = {
       password,
       passwordConfirm,
       nickname: nickname || undefined,
-      householdType: HOUSEHOLD_VALUES[householdType] || householdType || 'ETC',
+      householdType: toBackendHouseholdType(householdType),
     }));
     return toFrontendUser(member);
   },
@@ -129,7 +133,7 @@ export const authApi = {
   async updateProfile({ name, nickname, householdType, preferences }) {
     const member = unwrap(await axiosClient.patch('/api/v1/members/me/profile', {
       nickname: name || nickname,
-      householdType: HOUSEHOLD_VALUES[householdType] || householdType || 'ETC',
+      householdType: toBackendHouseholdType(householdType),
       favoriteFoods: preferences?.favoriteFoods || [],
       avoidProductIds: (preferences?.avoidIngredients || [])
         .map((item) => item.productId)

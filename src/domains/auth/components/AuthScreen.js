@@ -5,6 +5,8 @@ import { C } from '@/shared/data/mockData';
 import { Logo } from '@/shared/components/Logo';
 
 const HOUSEHOLD_TYPES = ['1인', '2인', '3인 이상', '기타'];
+const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9 ]+$/;
+const INVALID_NICKNAME_MESSAGE = '닉네임은 한글, 영문, 숫자, 공백만 사용할 수 있습니다.';
 
 const inputStyle = {
   width: '100%',
@@ -43,7 +45,7 @@ export function AuthScreen({ onLogin }) {
   const [signupNickname, setSignupNickname] = useState('');
   const [signupPw, setSignupPw] = useState('');
   const [signupPwConfirm, setSignupPwConfirm] = useState('');
-  const [householdType, setHouseholdType] = useState('1인');
+  const [householdType, setHouseholdType] = useState('');
 
   const handleLogin = async () => {
     setError('');
@@ -83,6 +85,10 @@ export function AuthScreen({ onLogin }) {
     }
     if (signupPw !== signupPwConfirm) {
       setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    if (signupNickname.trim() && !NICKNAME_PATTERN.test(signupNickname.trim())) {
+      setError(INVALID_NICKNAME_MESSAGE);
       return;
     }
 
