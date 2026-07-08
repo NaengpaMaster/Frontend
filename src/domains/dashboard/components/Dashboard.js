@@ -751,6 +751,7 @@ export function Dashboard({
                               homeRecipesTotal,
                               urgentHomeRecipes,
                               currentUser,
+                              loading = false,
                               discardedItems,
                               onNavigate,
                               onOpenMyPage,
@@ -758,6 +759,8 @@ export function Dashboard({
                           }) {
     const [showScoreDetail, setShowScoreDetail] = useState(false);
     const [showStatsDetail, setShowStatsDetail] = useState(false);
+    const [wasteScore, setWasteScore] = useState(null);
+    const [scoreLoading, setScoreLoading] = useState(true);
     const sorted = [...ingredients].sort(
         (a, b) => getDaysUntilExpiry(a.expiryDate) - getDaysUntilExpiry(b.expiryDate)
     );
@@ -768,21 +771,47 @@ export function Dashboard({
     });
     const expired = sorted.filter((i) => getDaysUntilExpiry(i.expiryDate) < 0);
 
-    const [wasteScore, setWasteScore] = useState(0);
-
     useEffect(() => {
         let alive = true;
+        setScoreLoading(true);
         scoreApi.getScore()
             .then((data) => {
                 if (alive) setWasteScore(data.score);
             })
             .catch(() => {
                 if (alive) setWasteScore(0);
+            })
+            .finally(() => {
+                if (alive) setScoreLoading(false);
             });
         return () => {
             alive = false;
         };
     }, []);
+
+    if (loading || scoreLoading) {
+        return (
+            <div style={{
+                minHeight: '100%',
+                display: 'grid',
+                placeItems: 'center',
+                padding: '40px 20px',
+                background: C.bg,
+            }}>
+                <div className="home-loading-card" role="status" aria-live="polite">
+                    <div className="home-loading-spinner" aria-hidden="true"/>
+                    <div style={{color: C.fg, fontSize: '15px', fontWeight: 900}}>
+                        홈 정보를 불러오는 중
+                    </div>
+                    <div className="home-loading-dots" aria-hidden="true">
+                        <span/>
+                        <span/>
+                        <span/>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const gradeEntry = getGradeEntry(wasteScore);
     const grade = gradeEntry.label;
