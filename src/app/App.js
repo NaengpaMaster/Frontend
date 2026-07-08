@@ -35,6 +35,7 @@ export default function App() {
   const [showExpiryPopup, setShowExpiryPopup] = useState(false);
   const [dismissedNotificationKey, setDismissedNotificationKey] = useState('');
   const [notifications, setNotifications] = useState([]);
+  const [homeLoading, setHomeLoading] = useState(true);
 
   const {
     currentUser,
@@ -105,11 +106,34 @@ export default function App() {
   }, [resetAuth, setAuthLoading, setCurrentUser, setShowAdmin]);
 
   useEffect(() => {
-    if (!currentUser) return;
-    fetchIngredients();
-    fetchShoppingItems();
-    fetchHomeRecipes();
-    fetchUrgentHomeRecipes();
+    let mounted = true;
+
+    async function fetchHomeData() {
+      if (!currentUser) {
+        setHomeLoading(true);
+        return;
+      }
+
+      setHomeLoading(true);
+      try {
+        await Promise.allSettled([
+          fetchIngredients(),
+          fetchShoppingItems(),
+          fetchHomeRecipes(),
+          fetchUrgentHomeRecipes(),
+        ]);
+      } finally {
+        if (mounted) {
+          setHomeLoading(false);
+        }
+      }
+    }
+
+    fetchHomeData();
+
+    return () => {
+      mounted = false;
+    };
   }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
 
   useEffect(() => {
@@ -315,6 +339,7 @@ export default function App() {
                 homeRecipesTotal={homeRecipesTotal}
                 urgentHomeRecipes={urgentHomeRecipes}
                 currentUser={currentUser}
+                loading={homeLoading}
                 onNavigate={setActiveTab}
                 onOpenMyPage={() => setShowMyPage(true)}
                 onOpenRecipe={(id) => { setPendingRecipeId(id); setActiveTab('recipe'); }}
