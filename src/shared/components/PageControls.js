@@ -4,7 +4,7 @@ import { C } from '@/shared/data/mockData';
 const PAGE_WINDOW_SIZE = 10;
 
 export function PageControls({ page, totalPages, onChange }) {
-  if (totalPages <= 1) return null;
+  if (totalPages < 1) return null;
   const groupStart = Math.floor(page / PAGE_WINDOW_SIZE) * PAGE_WINDOW_SIZE;
   const groupEnd = Math.min(groupStart + PAGE_WINDOW_SIZE, totalPages);
   const pages = Array.from({ length: groupEnd - groupStart }, (_, i) => groupStart + i);
