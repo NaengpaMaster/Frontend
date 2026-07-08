@@ -243,6 +243,53 @@ export default function App() {
   // ─── Recipe handlers ────────────────────────────────────────────────────────
   const handleAddRecipe = (data) => addRecipe(data, currentUser?.id);
 
+  const refreshHomeRecommendations = async () => {
+    await Promise.allSettled([
+      fetchHomeRecipes(),
+      fetchUrgentHomeRecipes(),
+    ]);
+  };
+
+  const handleAddIngredient = async (data) => {
+    setHomeLoading(true);
+    try {
+      await addIngredient(data);
+      await refreshHomeRecommendations();
+    } finally {
+      setHomeLoading(false);
+    }
+  };
+
+  const handleUpdateIngredient = async (id, data) => {
+    setHomeLoading(true);
+    try {
+      await updateIngredient(id, data);
+      await refreshHomeRecommendations();
+    } finally {
+      setHomeLoading(false);
+    }
+  };
+
+  const handleUseIngredient = async (id, remainingQuantity) => {
+    setHomeLoading(true);
+    try {
+      await useIngredient(id, remainingQuantity);
+      await refreshHomeRecommendations();
+    } finally {
+      setHomeLoading(false);
+    }
+  };
+
+  const handleDeleteIngredient = async (id) => {
+    setHomeLoading(true);
+    try {
+      await deleteIngredient(id);
+      await refreshHomeRecommendations();
+    } finally {
+      setHomeLoading(false);
+    }
+  };
+
   // ─── Inquiry handlers ───────────────────────────────────────────────────────
   const handleAddInquiry = async (subject, content) => {
     if (!currentUser) return;
@@ -251,9 +298,15 @@ export default function App() {
 
   // ─── Shopping → Fridge ─────────────────────────────────────────────────────
   const handleMoveCheckedToFridge = async () => {
-    await moveCheckedToFridge();
-    await fetchIngredients();
-    setActiveTab('fridge');
+    setHomeLoading(true);
+    try {
+      await moveCheckedToFridge();
+      await fetchIngredients();
+      await refreshHomeRecommendations();
+      setActiveTab('fridge');
+    } finally {
+      setHomeLoading(false);
+    }
   };
 
   // ─── Not logged in ─────────────────────────────────────────────────────────
@@ -349,10 +402,10 @@ export default function App() {
               <FridgeManager
                 ingredients={ingredients}
                 presetIngredients={presetIngredients}
-                onAdd={addIngredient}
-                onUpdate={updateIngredient}
-                onUse={useIngredient}
-                onDelete={deleteIngredient}
+                onAdd={handleAddIngredient}
+                onUpdate={handleUpdateIngredient}
+                onUse={handleUseIngredient}
+                onDelete={handleDeleteIngredient}
               />
             )}
             {activeTab === 'recipe' && (
