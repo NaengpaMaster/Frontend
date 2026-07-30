@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, BellRing, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight } from 'lucide-react';
 import {
   C,
   CATEGORY_EMOJIS,
@@ -67,6 +67,7 @@ function mapRecipeDetail(d) {
 }
 
 const TAB_ICONS = {
+  home:        { icon: House,         label: '홈' },
   members:     { icon: Users,         label: '회원' },
   recipes:     { icon: ChefHat,       label: '레시피' },
   ingredients: { icon: Package,       label: '사전재료' },
@@ -101,8 +102,274 @@ function roleStatusForMode(mode) {
   return { role: 'USER', status: 'ACTIVE' };
 }
 
+function DatePartDropdown({ label, value, options, suffix, onChange, invalid }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutsideClick = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [open]);
+
+  return (
+    <span ref={rootRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        style={{ minWidth: suffix === '년' ? '105px' : '76px', minHeight: '38px', padding: '8px 28px 8px 10px', border: `1px solid ${invalid ? C.danger : C.border}`, borderRadius: '10px', background: C.card, color: C.fg, fontSize: '13px', fontWeight: 800, textAlign: 'left', cursor: 'pointer', position: 'relative' }}
+      >
+        {value}{suffix}
+        <span aria-hidden="true" style={{ position: 'absolute', right: '10px', top: '50%', transform: `translateY(-50%) rotate(${open ? 180 : 0}deg)`, fontSize: '10px', transition: 'transform 0.15s' }}>⌄</span>
+      </button>
+      {open && (
+        <span style={{ position: 'absolute', top: 'calc(100% + 5px)', left: 0, zIndex: 100, minWidth: '100%', maxHeight: '220px', overflowY: 'auto', overscrollBehavior: 'contain', padding: '5px', border: `1px solid ${C.borderStrong}`, borderRadius: '11px', background: C.card, boxShadow: '0 10px 26px rgba(17,32,29,0.18)' }}>
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => { onChange(option); setOpen(false); }}
+              style={{ display: 'block', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '7px', background: option === value ? C.primaryLight : 'transparent', color: option === value ? C.primary : C.fg, fontSize: '12px', fontWeight: option === value ? 900 : 700, textAlign: 'left', whiteSpace: 'nowrap', cursor: 'pointer' }}
+            >
+              {option}{suffix}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function DatePartsSelect({ label, value, onChange, invalid = false }) {
+  const [year, month, day] = value.split('-').map(Number);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1999 }, (_, index) => currentYear - index);
+  const months = Array.from({ length: 12 }, (_, index) => index + 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
+  const changePart = (nextYear, nextMonth, nextDay) => {
+    const lastDay = new Date(nextYear, nextMonth, 0).getDate();
+    const safeDay = Math.min(nextDay, lastDay);
+    onChange(`${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`);
+  };
+
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 900, color: C.fgMuted, whiteSpace: 'nowrap' }}>
+      <span>{label} :</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <DatePartDropdown label={`${label} 연도`} value={year} options={years} suffix="년" invalid={invalid} onChange={(nextYear) => changePart(nextYear, month, day)} />
+        <DatePartDropdown label={`${label} 월`} value={month} options={months} suffix="월" invalid={invalid} onChange={(nextMonth) => changePart(year, nextMonth, day)} />
+        <DatePartDropdown label={`${label} 일`} value={day} options={days} suffix="일" invalid={invalid} onChange={(nextDay) => changePart(year, month, nextDay)} />
+      </span>
+    </label>
+  );
+}
+
+// ─── Admin Home ───────────────────────────────────────────────────────────────
+function AdminHomeTab({ currentUser, pendingCount, answeredCount, presetIngredients, onNavigate, onRefreshInquiryCounts }) {
+  const [memberCounts, setMemberCounts] = useState({ active: null, inactive: null });
+  const [recipeCount, setRecipeCount] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [checkedAt, setCheckedAt] = useState(null);
+
+  const loadSummary = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [active, inactive, , recipeResponse] = await Promise.all([
+        adminApi.getMembers({ role: 'USER', status: 'ACTIVE', size: 1 }),
+        adminApi.getMembers({ role: 'USER', status: 'INACTIVE', size: 1 }),
+        onRefreshInquiryCounts(),
+        adminRecipesApi.getAll({ page: 0, size: 1 }),
+      ]);
+      const recipeBody = recipeResponse.data?.data ?? recipeResponse.data;
+      setMemberCounts({ active: active.totalElements, inactive: inactive.totalElements });
+      setRecipeCount(recipeBody?.totalElements ?? 0);
+      setCheckedAt(new Date());
+    } catch (err) {
+      setError(err.message || '운영 현황을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const summaryCards = [
+    {
+      label: '활성 회원', value: memberCounts.active, suffix: '명', icon: Users,
+      color: C.primary, bg: C.primaryLight, tab: 'members', statusLabel: '현재', statusColor: C.primary,
+      description: '서비스를 이용할 수 있는 전체 회원',
+    },
+    {
+      label: '신규 가입 회원', value: null, suffix: '명', icon: UserPlus,
+      color: '#3974C6', bg: '#EAF2FF', pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
+      description: '오늘', secondary: '최근 7일 —명', tab: 'members',
+    },
+    {
+      label: '탈퇴 · 비활성 전환', value: null, suffix: '명', icon: UserMinus,
+      color: C.fgMuted, bg: C.surface, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
+      description: '오늘', secondary: `최근 7일 —명 · 현재 비활성 ${memberCounts.inactive ?? '—'}명`, tab: 'members',
+    },
+    {
+      label: '전체 미답변 문의', value: pendingCount, suffix: '건', icon: MessageSquare,
+      color: pendingCount > 0 ? C.accent : C.primary,
+      bg: pendingCount > 0 ? C.accentLight : C.primaryLight,
+      tab: 'inquiries', urgent: pendingCount > 0,
+      statusLabel: pendingCount > 0 ? '확인 필요' : '정상',
+      statusColor: pendingCount > 0 ? C.accent : C.primary,
+      description: pendingCount > 0 ? '답변을 기다리는 문의가 있습니다.' : '대기 중인 문의가 없습니다.',
+    },
+    {
+      label: '24시간 초과 미답변', value: null, suffix: '건', icon: AlertTriangle,
+      color: C.danger, bg: C.dangerLight, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
+      description: '1건 이상이면 위험 상태로 표시', tab: 'inquiries',
+    },
+    {
+      label: '통계 마지막 집계', value: null, icon: Database,
+      color: C.warn, bg: C.warnLight, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
+      description: '집계 지연 또는 실패 시 위험 상태로 표시', tab: 'stats',
+    },
+    {
+      label: '전체 레시피', value: recipeCount, suffix: '개', icon: BookOpen,
+      color: '#7A5AC8', bg: '#F0EBFF', statusLabel: '현재', statusColor: '#7A5AC8',
+      description: '서비스에 등록된 전체 레시피', secondary: '회원 등록 레시피 —개', tab: 'recipes',
+    },
+    {
+      label: '사전재료', value: presetIngredients?.length ?? 0, suffix: '개', icon: Package,
+      color: '#3974C6', bg: '#EAF2FF', statusLabel: '현재', statusColor: '#3974C6',
+      description: `활성 ${(presetIngredients ?? []).filter((item) => item.active).length}개 · 비활성 ${(presetIngredients ?? []).filter((item) => !item.active).length}개`, tab: 'ingredients',
+    },
+  ];
+
+  const displayValue = (card) => {
+    if (loading && !card.pending) return '…';
+    if (card.pending) return '—';
+    return `${card.value ?? 0}${card.suffix ?? ''}`;
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '22px' }}>
+        <div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: C.fg, letterSpacing: '-0.03em' }}>
+            안녕하세요, {currentUser?.name || currentUser?.nickname || '관리자'}님
+          </div>
+          <div style={{ marginTop: '5px', fontSize: '13px', color: C.fgMuted }}>오늘의 서비스 운영 현황을 한눈에 확인하세요.</div>
+        </div>
+        <button
+          onClick={loadSummary}
+          disabled={loading}
+          aria-label="운영 현황 새로고침"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 11px', background: C.card, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, fontSize: '12px', fontWeight: 700, cursor: loading ? 'wait' : 'pointer', flexShrink: 0 }}
+        >
+          <RefreshCw size={14} className={loading ? 'admin-home-refreshing' : ''} /> 새로고침
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ marginBottom: '14px', padding: '11px 13px', borderRadius: '10px', background: C.dangerLight, color: C.danger, fontSize: '12px', fontWeight: 700 }}>
+          {error}
+        </div>
+      )}
+
+      <div className="admin-summary-grid" style={{ marginBottom: '22px' }}>
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              role={card.tab ? 'button' : undefined}
+              tabIndex={card.tab ? 0 : undefined}
+              onClick={() => card.tab && onNavigate(card.tab)}
+              onKeyDown={(event) => { if (card.tab && event.key === 'Enter') onNavigate(card.tab); }}
+              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '160px', padding: '16px', textAlign: 'left', background: C.card, border: 'none', borderRadius: '16px', boxShadow: card.urgent ? `0 2px 10px ${C.accent}22` : '0 2px 10px rgba(17,32,29,0.08)', cursor: card.tab ? 'pointer' : 'default' }}
+            >
+              <div style={{ minHeight: '36px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <span style={{ width: '36px', height: '36px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '11px', background: card.bg, color: card.color }}>
+                    <Icon size={18} />
+                  </span>
+                  <span style={{ fontSize: '14px', fontWeight: 900, lineHeight: 1.25, color: C.fg }}>{card.label}</span>
+                </div>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: card.statusColor, fontSize: '10px', fontWeight: 800 }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: card.statusColor }} />
+                  {card.statusLabel}
+                  {card.tab && <ArrowRight size={13} />}
+                </span>
+              </div>
+              <div style={{ marginTop: '15px', fontSize: '24px', lineHeight: 1, fontWeight: 900, color: card.color }}>{displayValue(card)}</div>
+              <div style={{ marginTop: '8px', fontSize: '11px', lineHeight: 1.45, color: C.fgMuted }}>{card.description}</div>
+              {card.secondary && <div style={{ marginTop: '2px', fontSize: '10px', lineHeight: 1.45, color: C.fgMuted, fontWeight: 700 }}>{card.secondary}</div>}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+        <div style={{ padding: '16px', background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <BellRing size={17} color={pendingCount > 0 ? C.accent : C.primary} />
+            <span style={{ fontSize: '14px', fontWeight: 800, color: C.fg }}>확인이 필요한 업무</span>
+          </div>
+          <div style={{ padding: '12px', borderRadius: '12px', background: pendingCount > 0 ? C.accentLight : C.primaryLight, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: C.fg }}>{pendingCount > 0 ? `답변을 기다리는 문의가 ${pendingCount}건 있어요.` : '현재 미답변 문의가 없습니다.'}</div>
+              <div style={{ marginTop: '3px', fontSize: '11px', color: C.fgMuted }}>답변 완료 {answeredCount}건</div>
+            </div>
+            <button onClick={() => onNavigate('inquiries')} style={{ padding: '7px 10px', border: 'none', borderRadius: '9px', background: pendingCount > 0 ? C.accent : C.primary, color: '#FFF', fontSize: '11px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              문의 확인
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: '16px', background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+          <div style={{ fontSize: '14px', fontWeight: 800, color: C.fg, marginBottom: '12px' }}>운영 상태 기준</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[
+              { color: C.primary, text: '정상 · 미답변 문의가 없고 통계 집계가 정상인 상태' },
+              { color: C.accent, text: '확인 필요 · 처리할 미답변 문의가 있는 상태' },
+              { color: C.danger, text: '위험 · 24시간 초과 문의 또는 통계 집계 지연·실패' },
+            ].map(({ color, text }) => (
+              <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', lineHeight: 1.45, color: C.fgMuted }}>
+                <span style={{ width: '8px', height: '8px', marginTop: '4px', flexShrink: 0, borderRadius: '50%', background: color }} />
+                {text}
+              </div>
+            ))}
+          </div>
+          <div style={{ height: '1px', background: C.border, margin: '14px 0' }} />
+          <div style={{ fontSize: '12px', fontWeight: 800, color: C.fg, marginBottom: '9px' }}>바로가기</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+            {[
+              { label: '회원 관리', tab: 'members', icon: Users },
+              { label: '통계 확인', tab: 'stats', icon: BarChart3 },
+            ].map(({ label, tab, icon: Icon }) => (
+              <button key={tab} onClick={() => onNavigate(tab)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '12px', background: C.surface, border: 'none', borderRadius: '11px', color: C.fg, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}><Icon size={15} color={C.primary} />{label}</span>
+                <ArrowRight size={13} color={C.fgSubtle} />
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: '11px', fontSize: '10px', color: C.fgSubtle }}>
+            {checkedAt ? `마지막 새로고침 ${checkedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}` : '운영 현황을 불러오는 중입니다.'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Members ──────────────────────────────────────────────────────────────────
-function MembersTab({ currentUser }) {
+function MemberSearchTab({ currentUser }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState('active');
@@ -360,6 +627,207 @@ function MembersTab({ currentUser }) {
       </div>
 
       <PageControls page={page} totalPages={totalPages} onChange={setPage} />
+    </div>
+  );
+}
+
+function MemberOverviewTab({ startDate, endDate }) {
+  const [counts, setCounts] = useState({ active: null, inactive: null });
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      adminApi.getMembers({ role: 'USER', status: 'ACTIVE', size: 1 }),
+      adminApi.getMembers({ role: 'USER', status: 'INACTIVE', size: 1 }),
+    ]).then(([active, inactive]) => {
+      if (mounted) setCounts({ active: active.totalElements, inactive: inactive.totalElements });
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  return (
+    <div>
+      <div style={{ marginBottom: '16px' }}>
+        <div>
+          <div style={{ fontSize: '16px', fontWeight: 900, color: C.fg }}>회원 현황</div>
+          <div style={{ marginTop: '3px', fontSize: '12px', color: C.fgMuted }}>회원 변화와 핵심 서비스 이용도를 확인합니다.</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+        {[
+          { label: '활성 회원', value: counts.active == null ? '…' : `${counts.active}명`, color: C.primary, bg: C.primaryLight, icon: Users },
+          { label: '비활성 회원', value: counts.inactive == null ? '…' : `${counts.inactive}명`, color: C.fgMuted, bg: C.surface, icon: UserMinus },
+          { label: '오늘 신규 가입', value: '—명', secondary: '최근 7일 —명', color: '#3974C6', bg: '#EAF2FF', icon: UserPlus, pending: true },
+          { label: '오늘 탈퇴 회원', value: '—명', secondary: '최근 7일 —명', color: C.danger, bg: C.dangerLight, icon: AlertTriangle, pending: true },
+        ].map((item) => (
+          <div key={item.label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+            <div style={{ minHeight: '34px', display: 'flex', alignItems: 'center', gap: '9px' }}>
+              <span style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '10px', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><item.icon size={17} /></span>
+              <span style={{ fontSize: '14px', lineHeight: 1.25, fontWeight: 900, color: C.fg }}>{item.label}</span>
+            </div>
+            <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color: item.color }}>{item.value}</div>
+            {item.secondary && <div style={{ marginTop: '5px', fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{item.secondary}</div>}
+            {item.pending && <div style={{ marginTop: '3px', fontSize: '9px', color: C.fgSubtle }}>회원 통계 API 연결 예정</div>}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 신규 가입·탈퇴 회원 추이</div>
+        <div style={{ height: '230px', marginTop: '14px', borderRadius: '12px', background: `repeating-linear-gradient(to bottom, transparent, transparent 45px, ${C.border} 46px)`, border: `1px dashed ${C.borderStrong}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}>
+          <BarChart3 size={28} style={{ marginBottom: '8px', opacity: 0.55 }} />
+          <div style={{ fontSize: '12px', fontWeight: 800 }}>기간별 회원 변화 그래프</div>
+          <div style={{ marginTop: '4px', fontSize: '10px' }}>신규 가입은 초록색, 탈퇴 회원은 빨간색으로 표시됩니다.</div>
+          <div style={{ marginTop: '2px', fontSize: '10px' }}>{startDate} ~ {endDate}</div>
+          <div style={{ marginTop: '2px', fontSize: '10px' }}>백엔드 통계 API 연결 예정</div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+function MemberServiceUsageTab({ startDate, endDate }) {
+  const [selectedMetric, setSelectedMetric] = useState('fridge');
+  const graphRefs = useRef({});
+
+  const usageCards = [
+    { key: 'fridge', label: '냉장고 재료 등록', icon: Refrigerator, color: C.primary, bg: C.primaryLight, detail: '선택 기간에 재료를 1개 이상 등록한 회원' },
+    { key: 'shopping', label: '장보기 목록 사용', icon: ShoppingBasket, color: '#3974C6', bg: '#EAF2FF', detail: '선택 기간에 장보기 항목을 1개 이상 만든 회원' },
+    { key: 'recipe', label: '레시피 작성', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF', detail: '선택 기간에 레시피를 1개 이상 작성한 회원' },
+  ];
+  const moveToGraph = (key) => {
+    setSelectedMetric(key);
+    requestAnimationFrame(() => {
+      graphRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: '16px' }}>
+        <div>
+          <div style={{ fontSize: '16px', fontWeight: 900, color: C.fg }}>서비스 이용률 상세</div>
+          <div style={{ marginTop: '3px', fontSize: '12px', color: C.fgMuted }}>선택한 기간에 회원이 핵심 기능을 얼마나 이용했는지 확인합니다.</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+        {usageCards.map(({ key, label, icon: Icon, color, bg, detail }) => {
+          const selected = selectedMetric === key;
+          return (
+            <button key={key} onClick={() => moveToGraph(key)} style={{ padding: '16px', textAlign: 'left', borderRadius: '16px', background: C.card, border: `1px solid ${selected ? color + '70' : 'transparent'}`, boxShadow: selected ? `0 2px 10px ${color}20` : '0 2px 10px rgba(17,32,29,0.08)', cursor: 'pointer' }}>
+              <div style={{ minHeight: '36px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
+                  <span style={{ width: '36px', height: '36px', flexShrink: 0, borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span>
+                  <span style={{ fontSize: '14px', lineHeight: 1.25, fontWeight: 900, color: C.fg }}>{label}</span>
+                </div>
+                <span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span>
+              </div>
+              <div style={{ marginTop: '13px', fontSize: '22px', fontWeight: 900, color }}>—%</div>
+              <div style={{ marginTop: '4px', fontSize: '10px', lineHeight: 1.45, color: C.fgSubtle }}>{detail}</div>
+              <div style={{ marginTop: '3px', fontSize: '10px', color: C.fgMuted }}>이용 회원 —명 / 활성 회원 —명</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 서비스별 이용 회원 추이</div>
+        <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
+          {usageCards.map((metric) => (
+            <section
+              key={metric.key}
+              ref={(element) => { graphRefs.current[metric.key] = element; }}
+              style={{ scrollMarginTop: '18px', padding: '14px', borderRadius: '14px', border: `1px solid ${selectedMetric === metric.key ? metric.color + '70' : C.border}`, background: C.card }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 900, color: C.fg }}>
+                <metric.icon size={15} color={metric.color} /> {metric.label} 추이
+              </div>
+              <div style={{ height: '230px', marginTop: '12px', borderRadius: '12px', background: `repeating-linear-gradient(to bottom, transparent, transparent 45px, ${C.border} 46px)`, border: `1px dashed ${C.borderStrong}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}>
+                <BarChart3 size={28} color={metric.color} style={{ marginBottom: '8px', opacity: 0.55 }} />
+                <div style={{ fontSize: '12px', fontWeight: 800 }}>날짜별 {metric.label} 회원 추이</div>
+                <div style={{ marginTop: '4px', fontSize: '10px' }}>{startDate} ~ {endDate}</div>
+                <div style={{ marginTop: '2px', fontSize: '10px' }}>백엔드 서비스 이용 통계 API 연결 예정</div>
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MembersTab({ currentUser }) {
+  const [section, setSection] = useState('overview');
+  const toLocalDateValue = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 29);
+    return toLocalDateValue(date);
+  });
+  const [endDate, setEndDate] = useState(() => toLocalDateValue(new Date()));
+  const [quickPeriod, setQuickPeriod] = useState(30);
+  const dateRangeInvalid = startDate > endDate;
+  const showDateFilter = section === 'overview';
+
+  const applyQuickPeriod = (nextPeriod) => {
+    const end = new Date();
+    const start = new Date();
+    if (nextPeriod === 'all') start.setFullYear(2000, 0, 1);
+    else start.setDate(start.getDate() - (nextPeriod - 1));
+    setStartDate(toLocalDateValue(start));
+    setEndDate(toLocalDateValue(end));
+    setQuickPeriod(nextPeriod);
+  };
+
+  const changeStartDate = (value) => { setStartDate(value); setQuickPeriod(null); };
+  const changeEndDate = (value) => { setEndDate(value); setQuickPeriod(null); };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>회원 관리</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>회원 상태와 서비스 이용 현황을 확인하고 관리합니다.</div>
+        </div>
+        {showDateFilter && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <DatePartsSelect label="시작일" value={startDate} onChange={changeStartDate} invalid={dateRangeInvalid} />
+              <span style={{ color: C.fgSubtle, fontSize: '14px', fontWeight: 800 }}>~</span>
+              <DatePartsSelect label="종료일" value={endDate} onChange={changeEndDate} invalid={dateRangeInvalid} />
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {[7, 30, 'all'].map((option) => (
+                <button key={option} type="button" onClick={() => applyQuickPeriod(option)} style={{ minWidth: '66px', padding: '7px 12px', border: `1px solid ${quickPeriod === option ? C.primary : C.border}`, borderRadius: '9px', background: quickPeriod === option ? C.primary : C.card, color: quickPeriod === option ? '#FFF' : C.fgMuted, fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                  {option === 'all' ? '전체' : `최근 ${option}일`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {showDateFilter && dateRangeInvalid && <div style={{ marginTop: '-8px', marginBottom: '12px', textAlign: 'right', color: C.danger, fontSize: '10px', fontWeight: 700 }}>시작일은 종료일보다 늦을 수 없습니다.</div>}
+      <div style={{ display: 'inline-flex', padding: '4px', marginBottom: '18px', background: C.surface, borderRadius: '12px' }}>
+        {[
+          { key: 'overview', label: '회원 현황', icon: BarChart3 },
+          { key: 'search', label: '회원 검색·관리', icon: Search },
+        ].map(({ key, label, icon: Icon }) => {
+          const active = section === key;
+          return (
+            <button key={key} onClick={() => setSection(key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 13px', border: 'none', borderRadius: '9px', background: active ? C.card : 'transparent', color: active ? C.primary : C.fgMuted, boxShadow: active ? '0 2px 8px rgba(17,32,29,0.08)' : 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><Icon size={14} />{label}</button>
+          );
+        })}
+      </div>
+      {section === 'overview' && <MemberOverviewTab startDate={startDate} endDate={endDate} />}
+      {section === 'search' && <MemberSearchTab currentUser={currentUser} />}
     </div>
   );
 }
@@ -904,7 +1372,21 @@ function IngredientsTab({ items, onUpdate }) {
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 function StatsTab() {
-  const [period, setPeriod] = useState(7);
+  const toLocalDateValue = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const [section, setSection] = useState('overview');
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 29);
+    return toLocalDateValue(date);
+  });
+  const [endDate, setEndDate] = useState(() => toLocalDateValue(new Date()));
+  const [quickPeriod, setQuickPeriod] = useState(30);
+  const [period, setPeriod] = useState(30);
   const [scoreAverage, setScoreAverage] = useState(null);
   const [expiredCount, setExpiredCount] = useState(null);
   const [categoryStats, setCategoryStats] = useState([]);
@@ -912,6 +1394,31 @@ function StatsTab() {
   const [weeklyTrend, setWeeklyTrend] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const dateRangeInvalid = startDate > endDate;
+
+  const applyQuickPeriod = (nextPeriod) => {
+    const end = new Date();
+    const start = new Date();
+    if (nextPeriod === 'all') {
+      start.setFullYear(2000, 0, 1);
+    } else {
+      start.setDate(start.getDate() - (nextPeriod - 1));
+    }
+    setStartDate(toLocalDateValue(start));
+    setEndDate(toLocalDateValue(end));
+    setQuickPeriod(nextPeriod);
+    setPeriod(nextPeriod);
+  };
+
+  const changeStartDate = (value) => {
+    setStartDate(value);
+    setQuickPeriod(null);
+  };
+
+  const changeEndDate = (value) => {
+    setEndDate(value);
+    setQuickPeriod(null);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -970,14 +1477,79 @@ function StatsTab() {
 
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>냉파 통계</div>
-      <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '16px' }}>사용자들의 냉파 활동을 한눈에 파악하세요.</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>서비스 통계</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>선택한 기간의 냉파 성과와 콘텐츠 흐름을 확인합니다.</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <DatePartsSelect label="시작일" value={startDate} onChange={changeStartDate} invalid={dateRangeInvalid} />
+            <span style={{ color: C.fgSubtle, fontSize: '14px', fontWeight: 800 }}>~</span>
+            <DatePartsSelect label="종료일" value={endDate} onChange={changeEndDate} invalid={dateRangeInvalid} />
+          </div>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[7, 30, 'all'].map((option) => (
+              <button key={option} type="button" onClick={() => applyQuickPeriod(option)} style={{ minWidth: '66px', padding: '7px 12px', border: `1px solid ${quickPeriod === option ? C.primary : C.border}`, borderRadius: '9px', background: quickPeriod === option ? C.primary : C.card, color: quickPeriod === option ? '#FFF' : C.fgMuted, fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                {option === 'all' ? '전체' : `최근 ${option}일`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {dateRangeInvalid && <div style={{ marginTop: '-8px', marginBottom: '12px', textAlign: 'right', color: C.danger, fontSize: '10px', fontWeight: 700 }}>시작일은 종료일보다 늦을 수 없습니다.</div>}
+
+      <div style={{ display: 'inline-flex', padding: '4px', marginBottom: '18px', background: C.surface, borderRadius: '12px' }}>
+        {[
+          { key: 'overview', label: '통계 요약', icon: BarChart3 },
+          { key: 'usage', label: '회원·이용 분석', icon: Activity },
+          { key: 'materials', label: '재료·냉파 분석', icon: Refrigerator },
+          { key: 'recipes', label: '레시피·콘텐츠 분석', icon: BookOpen },
+        ].map(({ key, label, icon: Icon }) => {
+          const active = section === key;
+          return (
+            <button key={key} onClick={() => setSection(key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 13px', border: 'none', borderRadius: '9px', background: active ? C.card : 'transparent', color: active ? C.primary : C.fgMuted, boxShadow: active ? '0 2px 8px rgba(17,32,29,0.08)' : 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><Icon size={14} />{label}</button>
+          );
+        })}
+      </div>
 
       {error && (
         <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '10px', padding: '10px 12px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
           {error}
         </div>
       )}
+
+      {section === 'usage' && <MemberServiceUsageTab startDate={startDate} endDate={endDate} />}
+
+      {section === 'overview' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+            {[
+              { label: '평균 냉파 점수', value: loading ? '…' : `${scoreAverage?.averageScore ?? 0}점`, detail: `활성 회원 ${scoreAverage?.memberCount ?? 0}명 기준`, icon: Star, color: C.primary, bg: C.primaryLight, connected: true },
+              { label: '기간 내 등록 재료', value: '—건', detail: '이전 기간 대비 —%', icon: Package, color: '#3974C6', bg: '#EAF2FF' },
+              { label: '기간 내 만료 재료', value: loading ? '…' : `${expiredCount?.thisWeekCount ?? 0}건`, detail: '현재 API는 이번 주 기준', icon: CalendarDays, color: C.danger, bg: C.dangerLight, connected: true },
+              { label: '재료 만료율', value: '—%', detail: '등록 재료 대비 만료 비율', icon: TrendingDown, color: C.accent, bg: C.accentLight },
+              { label: '신규 등록 레시피', value: '—개', detail: '회원·관리자 등록 포함', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF' },
+            ].map(({ label, value, detail, icon: Icon, color, bg, connected }) => (
+              <div key={label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+                <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '36px', height: '36px', borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{label}</span></div>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: connected ? C.primary : C.fgSubtle }}>{connected ? '현재' : 'API 연결 예정'}</span>
+                </div>
+                <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color }}>{value}</div>
+                <div style={{ marginTop: '5px', fontSize: '10px', color: C.fgMuted }}>{detail}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>핵심 지표 변화</div><span style={{ fontSize: '10px', fontWeight: 800, color: C.fgSubtle }}>일별 통계 스케줄러 연결 예정</span></div>
+            <div style={{ height: '250px', marginTop: '14px', borderRadius: '12px', border: `1px dashed ${C.borderStrong}`, background: `repeating-linear-gradient(to bottom, transparent, transparent 49px, ${C.border} 50px)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}><BarChart3 size={28} style={{ opacity: 0.55 }} /><div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 800 }}>등록 재료·만료 재료·신규 레시피 추이</div><div style={{ marginTop: '4px', fontSize: '10px' }}>{startDate} ~ {endDate}</div></div>
+          </div>
+        </div>
+      )}
+
+      {section === 'materials' && (
+        <>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
         <div style={statCardStyle}>
@@ -1023,29 +1595,7 @@ function StatsTab() {
 
       {/* Bar chart by category */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>카테고리별 만료량</div>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {[7, 30, 'all'].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  border: 'none',
-                  borderRadius: '10px',
-                  padding: '4px 10px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  background: period === p ? C.primary : C.surface,
-                  color: period === p ? '#FFF' : C.fgMuted,
-                }}
-              >
-                {p === 'all' ? '전체' : `${p}일`}
-              </button>
-            ))}
-          </div>
-        </div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>카테고리별 만료량</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={byCategory} margin={{ top: 24, right: 16, left: -6, bottom: 0 }}>
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
@@ -1092,6 +1642,43 @@ function StatsTab() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+        </>
+      )}
+
+      {section === 'recipes' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+            {[
+              { label: '전체 레시피', detail: '삭제되지 않은 전체 레시피', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF' },
+              { label: '기본 제공 레시피', detail: '작성자 정보가 없는 초기 레시피', icon: Database, color: C.fgMuted, bg: C.surface },
+              { label: '회원 등록 레시피', detail: '일반 회원이 등록한 레시피', icon: Users, color: C.primary, bg: C.primaryLight },
+              { label: '관리자 등록 레시피', detail: '관리자 계정이 등록한 레시피', icon: ChefHat, color: '#3974C6', bg: '#EAF2FF' },
+            ].map(({ label, detail, icon: Icon, color, bg }) => (
+              <div key={label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+                <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '36px', height: '36px', borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{label}</span></div><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span></div>
+                <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color }}>—개</div>
+                <div style={{ marginTop: '5px', fontSize: '10px', color: C.fgMuted }}>{detail}</div>
+              </div>
+            ))}
+          </div>
+
+          {[
+            { title: '날짜별 레시피 등록 추이', description: '기본 제공·회원·관리자 등록 레시피를 구분합니다.', color: '#7A5AC8' },
+            { title: '카테고리별 레시피 현황', description: '카테고리별 레시피 수와 비율을 확인합니다.', color: '#3974C6' },
+          ].map((chart) => (
+            <div key={chart.title} style={{ padding: '16px', marginBottom: '12px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{chart.title}</div><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span></div>
+              <div style={{ height: '220px', marginTop: '12px', borderRadius: '12px', border: `1px dashed ${C.borderStrong}`, background: `repeating-linear-gradient(to bottom, transparent, transparent 43px, ${C.border} 44px)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}><BarChart3 size={28} color={chart.color} style={{ opacity: 0.55 }} /><div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 800 }}>{chart.description}</div><div style={{ marginTop: '4px', fontSize: '10px' }}>{startDate} ~ {endDate}</div></div>
+            </div>
+          ))}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {['좋아요가 많은 레시피 TOP 5', '댓글이 많은 레시피 TOP 5'].map((title) => (
+              <div key={title} style={{ minHeight: '190px', padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{title}</span><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span></div><div style={{ height: '135px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle, fontSize: '11px' }}>집계 결과가 여기에 표시됩니다.</div></div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1347,7 +1934,7 @@ export function AdminPanel({
   onFetchInquiries, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
-  const [activeTab, setActiveTab] = useState('members');
+  const [activeTab, setActiveTab] = useState('home');
   const [schedulerRunning, setSchedulerRunning] = useState(false);
 
   useEffect(() => {
@@ -1403,7 +1990,7 @@ export function AdminPanel({
           background: C.card,
           borderBottom: `1px solid ${C.border}`,
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
+          gridTemplateColumns: `repeat(${Object.keys(TAB_ICONS).length}, 1fr)`,
           flexShrink: 0,
         }}
       >
@@ -1455,7 +2042,9 @@ export function AdminPanel({
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', scrollbarGutter: 'stable' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', scrollbarGutter: 'stable' }}>
+        <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
+          {activeTab === 'home'        && <AdminHomeTab currentUser={currentUser} pendingCount={pendingInquiriesCount} answeredCount={answeredInquiriesCount} presetIngredients={presetIngredients} onNavigate={setActiveTab} onRefreshInquiryCounts={onFetchInquiryCounts} />}
         {activeTab === 'members'     && <MembersTab currentUser={currentUser} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} adminSize={adminSize} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
@@ -1472,6 +2061,7 @@ export function AdminPanel({
             onDeleteAnswer={onDeleteAnswer}
           />
         )}
+        </div>
       </div>
     </div>
   );
