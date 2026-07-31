@@ -62,11 +62,10 @@ const useInquiryStore = create((set, get) => ({
     await inquiriesApi.delete(id);
   },
 
-  fetchAdminInquiries: async ({ isAnswered, page = 0, size = 10 } = {}) => {
+  fetchAdminInquiries: async ({ isAnswered, page = 0, size = 10, sortDirection } = {}) => {
     set({ adminLoading: true, error: null });
     try {
-      const sort = isAnswered ? 'createdAt,desc' : 'createdAt,asc';
-      const result = await adminInquiriesApi.getAll({ isAnswered, page, size, sort });
+      const result = await adminInquiriesApi.getAll({ isAnswered, page, size, sortDirection });
       const list = result?.content ?? [];
       const details = await Promise.all(list.map((item) => adminInquiriesApi.getById(item.inquiryId)));
       set({ adminInquiries: details.map(toAdminViewInquiry) });

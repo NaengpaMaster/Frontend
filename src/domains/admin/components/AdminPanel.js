@@ -1688,6 +1688,7 @@ const INQUIRY_PAGE_SIZE = 10;
 
 function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendingCount, answeredCount, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
   const [activeTab, setActiveTab] = useState('pending');
+  const [sortDirection, setSortDirection] = useState('ASC');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -1700,7 +1701,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
   const loadList = async () => {
     setLoading(true);
     try {
-      const meta = await onFetchInquiries({ isAnswered: activeTab === 'answered', page, size: INQUIRY_PAGE_SIZE });
+      const meta = await onFetchInquiries({ isAnswered: activeTab === 'answered', page, size: INQUIRY_PAGE_SIZE, sortDirection });
       setTotalPages(meta?.totalPages ?? 0);
     } finally {
       setLoading(false);
@@ -1714,7 +1715,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
   useEffect(() => {
     loadList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page]);
+  }, [activeTab, page, sortDirection]);
 
   const currentList = inquiries;
 
@@ -1774,7 +1775,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
     const isActive = activeTab === tab;
     return (
       <button
-        onClick={() => { setActiveTab(tab); setPage(0); setExpanded(null); setEditingAnswerId(null); }}
+        onClick={() => { setActiveTab(tab); setSortDirection(tab === 'answered' ? 'DESC' : 'ASC'); setPage(0); setExpanded(null); setEditingAnswerId(null); }}
         style={{
           flex: 1, padding: '9px 0', background: 'none', border: 'none',
           borderBottom: `2px solid ${isActive ? C.primary : 'transparent'}`,
@@ -1808,6 +1809,32 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
       <div style={{ display: 'flex', background: C.card, borderRadius: '14px 14px 0 0', borderBottom: `1px solid ${C.border}`, marginBottom: '12px' }}>
         {tabBtn('pending', '미답변', pendingCount, Clock)}
         {tabBtn('answered', '답변완료', answeredCount, CheckCircle)}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+        <span style={{ marginRight: '2px', fontSize: '11px', fontWeight: 700, color: C.fgMuted }}>정렬</span>
+        {[
+          { value: 'ASC', label: activeTab === 'pending' ? '오래된 문의순' : '오래된 답변순' },
+          { value: 'DESC', label: activeTab === 'pending' ? '최신 문의순' : '최근 답변순' },
+        ].map((option) => {
+          const isSelected = sortDirection === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => { setSortDirection(option.value); setPage(0); }}
+              style={{
+                padding: '6px 10px', borderRadius: '9px', cursor: 'pointer',
+                border: `1px solid ${isSelected ? C.primary : C.border}`,
+                background: isSelected ? C.primaryLight : C.card,
+                color: isSelected ? C.primary : C.fgMuted,
+                fontSize: '11px', fontWeight: isSelected ? 800 : 600,
+              }}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
       {!loading && currentList.length === 0 ? (
