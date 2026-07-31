@@ -1686,12 +1686,13 @@ function StatsTab() {
 // ─── Inquiries ────────────────────────────────────────────────────────────────
 const INQUIRY_PAGE_SIZE = 10;
 
-function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendingCount, answeredCount, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
+function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFetchInquiryCounts, pendingCount, answeredCount, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
   const [activeTab, setActiveTab] = useState('pending');
   const [sortDirection, setSortDirection] = useState('ASC');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [answerText, setAnswerText] = useState('');
   const [editingAnswerId, setEditingAnswerId] = useState(null);
@@ -1723,14 +1724,25 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
     await Promise.all([loadList(), onFetchInquiryCounts()]);
   };
 
-  const handleExpand = (inq) => {
+  const handleExpand = async (inq) => {
     if (expanded === inq.id) {
       setExpanded(null);
       setEditingAnswerId(null);
-    } else {
+      return;
+    }
+
+    setDetailLoadingId(inq.id);
+    try {
+      const detail = inq.content === undefined
+        ? await onFetchInquiryDetail(inq.id)
+        : inq;
       setExpanded(inq.id);
-      setAnswerText(inq.answer ?? '');
-      setEditingAnswerId(inq.answer ? null : inq.id);
+      setAnswerText(detail?.answer ?? '');
+      setEditingAnswerId(detail?.answer ? null : inq.id);
+    } catch (err) {
+      alert(err.message || '문의 상세 조회 중 오류가 발생했습니다.');
+    } finally {
+      setDetailLoadingId(null);
     }
   };
 
@@ -1860,7 +1872,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryCounts, pendi
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '14px', color: C.fg, marginBottom: '2px' }}>{inq.subject}</div>
-                    <div style={{ fontSize: '11px', color: C.fgMuted }}>{inq.userName} · {inq.createdAt}</div>
+                    <div style={{ fontSize: '11px', color: C.fgMuted }}>{inq.userName} · {inq.createdAt}{detailLoadingId === inq.id ? ' · 불러오는 중...' : ''}</div>
                   </div>
                 </button>
                 {deleteConfirmId === inq.id ? (
@@ -1958,7 +1970,7 @@ export function AdminPanel({
   currentUser, recipes, inquiries, presetIngredients, onClose,
   onFetchRecipes, adminPage, adminTotalPages, adminTotalElements, adminSize,
   onAdminUpdateRecipe, onAdminDeleteRecipe,
-  onFetchInquiries, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
+  onFetchInquiries, onFetchInquiryDetail, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState('home');
@@ -2080,6 +2092,7 @@ export function AdminPanel({
           <InquiriesTab
             inquiries={inquiries}
             onFetchInquiries={onFetchInquiries}
+            onFetchInquiryDetail={onFetchInquiryDetail}
             onFetchInquiryCounts={onFetchInquiryCounts}
             pendingCount={pendingInquiriesCount}
             answeredCount={answeredInquiriesCount}

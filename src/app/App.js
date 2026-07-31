@@ -68,7 +68,7 @@ export default function App() {
   const {
     inquiries, adminInquiries, users, adminPendingCount, adminAnsweredCount,
     fetchInquiries, addInquiry, updateInquiry, deleteInquiry,
-    fetchAdminInquiries, fetchAdminInquiryCounts, adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
+    fetchAdminInquiries, fetchAdminInquiryDetail, fetchAdminInquiryCounts, adminAnswerInquiry, adminDeleteInquiry, adminDeleteAnswer, setUsers,
   } = useInquiryStore();
 
   useEffect(() => {
@@ -347,6 +347,7 @@ export default function App() {
             onAdminUpdateRecipe={adminUpdateRecipe}
             onAdminDeleteRecipe={adminDeleteRecipe}
             onFetchInquiries={fetchAdminInquiries}
+            onFetchInquiryDetail={fetchAdminInquiryDetail}
             onFetchInquiryCounts={fetchAdminInquiryCounts}
             pendingInquiriesCount={adminPendingCount}
             answeredInquiriesCount={adminAnsweredCount}

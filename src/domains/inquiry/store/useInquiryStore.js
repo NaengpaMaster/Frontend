@@ -67,8 +67,7 @@ const useInquiryStore = create((set, get) => ({
     try {
       const result = await adminInquiriesApi.getAll({ isAnswered, page, size, sortDirection });
       const list = result?.content ?? [];
-      const details = await Promise.all(list.map((item) => adminInquiriesApi.getById(item.inquiryId)));
-      set({ adminInquiries: details.map(toAdminViewInquiry) });
+      set({ adminInquiries: list.map(toAdminViewInquiry) });
       return { totalPages: result?.totalPages ?? 0, totalElements: result?.totalElements ?? 0 };
     } catch (error) {
       set({ error: error.message });
@@ -76,6 +75,17 @@ const useInquiryStore = create((set, get) => ({
     } finally {
       set({ adminLoading: false });
     }
+  },
+
+  fetchAdminInquiryDetail: async (id) => {
+    const result = await adminInquiriesApi.getById(id);
+    const detail = toAdminViewInquiry(result);
+    set((state) => ({
+      adminInquiries: state.adminInquiries.map((item) =>
+        item.id === id ? { ...item, ...detail } : item
+      ),
+    }));
+    return detail;
   },
 
   fetchAdminInquiryCounts: async () => {
