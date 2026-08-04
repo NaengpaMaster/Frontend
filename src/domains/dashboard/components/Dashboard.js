@@ -16,6 +16,13 @@ const SCORE_REASON_META = {
     RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'}
 };
 
+const SCORE_ANALYSIS_REASON_ITEMS = [
+    {label: '재료 만료 방치', isPlus: false, color: '#F6C4B8'},
+    {label: '만료 방어 성공', isPlus: true, color: '#0E8478'},
+    {label: '냉파 레시피 등록', isPlus: true, color: '#F0CB84'},
+    {label: '오늘의 퀴즈 정답', isPlus: true, color: '#8DBEE8'},
+];
+
 function highlightKeywords(text, keywordColors = {
     '레시피': {bg: '#FDECEA', color: '#E4572E'},
     '냉장고': {bg: '#D6F5E3', color: '#0E8478'},
@@ -103,6 +110,158 @@ function getGradeProgress(score) {
     return {next, rangeMin, rangeMax, percentage, pointsToNext};
 }
 
+function ScoreAnalysisTab({cardStyle}) {
+    const placeholderNotice = 'API 연결 후 표시됩니다';
+
+    return (
+        <>
+            <div style={{
+                background: C.primaryLight,
+                border: `1px solid ${C.primaryMid}`,
+                borderRadius: '16px',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '14px',
+            }}>
+                <span style={{fontSize: '18px', flexShrink: 0}}>🏆</span>
+                <div style={{minWidth: 0}}>
+                    <div style={{fontSize: '11px', fontWeight: 700, color: C.primary, marginBottom: '2px'}}>
+                        이번 달 최대 영향 사유
+                    </div>
+                    <div style={{fontSize: '13px', fontWeight: 700, color: C.fg}}>
+                        {placeholderNotice}
+                    </div>
+                </div>
+            </div>
+
+            <div style={{...cardStyle, marginBottom: '14px'}}>
+                <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px'}}>
+                    사유별 점수 획득 현황
+                </div>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px',
+                    flexWrap: 'wrap',
+                }}>
+                    <div style={{position: 'relative', width: '120px', height: '120px', flexShrink: 0}}>
+                        <svg viewBox="0 0 36 36" style={{width: '100%', height: '100%', transform: 'rotate(-90deg)'}}>
+                            <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.surface} strokeWidth="4"/>
+                            {SCORE_ANALYSIS_REASON_ITEMS.map(({label, color}, idx) => {
+                                const segment = 100 / SCORE_ANALYSIS_REASON_ITEMS.length;
+                                const gap = 1.5;
+                                const dash = Math.max(segment - gap, 0);
+                                return (
+                                    <circle
+                                        key={label}
+                                        cx="18"
+                                        cy="18"
+                                        r="15.9155"
+                                        fill="none"
+                                        stroke={color}
+                                        strokeWidth="4"
+                                        strokeLinecap="round"
+                                        strokeDasharray={`${dash} ${100 - dash}`}
+                                        strokeDashoffset={-(idx * segment)}
+                                        opacity={0.5}
+                                    />
+                                );
+                            })}
+                        </svg>
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            padding: '0 12px',
+                        }}>
+                            <div style={{fontSize: '10px', fontWeight: 700, color: C.fgSubtle, lineHeight: 1.35}}>
+                                API 연결 후<br/>표시됩니다
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{flex: 1, minWidth: '140px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                        {SCORE_ANALYSIS_REASON_ITEMS.map(({label, color}) => (
+                            <div key={label} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '8px',
+                            }}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0}}>
+                                    <span style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        background: color,
+                                        flexShrink: 0,
+                                    }}/>
+                                    <span style={{fontSize: '12px', fontWeight: 700, color: C.fg}}>{label}</span>
+                                </div>
+                                <span style={{fontSize: '12px', fontWeight: 700, color: C.fgSubtle}}>-점</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div style={{
+                    fontSize: '12px',
+                    color: C.fgMuted,
+                    textAlign: 'center',
+                    marginTop: '16px',
+                    paddingTop: '14px',
+                    borderTop: `1px dashed ${C.border}`,
+                }}>
+                    {placeholderNotice}
+                </div>
+            </div>
+
+            <div style={{...cardStyle, marginBottom: '14px'}}>
+                <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px'}}>
+                    이번 달 점수 변동 요약
+                </div>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gap: '8px',
+                }}>
+                    {[
+                        {label: '총 획득', color: C.primary, bg: '#F3FBFA'},
+                        {label: '총 감점', color: C.accent, bg: '#FDF4F3'},
+                        {label: '순변동', color: C.fg, bg: C.surface},
+                    ].map(({label, color, bg}) => (
+                        <div key={label} style={{
+                            background: bg,
+                            border: `1px solid ${C.border}`,
+                            borderRadius: '14px',
+                            padding: '14px 6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '6px',
+                            textAlign: 'center',
+                        }}>
+                            <div style={{fontSize: '11px', fontWeight: 700, color: C.fgMuted}}>{label}</div>
+                            <div style={{fontSize: '18px', fontWeight: 900, color}}>-</div>
+                        </div>
+                    ))}
+                </div>
+                <div style={{
+                    fontSize: '12px',
+                    color: C.fgMuted,
+                    textAlign: 'center',
+                    marginTop: '14px',
+                }}>
+                    {placeholderNotice}
+                </div>
+            </div>
+        </>
+    );
+}
+
 function ScoreDetailModal({
                               score,
                               grade,
@@ -110,6 +269,7 @@ function ScoreDetailModal({
                           }) {
 
     const [scoreHistory, setScoreHistory] = useState([]);
+    const [activeTab, setActiveTab] = useState('score');
 
     useEffect(() => {
         let alive = true;
@@ -172,6 +332,12 @@ function ScoreDetailModal({
             point: '+3점',
             isPlus: true,
         },
+        {
+            label: '오늘의 퀴즈 정답',
+            subtitle: '매일 제공되는 냉파 퀴즈를 맞히면 즉시',
+            point: '+2점',
+            isPlus: true,
+        },
     ];
 
     return (
@@ -225,7 +391,45 @@ function ScoreDetailModal({
                         size={20}/></button>
                 </div>
 
+                <div style={{
+                    display: 'flex',
+                    padding: '0 20px',
+                    background: C.card,
+                    borderBottom: `1px solid ${C.border}`,
+                    flexShrink: 0,
+                }}>
+                    {[
+                        {key: 'score', label: '냉파 점수'},
+                        {key: 'analysis', label: '점수 분석'},
+                    ].map(({key, label}) => {
+                        const isActive = activeTab === key;
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setActiveTab(key)}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px 0',
+                                    background: 'none',
+                                    border: 'none',
+                                    borderBottom: `2px solid ${isActive ? C.primary : 'transparent'}`,
+                                    color: isActive ? C.primary : C.fgMuted,
+                                    fontWeight: isActive ? 700 : 500,
+                                    fontSize: '14px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
+
                 <div style={{flex: 1, overflowY: 'auto', padding: '20px'}}>
+                    {activeTab === 'analysis' ? (
+                        <ScoreAnalysisTab cardStyle={cardStyle}/>
+                    ) : (
+                    <>
                     <div style={{
                         background: 'linear-gradient(135deg, #0E8478 0%, #049D8E 100%)',
                         color: '#FFF',
@@ -378,7 +582,7 @@ function ScoreDetailModal({
                         </div>
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                             gap: '8px',
                         }}>
                             {policyItems.map(({label, subtitle, point, isPlus}) => (
@@ -424,6 +628,8 @@ function ScoreDetailModal({
                             ))}
                         </div>
                         <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '14px'}}>ⓘ 만료/유지점수는 매일 00:00에 반영 되며, 레시피 등록 점수는 즉시 반영 됩니다.
+                        </div>
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 퀴즈 정답 점수는 제출 즉시 반영됩니다.
                         </div>
                         <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 회원 가입 시 초기 점수 10점이 지급 됩니다.
                         </div>
@@ -474,7 +680,8 @@ function ScoreDetailModal({
                             </div>
                         ))}
                     </div>
-
+                    </>
+                    )}
                 </div>
             </div>
         </div>
