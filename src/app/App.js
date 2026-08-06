@@ -63,7 +63,9 @@ export default function App() {
   const [pendingRecipeId, setPendingRecipeId] = useState(null);
   const {
     shoppingItems,
+    recommendationItems, recommendationLoading, recommendationError,
     fetchShoppingItems, addShoppingItem, toggleShoppingItem, updateShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
+    fetchAgentRecommendations, addAgentRecommendationItem,
   } = useShoppingStore();
   const {
     inquiries, adminInquiries, users, adminPendingCount, adminAnsweredCount,
@@ -436,6 +438,11 @@ export default function App() {
                 onAdd={addShoppingItem}
                 onClearChecked={clearChecked}
                 onMoveCheckedToFridge={handleMoveCheckedToFridge}
+                recommendationItems={recommendationItems}
+                recommendationLoading={recommendationLoading}
+                recommendationError={recommendationError}
+                onFetchRecommendations={fetchAgentRecommendations}
+                onAddRecommendation={addAgentRecommendationItem}
               />
             )}
             {activeTab === 'inquiry' && (

@@ -23,8 +23,19 @@ const toViewShoppingItem = (item) => ({
   checked: item.isPurchased,
 });
 
+const toViewRecommendationItem = (item) => ({
+  productId: item.productId,
+  productCategoryId: item.productCategoryId,
+  name: item.productName,
+  quantity: item.quantity || '1개',
+  reason: item.reason || '냉장고와 장보기 목록을 기준으로 추천되었습니다.',
+});
+
 const useShoppingStore = create((set, get) => ({
   shoppingItems: [],
+  recommendationItems: [],
+  recommendationLoading: false,
+  recommendationError: null,
   loading: false,
   error: null,
 
@@ -48,6 +59,33 @@ const useShoppingStore = create((set, get) => ({
 
     await get().fetchShoppingItems();
     return created;
+  },
+
+  fetchAgentRecommendations: async (limit = 5) => {
+    set({ recommendationLoading: true, recommendationError: null });
+    try {
+      // 추천 결과는 바로 DB에 저장하지 않고, 사용자가 확인 후 담을 수 있도록 화면 상태에만 보관
+      const response = await shoppingApi.recommendWithAgent({ limit });
+      set({ recommendationItems: (response.items || []).map(toViewRecommendationItem) });
+    } catch (error) {
+      set({ recommendationError: error.message, recommendationItems: [] });
+    } finally {
+      set({ recommendationLoading: false });
+    }
+  },
+
+  addAgentRecommendationItem: async (item) => {
+    await shoppingApi.addAgentRecommendation({
+      productId: item.productId,
+      quantity: item.quantity || '1개',
+    });
+
+    await get().fetchShoppingItems();
+    set({
+      recommendationItems: get().recommendationItems.filter(
+        (recommendationItem) => recommendationItem.productId !== item.productId
+      ),
+    });
   },
 
   toggleShoppingItem: async (id) => {
