@@ -5,24 +5,33 @@ function unwrap(response) {
 }
 
 export const adminStatsApi = {
-  async getScoreAverage() {
-    return unwrap(await axiosClient.get('/api/v1/admin/statistics/score-average'));
+  async getSummary(startDate, endDate) {
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/summary', { params: { startDate, endDate } }));
   },
 
-  async getExpiredCount() {
-    return unwrap(await axiosClient.get('/api/v1/admin/statistics/expired-count'));
+  async getMaterialStatistics(startDate, endDate) {
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/materials', { params: { startDate, endDate } }));
   },
 
-  async getCategoryStats(period = 7) {
-    const resolvedPeriod = period === 'all' ? 0 : period;
-    return unwrap(await axiosClient.get('/api/v1/admin/statistics/category', { params: { period: resolvedPeriod } })) || [];
+  async getRecipeStatistics(startDate, endDate) {
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/recipes', { params: { startDate, endDate } }));
   },
 
-  async getTopIngredients() {
-    return unwrap(await axiosClient.get('/api/v1/admin/statistics/top-ingredients')) || [];
+  async getTopIngredients(startDate, endDate) {
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/top-ingredients', { params: { startDate, endDate } })) || [];
   },
 
-  async getWeeklyTrend() {
-    return unwrap(await axiosClient.get('/api/v1/admin/statistics/weekly-trend'));
+  async getMemberStatistics(startDate, endDate) {
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/members', {
+      params: { startDate, endDate },
+      preserveSessionOnUnauthorized: true,
+    }));
+  },
+
+  async getMemberUsageStatistics(startDate, endDate) {
+    return unwrap(await axiosClient.get('/api/v1/admin/statistics/service-usage', {
+      params: { startDate, endDate },
+      preserveSessionOnUnauthorized: true,
+    }));
   },
 };

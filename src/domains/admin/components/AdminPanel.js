@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, BellRing, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight } from 'lucide-react';
 import {
   C,
   CATEGORY_EMOJIS,
@@ -14,6 +14,14 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import {scoreApi} from '@/apis/scoreApi';
 
 const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
+const GRANULARITY_LABELS = { DAY: '일별', WEEK: '주별', MONTH: '월별' };
+
+function formatStatisticsDate(date, granularity) {
+  if (!date) return '';
+  if (granularity === 'MONTH') return date.slice(0, 7);
+  if (granularity === 'WEEK') return `${date.slice(5)} 주`;
+  return date.slice(5);
+}
 
 function InfoTooltip({ text }) {
   const [show, setShow] = useState(false);
@@ -172,27 +180,21 @@ function DatePartsSelect({ label, value, onChange, invalid = false }) {
 }
 
 // ─── Admin Home ───────────────────────────────────────────────────────────────
-function AdminHomeTab({ currentUser, pendingCount, answeredCount, presetIngredients, onNavigate, onRefreshInquiryCounts }) {
+function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryCounts }) {
   const [memberCounts, setMemberCounts] = useState({ active: null, inactive: null });
-  const [recipeCount, setRecipeCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [checkedAt, setCheckedAt] = useState(null);
 
   const loadSummary = async () => {
     setLoading(true);
     setError('');
     try {
-      const [active, inactive, , recipeResponse] = await Promise.all([
+      const [active, inactive] = await Promise.all([
         adminApi.getMembers({ role: 'USER', status: 'ACTIVE', size: 1 }),
         adminApi.getMembers({ role: 'USER', status: 'INACTIVE', size: 1 }),
         onRefreshInquiryCounts(),
-        adminRecipesApi.getAll({ page: 0, size: 1 }),
       ]);
-      const recipeBody = recipeResponse.data?.data ?? recipeResponse.data;
       setMemberCounts({ active: active.totalElements, inactive: inactive.totalElements });
-      setRecipeCount(recipeBody?.totalElements ?? 0);
-      setCheckedAt(new Date());
     } catch (err) {
       setError(err.message || '운영 현황을 불러오지 못했습니다.');
     } finally {
@@ -240,16 +242,6 @@ function AdminHomeTab({ currentUser, pendingCount, answeredCount, presetIngredie
       color: C.warn, bg: C.warnLight, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
       description: '집계 지연 또는 실패 시 위험 상태로 표시', tab: 'stats',
     },
-    {
-      label: '전체 레시피', value: recipeCount, suffix: '개', icon: BookOpen,
-      color: '#7A5AC8', bg: '#F0EBFF', statusLabel: '현재', statusColor: '#7A5AC8',
-      description: '서비스에 등록된 전체 레시피', secondary: '회원 등록 레시피 —개', tab: 'recipes',
-    },
-    {
-      label: '사전재료', value: presetIngredients?.length ?? 0, suffix: '개', icon: Package,
-      color: '#3974C6', bg: '#EAF2FF', statusLabel: '현재', statusColor: '#3974C6',
-      description: `활성 ${(presetIngredients ?? []).filter((item) => item.active).length}개 · 비활성 ${(presetIngredients ?? []).filter((item) => !item.active).length}개`, tab: 'ingredients',
-    },
   ];
 
   const displayValue = (card) => {
@@ -293,78 +285,29 @@ function AdminHomeTab({ currentUser, pendingCount, answeredCount, presetIngredie
               tabIndex={card.tab ? 0 : undefined}
               onClick={() => card.tab && onNavigate(card.tab)}
               onKeyDown={(event) => { if (card.tab && event.key === 'Enter') onNavigate(card.tab); }}
-              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '160px', padding: '16px', textAlign: 'left', background: C.card, border: 'none', borderRadius: '16px', boxShadow: card.urgent ? `0 2px 10px ${C.accent}22` : '0 2px 10px rgba(17,32,29,0.08)', cursor: card.tab ? 'pointer' : 'default' }}
+              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', background: C.card, border: `1px solid ${card.urgent ? `${card.color}55` : C.border}`, borderTop: `3px solid ${card.color}`, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
             >
-              <div style={{ minHeight: '36px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ minHeight: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                  <span style={{ width: '36px', height: '36px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '11px', background: card.bg, color: card.color }}>
-                    <Icon size={18} />
+                  <span style={{ width: '32px', height: '32px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: card.bg, color: card.color, border: `1px solid ${card.color}18` }}>
+                    <Icon size={16} />
                   </span>
-                  <span style={{ fontSize: '14px', fontWeight: 900, lineHeight: 1.25, color: C.fg }}>{card.label}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 800, lineHeight: 1.25, color: C.fgMuted }}>{card.label}</span>
                 </div>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: card.statusColor, fontSize: '10px', fontWeight: 800 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 7px', borderRadius: '999px', background: `${card.statusColor}10`, color: card.statusColor, fontSize: '9px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: card.statusColor }} />
                   {card.statusLabel}
-                  {card.tab && <ArrowRight size={13} />}
+                  {card.tab && <ArrowRight size={11} />}
                 </span>
               </div>
-              <div style={{ marginTop: '15px', fontSize: '24px', lineHeight: 1, fontWeight: 900, color: card.color }}>{displayValue(card)}</div>
-              <div style={{ marginTop: '8px', fontSize: '11px', lineHeight: 1.45, color: C.fgMuted }}>{card.description}</div>
+              <div style={{ marginTop: '16px', fontSize: '26px', lineHeight: 1, fontWeight: 900, letterSpacing: '-0.03em', color: C.fg }}>{displayValue(card)}</div>
+              <div style={{ marginTop: '9px', fontSize: '10px', lineHeight: 1.45, color: C.fgSubtle }}>{card.description}</div>
               {card.secondary && <div style={{ marginTop: '2px', fontSize: '10px', lineHeight: 1.45, color: C.fgMuted, fontWeight: 700 }}>{card.secondary}</div>}
             </div>
           );
         })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-        <div style={{ padding: '16px', background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <BellRing size={17} color={pendingCount > 0 ? C.accent : C.primary} />
-            <span style={{ fontSize: '14px', fontWeight: 800, color: C.fg }}>확인이 필요한 업무</span>
-          </div>
-          <div style={{ padding: '12px', borderRadius: '12px', background: pendingCount > 0 ? C.accentLight : C.primaryLight, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 800, color: C.fg }}>{pendingCount > 0 ? `답변을 기다리는 문의가 ${pendingCount}건 있어요.` : '현재 미답변 문의가 없습니다.'}</div>
-              <div style={{ marginTop: '3px', fontSize: '11px', color: C.fgMuted }}>답변 완료 {answeredCount}건</div>
-            </div>
-            <button onClick={() => onNavigate('inquiries')} style={{ padding: '7px 10px', border: 'none', borderRadius: '9px', background: pendingCount > 0 ? C.accent : C.primary, color: '#FFF', fontSize: '11px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              문의 확인
-            </button>
-          </div>
-        </div>
-
-        <div style={{ padding: '16px', background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-          <div style={{ fontSize: '14px', fontWeight: 800, color: C.fg, marginBottom: '12px' }}>운영 상태 기준</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[
-              { color: C.primary, text: '정상 · 미답변 문의가 없고 통계 집계가 정상인 상태' },
-              { color: C.accent, text: '확인 필요 · 처리할 미답변 문의가 있는 상태' },
-              { color: C.danger, text: '위험 · 24시간 초과 문의 또는 통계 집계 지연·실패' },
-            ].map(({ color, text }) => (
-              <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', lineHeight: 1.45, color: C.fgMuted }}>
-                <span style={{ width: '8px', height: '8px', marginTop: '4px', flexShrink: 0, borderRadius: '50%', background: color }} />
-                {text}
-              </div>
-            ))}
-          </div>
-          <div style={{ height: '1px', background: C.border, margin: '14px 0' }} />
-          <div style={{ fontSize: '12px', fontWeight: 800, color: C.fg, marginBottom: '9px' }}>바로가기</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-            {[
-              { label: '회원 관리', tab: 'members', icon: Users },
-              { label: '통계 확인', tab: 'stats', icon: BarChart3 },
-            ].map(({ label, tab, icon: Icon }) => (
-              <button key={tab} onClick={() => onNavigate(tab)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '12px', background: C.surface, border: 'none', borderRadius: '11px', color: C.fg, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}><Icon size={15} color={C.primary} />{label}</span>
-                <ArrowRight size={13} color={C.fgSubtle} />
-              </button>
-            ))}
-          </div>
-          <div style={{ marginTop: '11px', fontSize: '10px', color: C.fgSubtle }}>
-            {checkedAt ? `마지막 새로고침 ${checkedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}` : '운영 현황을 불러오는 중입니다.'}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -381,6 +324,8 @@ function MemberSearchTab({ currentUser }) {
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState(null);
   const [error, setError] = useState('');
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -427,6 +372,19 @@ function MemberSearchTab({ currentUser }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, debouncedSearch, page]);
 
+  const openMemberDetail = async (user) => {
+    setDetailLoading(true);
+    setError('');
+    try {
+      setSelectedMember(await adminApi.getMemberDetail(user.memberId));
+    } catch (err) {
+      setSelectedMember({ ...user, naengpaScore: null });
+      setError('상세 조회 API 구현 전이라 목록의 회원 정보를 표시합니다.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const toggle = async (user) => {
     const nextStatus = user.status === 'active' ? 'INACTIVE' : 'ACTIVE';
     setActionId(user.id);
@@ -434,6 +392,7 @@ function MemberSearchTab({ currentUser }) {
     try {
       await adminApi.updateMemberStatus(user.memberId, nextStatus);
       await Promise.all([loadMembers(), loadCounts()]);
+      setSelectedMember(null);
     } catch (err) {
       setError(err.message || '회원 상태 변경에 실패했습니다.');
     } finally {
@@ -447,6 +406,7 @@ function MemberSearchTab({ currentUser }) {
     try {
       await adminApi.updateMemberRole(user.memberId, newRole === 'admin' ? 'ADMIN' : 'USER');
       await Promise.all([loadMembers(), loadCounts()]);
+      setSelectedMember(null);
     } catch (err) {
       setError(err.message || '회원 권한 변경에 실패했습니다.');
     } finally {
@@ -519,6 +479,8 @@ function MemberSearchTab({ currentUser }) {
         {members.map((u) => (
           <div
             key={u.id}
+            onClick={() => openMemberDetail(u)}
+            className="card-hover"
             style={{
               background: C.card,
               borderRadius: '16px',
@@ -561,64 +523,8 @@ function MemberSearchTab({ currentUser }) {
                 {u.email} · {u.householdType} · 가입 {u.joinDate}{u.status === 'inactive' ? ' · 탈퇴 상태' : ''}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-              {viewMode !== 'admin' && (
-                <button
-                  onClick={() => toggle(u)}
-                  disabled={actionId === u.id}
-                  style={{
-                    padding: '6px 10px',
-                    background: u.status === 'active' ? C.dangerLight : C.primaryLight,
-                    borderRadius: '10px',
-                    color: u.status === 'active' ? C.danger : C.primary,
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: actionId === u.id ? 'wait' : 'pointer',
-                    whiteSpace: 'nowrap',
-                    border: 'none',
-                  }}
-                >
-                  {actionId === u.id ? '처리 중' : u.status === 'active' ? '탈퇴 처리' : '가입 복구'}
-                </button>
-              )}
-              {viewMode === 'active' && (
-                <button
-                  onClick={() => changeRole(u, 'admin')}
-                  disabled={actionId === u.id}
-                  style={{
-                    padding: '6px 10px',
-                    background: C.primaryLight,
-                    borderRadius: '10px',
-                    color: C.primary,
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: actionId === u.id ? 'wait' : 'pointer',
-                    whiteSpace: 'nowrap',
-                    border: `1px solid ${C.primary}`,
-                  }}
-                >
-                  관리자 지정
-                </button>
-              )}
-              {viewMode === 'admin' && currentUser?.email !== u.email && (
-                <button
-                  onClick={() => changeRole(u, 'user')}
-                  disabled={actionId === u.id}
-                  style={{
-                    padding: '6px 10px',
-                    background: C.warnLight,
-                    borderRadius: '10px',
-                    color: C.warn,
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: actionId === u.id ? 'wait' : 'pointer',
-                    whiteSpace: 'nowrap',
-                    border: 'none',
-                  }}
-                >
-                  권한 해제
-                </button>
-              )}
+            <div style={{ color: C.fgSubtle, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <ChevronRight size={18} />
             </div>
           </div>
         ))}
@@ -628,23 +534,120 @@ function MemberSearchTab({ currentUser }) {
       </div>
 
       <PageControls page={page} totalPages={totalPages} onChange={setPage} />
+      {detailLoading && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'grid', placeItems: 'center' }}>
+          <div style={{ color: C.card, fontWeight: 800, fontSize: '14px' }}>회원 상세 정보 불러오는 중...</div>
+        </div>
+      )}
+
+      {selectedMember && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.45)', zIndex: 650, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+          onClick={() => setSelectedMember(null)}
+        >
+          <div
+            style={{ background: C.bg, borderRadius: '20px', padding: '24px 24px 28px', width: '100%', maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(17,32,29,0.25)' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '4px' }}>MEMBER DETAIL</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: '24px', fontWeight: 800, color: C.fg, margin: 0 }}>{selectedMember.name}</h2>
+                  <span style={{ fontSize: '10px', background: selectedMember.role === 'admin' ? C.primaryLight : C.surface, color: selectedMember.role === 'admin' ? C.primary : C.fgMuted, borderRadius: '7px', padding: '3px 7px', fontWeight: 800 }}>
+                    {selectedMember.role === 'admin' ? '관리자' : '회원'}
+                  </span>
+                  <span style={{ fontSize: '10px', background: selectedMember.status === 'inactive' ? C.dangerLight : C.primaryLight, color: selectedMember.status === 'inactive' ? C.danger : C.primary, borderRadius: '7px', padding: '3px 7px', fontWeight: 800 }}>
+                    {selectedMember.status === 'inactive' ? '비활성' : '활성'}
+                  </span>
+                </div>
+              </div>
+              <button type="button" onClick={() => setSelectedMember(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted, padding: '2px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginBottom: '18px' }}>
+              {[
+                { label: '이메일', value: selectedMember.email },
+                { label: '가구 유형', value: selectedMember.householdType },
+                { label: '가입일', value: selectedMember.joinDate || '-' },
+                { label: '냉파 점수', value: selectedMember.naengpaScore == null ? '집계 전' : selectedMember.naengpaScore + '점' },
+              ].map((item) => (
+                <div key={item.label} style={{ background: C.card, borderRadius: '14px', padding: '13px 14px', boxShadow: '0 2px 8px rgba(17,32,29,0.06)' }}>
+                  <div style={{ fontSize: '10px', color: C.fgSubtle, fontWeight: 700, marginBottom: '5px' }}>{item.label}</div>
+                  <div style={{ fontSize: '13px', color: C.fg, fontWeight: 800, wordBreak: 'break-all' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap', paddingTop: '16px', borderTop: `1px solid ${C.border}` }}>
+              {selectedMember.status === 'inactive' && selectedMember.role !== 'admin' && (
+                <button
+                  type="button"
+                  disabled={actionId === selectedMember.id}
+                  onClick={() => window.confirm('이 회원을 다시 활성화하시겠습니까?') && toggle(selectedMember)}
+                  style={{ padding: '9px 14px', background: C.primaryLight, border: `1px solid ${C.primary}`, borderRadius: '10px', color: C.primary, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  {actionId === selectedMember.id ? '처리 중' : '가입 복구'}
+                </button>
+              )}
+              {selectedMember.status === 'active' && selectedMember.role === 'user' && (
+                <>
+                  <button
+                    type="button"
+                    disabled={actionId === selectedMember.id}
+                    onClick={() => window.confirm('이 회원을 탈퇴 처리하시겠습니까?') && toggle(selectedMember)}
+                    style={{ padding: '9px 14px', background: C.dangerLight, border: 'none', borderRadius: '10px', color: C.danger, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    {actionId === selectedMember.id ? '처리 중' : '탈퇴 처리'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionId === selectedMember.id}
+                    onClick={() => window.confirm('이 회원을 관리자로 지정하시겠습니까?') && changeRole(selectedMember, 'admin')}
+                    style={{ padding: '9px 14px', background: C.primaryLight, border: `1px solid ${C.primary}`, borderRadius: '10px', color: C.primary, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    관리자 지정
+                  </button>
+                </>
+              )}
+              {selectedMember.role === 'admin' && currentUser?.email !== selectedMember.email && (
+                <button
+                  type="button"
+                  disabled={actionId === selectedMember.id}
+                  onClick={() => window.confirm('이 관리자의 권한을 해제하시겠습니까?') && changeRole(selectedMember, 'user')}
+                  style={{ padding: '9px 14px', background: C.warnLight, border: 'none', borderRadius: '10px', color: C.warn, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  {actionId === selectedMember.id ? '처리 중' : '권한 해제'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 function MemberOverviewTab({ startDate, endDate }) {
-  const [counts, setCounts] = useState({ active: null, inactive: null });
+  const [statistics, setStatistics] = useState(null);
+  const [statisticsError, setStatisticsError] = useState('');
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([
-      adminApi.getMembers({ role: 'USER', status: 'ACTIVE', size: 1 }),
-      adminApi.getMembers({ role: 'USER', status: 'INACTIVE', size: 1 }),
-    ]).then(([active, inactive]) => {
-      if (mounted) setCounts({ active: active.totalElements, inactive: inactive.totalElements });
-    }).catch(() => {});
+    setStatisticsError('');
+    adminStatsApi.getMemberStatistics(startDate, endDate)
+      .then((data) => { if (mounted) setStatistics(data); })
+      .catch(() => { if (mounted) setStatisticsError('회원 통계 API 연결 후 표시됩니다.'); });
     return () => { mounted = false; };
-  }, []);
+  }, [startDate, endDate]);
+
+  const dailyStatistics = (statistics?.dailyStatistics ?? []).map((item) => ({
+    ...item,
+    inactiveMemberCount: item.inactiveProcessedMemberCount ?? item.inactiveMemberCount ?? 0,
+  }));
 
   return (
     <div>
@@ -657,10 +660,10 @@ function MemberOverviewTab({ startDate, endDate }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px', marginBottom: '12px' }}>
         {[
-          { label: '활성 회원', value: counts.active == null ? '…' : `${counts.active}명`, color: C.primary, bg: C.primaryLight, icon: Users },
-          { label: '비활성 회원', value: counts.inactive == null ? '…' : `${counts.inactive}명`, color: C.fgMuted, bg: C.surface, icon: UserMinus },
-          { label: '오늘 신규 가입', value: '—명', secondary: '최근 7일 —명', color: '#3974C6', bg: '#EAF2FF', icon: UserPlus, pending: true },
-          { label: '오늘 탈퇴 회원', value: '—명', secondary: '최근 7일 —명', color: C.danger, bg: C.dangerLight, icon: AlertTriangle, pending: true },
+          { label: '활성 회원', value: statistics ? `${statistics.activeMemberCount}명` : '—명', color: C.primary, bg: C.primaryLight, icon: Users },
+          { label: '비활성 회원', value: statistics ? `${statistics.inactiveMemberCount}명` : '—명', color: C.fgMuted, bg: C.surface, icon: UserMinus },
+          { label: '선택 기간 신규 가입', value: statistics ? `${statistics.newMemberCount}명` : '—명', secondary: `${startDate} ~ ${endDate}`, color: '#3974C6', bg: '#EAF2FF', icon: UserPlus },
+          { label: '선택 기간 비활성 처리', value: statistics ? `${statistics.inactiveProcessedMemberCount}명` : '—명', secondary: '기간 내 중복 회원은 1명으로 집계', color: C.danger, bg: C.dangerLight, icon: AlertTriangle },
         ].map((item) => (
           <div key={item.label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
             <div style={{ minHeight: '34px', display: 'flex', alignItems: 'center', gap: '9px' }}>
@@ -669,29 +672,127 @@ function MemberOverviewTab({ startDate, endDate }) {
             </div>
             <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color: item.color }}>{item.value}</div>
             {item.secondary && <div style={{ marginTop: '5px', fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{item.secondary}</div>}
-            {item.pending && <div style={{ marginTop: '3px', fontSize: '9px', color: C.fgSubtle }}>회원 통계 API 연결 예정</div>}
           </div>
         ))}
       </div>
+      {statisticsError && <div style={{ marginBottom: '12px', color: C.fgSubtle, fontSize: '10px' }}>{statisticsError}</div>}
 
       <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 신규 가입·탈퇴 회원 추이</div>
-        <div style={{ height: '230px', marginTop: '14px', borderRadius: '12px', background: `repeating-linear-gradient(to bottom, transparent, transparent 45px, ${C.border} 46px)`, border: `1px dashed ${C.borderStrong}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}>
-          <BarChart3 size={28} style={{ marginBottom: '8px', opacity: 0.55 }} />
-          <div style={{ fontSize: '12px', fontWeight: 800 }}>기간별 회원 변화 그래프</div>
-          <div style={{ marginTop: '4px', fontSize: '10px' }}>신규 가입은 초록색, 탈퇴 회원은 빨간색으로 표시됩니다.</div>
-          <div style={{ marginTop: '2px', fontSize: '10px' }}>{startDate} ~ {endDate}</div>
-          <div style={{ marginTop: '2px', fontSize: '10px' }}>백엔드 통계 API 연결 예정</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 신규 가입·비활성 처리 회원 추이</div>
+          <span style={{ fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{GRANULARITY_LABELS[statistics?.granularity] ?? '일별'} 집계</span>
         </div>
+        <div style={{ height: '230px', marginTop: '14px' }}>
+          {dailyStatistics.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyStatistics}>
+                <XAxis dataKey="date" tickFormatter={(date) => formatStatisticsDate(date, statistics?.granularity)} tick={{ fontSize: 10, fill: C.fgMuted }} minTickGap={24} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: C.fgMuted }} />
+                <Tooltip />
+                <Bar dataKey="newMemberCount" name="신규 가입" fill={C.primary} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="inactiveMemberCount" name="비활성 처리" fill={C.danger} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: '100%', borderRadius: '12px', border: `1px dashed ${C.borderStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle, fontSize: '11px' }}>표시할 회원 통계가 없습니다.</div>
+          )}
+        </div>
+        <div style={{ marginTop: '8px', fontSize: '10px', color: C.fgSubtle }}>비활성 처리는 해당 날짜에 한 번 이상 비활성 처리된 고유 회원 수이며 현재 상태와 다를 수 있습니다.</div>
       </div>
 
     </div>
   );
 }
 
+function MemberStatusHistoryTab({ startDate, endDate }) {
+  const [page, setPage] = useState(0);
+  const [histories, setHistories] = useState({ content: [], totalPages: 0, totalElements: 0 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setPage(0);
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError('');
+    adminApi.getMemberStatusHistories({ startDate, endDate, page })
+      .then((data) => { if (mounted) setHistories(data); })
+      .catch(() => { if (mounted) setError('회원 상태 이력 API 연결 후 표시됩니다.'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [startDate, endDate, page]);
+
+  const statusLabel = (status) => {
+    if (status === 'ACTIVE') return '활성';
+    if (status === 'INACTIVE') return '비활성';
+    return status ?? '—';
+  };
+  const statusColor = (status) => status === 'INACTIVE' ? C.danger : C.primary;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '12px', marginBottom: '16px' }}>
+        <div>
+          <div style={{ fontSize: '16px', fontWeight: 900, color: C.fg }}>회원 상태 변경 이력</div>
+          <div style={{ marginTop: '3px', fontSize: '12px', color: C.fgMuted }}>회원의 활성·비활성 상태 변경 기록을 시간순으로 확인합니다.</div>
+        </div>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted }}>총 {histories.totalElements}건</span>
+      </div>
+
+      <div style={{ overflowX: 'auto', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <thead>
+            <tr style={{ background: C.surface, color: C.fgMuted, textAlign: 'left' }}>
+              {['이력 ID', '회원 ID', '회원', '이메일', '이전 상태', '변경 상태', '현재 상태', '변경 시각'].map((label) => (
+                <th key={label} style={{ padding: '12px', fontWeight: 900, borderBottom: `1px solid ${C.border}` }}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {histories.content.map((history) => (
+              <tr key={history.memberStatusHistoryId ?? history.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <td style={{ padding: '12px', color: C.fgMuted }}>{history.memberStatusHistoryId ?? history.id}</td>
+                <td style={{ padding: '12px', color: C.fgMuted }}>{history.memberId}</td>
+                <td style={{ padding: '12px', fontWeight: 900, color: C.fg }}>{history.nickname ?? '—'}</td>
+                <td style={{ padding: '12px', color: C.fgMuted }}>{history.email ?? '—'}</td>
+                <td style={{ padding: '12px', fontWeight: 800, color: statusColor(history.previousStatus) }}>{statusLabel(history.previousStatus)}</td>
+                <td style={{ padding: '12px', fontWeight: 900, color: statusColor(history.changedStatus) }}>{statusLabel(history.changedStatus)}</td>
+                <td style={{ padding: '12px', fontWeight: 900, color: statusColor(history.currentStatus) }}>{statusLabel(history.currentStatus)}</td>
+                <td style={{ padding: '12px', color: C.fgMuted }}>{history.changedAt ?? history.createdAt ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {loading && <div style={{ padding: '30px', textAlign: 'center', fontSize: '11px', color: C.fgSubtle }}>상태 이력을 불러오는 중...</div>}
+        {!loading && !error && histories.content.length === 0 && <div style={{ padding: '30px', textAlign: 'center', fontSize: '11px', color: C.fgSubtle }}>선택한 기간의 상태 변경 이력이 없습니다.</div>}
+        {!loading && error && <div style={{ padding: '30px', textAlign: 'center', fontSize: '11px', color: C.fgSubtle }}>{error}</div>}
+      </div>
+
+      {histories.totalPages > 1 && <PageControls page={page} totalPages={histories.totalPages} onChange={setPage} />}
+    </div>
+  );
+}
+
 function MemberServiceUsageTab({ startDate, endDate }) {
   const [selectedMetric, setSelectedMetric] = useState('fridge');
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const graphRefs = useRef({});
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError('');
+    adminStatsApi.getMemberUsageStatistics(startDate, endDate)
+      .then((data) => { if (mounted) setStatistics(data); })
+      .catch(() => { if (mounted) setError('서비스 이용 통계를 불러오지 못했습니다.'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [startDate, endDate]);
 
   const usageCards = [
     { key: 'fridge', label: '냉장고 재료 등록', icon: Refrigerator, color: C.primary, bg: C.primaryLight, detail: '선택 기간에 재료를 1개 이상 등록한 회원' },
@@ -717,6 +818,7 @@ function MemberServiceUsageTab({ startDate, endDate }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '10px', marginBottom: '12px' }}>
         {usageCards.map(({ key, label, icon: Icon, color, bg, detail }) => {
           const selected = selectedMetric === key;
+          const usage = statistics?.[key];
           return (
             <button key={key} onClick={() => moveToGraph(key)} style={{ padding: '16px', textAlign: 'left', borderRadius: '16px', background: C.card, border: `1px solid ${selected ? color + '70' : 'transparent'}`, boxShadow: selected ? `0 2px 10px ${color}20` : '0 2px 10px rgba(17,32,29,0.08)', cursor: 'pointer' }}>
               <div style={{ minHeight: '36px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -724,18 +826,19 @@ function MemberServiceUsageTab({ startDate, endDate }) {
                   <span style={{ width: '36px', height: '36px', flexShrink: 0, borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span>
                   <span style={{ fontSize: '14px', lineHeight: 1.25, fontWeight: 900, color: C.fg }}>{label}</span>
                 </div>
-                <span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span>
+                <span style={{ fontSize: '9px', fontWeight: 800, color: C.primary }}>현재</span>
               </div>
-              <div style={{ marginTop: '13px', fontSize: '22px', fontWeight: 900, color }}>—%</div>
+              <div style={{ marginTop: '13px', fontSize: '22px', fontWeight: 900, color }}>{loading ? '…' : `${usage?.usageRate ?? 0}%`}</div>
               <div style={{ marginTop: '4px', fontSize: '10px', lineHeight: 1.45, color: C.fgSubtle }}>{detail}</div>
-              <div style={{ marginTop: '3px', fontSize: '10px', color: C.fgMuted }}>이용 회원 —명 / 활성 회원 —명</div>
+              <div style={{ marginTop: '3px', fontSize: '10px', color: C.fgMuted }}>이용 회원 {usage?.userCount ?? 0}명 / 활성 회원 {statistics?.activeMemberCount ?? 0}명</div>
             </button>
           );
         })}
       </div>
 
       <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 서비스별 이용 회원 추이</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 서비스별 이용 회원 추이</div><span style={{ fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{GRANULARITY_LABELS[statistics?.granularity] ?? '일별'} 집계</span></div>
+        {error && <div style={{ marginTop: '10px', fontSize: '11px', color: C.danger }}>{error}</div>}
         <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
           {usageCards.map((metric) => (
             <section
@@ -746,11 +849,15 @@ function MemberServiceUsageTab({ startDate, endDate }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 900, color: C.fg }}>
                 <metric.icon size={15} color={metric.color} /> {metric.label} 추이
               </div>
-              <div style={{ height: '230px', marginTop: '12px', borderRadius: '12px', background: `repeating-linear-gradient(to bottom, transparent, transparent 45px, ${C.border} 46px)`, border: `1px dashed ${C.borderStrong}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}>
-                <BarChart3 size={28} color={metric.color} style={{ marginBottom: '8px', opacity: 0.55 }} />
-                <div style={{ fontSize: '12px', fontWeight: 800 }}>날짜별 {metric.label} 회원 추이</div>
-                <div style={{ marginTop: '4px', fontSize: '10px' }}>{startDate} ~ {endDate}</div>
-                <div style={{ marginTop: '2px', fontSize: '10px' }}>백엔드 서비스 이용 통계 API 연결 예정</div>
+              <div style={{ height: '230px', marginTop: '12px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={statistics?.[metric.key]?.dailyStatistics || []}>
+                    <XAxis dataKey="date" tickFormatter={(date) => formatStatisticsDate(date, statistics?.granularity)} tick={{ fontSize: 10, fill: C.fgMuted }} minTickGap={24} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: C.fgMuted }} />
+                    <Tooltip />
+                    <Bar dataKey="userCount" name="이용 회원" fill={metric.color} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </section>
           ))}
@@ -776,12 +883,12 @@ function MembersTab({ currentUser }) {
   const [endDate, setEndDate] = useState(() => toLocalDateValue(new Date()));
   const [quickPeriod, setQuickPeriod] = useState(30);
   const dateRangeInvalid = startDate > endDate;
-  const showDateFilter = section === 'overview';
+  const showDateFilter = section === 'overview' || section === 'history';
 
   const applyQuickPeriod = (nextPeriod) => {
     const end = new Date();
     const start = new Date();
-    if (nextPeriod === 'all') start.setFullYear(2000, 0, 1);
+    if (nextPeriod === 'all') start.setFullYear(2020, 0, 1);
     else start.setDate(start.getDate() - (nextPeriod - 1));
     setStartDate(toLocalDateValue(start));
     setEndDate(toLocalDateValue(end));
@@ -820,6 +927,7 @@ function MembersTab({ currentUser }) {
         {[
           { key: 'overview', label: '회원 현황', icon: BarChart3 },
           { key: 'search', label: '회원 검색·관리', icon: Search },
+          { key: 'history', label: '상태 변경 이력', icon: Clock },
         ].map(({ key, label, icon: Icon }) => {
           const active = section === key;
           return (
@@ -829,6 +937,7 @@ function MembersTab({ currentUser }) {
       </div>
       {section === 'overview' && <MemberOverviewTab startDate={startDate} endDate={endDate} />}
       {section === 'search' && <MemberSearchTab currentUser={currentUser} />}
+      {section === 'history' && <MemberStatusHistoryTab startDate={startDate} endDate={endDate} />}
     </div>
   );
 }
@@ -1387,12 +1496,12 @@ function StatsTab() {
   });
   const [endDate, setEndDate] = useState(() => toLocalDateValue(new Date()));
   const [quickPeriod, setQuickPeriod] = useState(30);
-  const [period, setPeriod] = useState(30);
-  const [scoreAverage, setScoreAverage] = useState(null);
-  const [expiredCount, setExpiredCount] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [materialStatistics, setMaterialStatistics] = useState(null);
+  const [recipeStatistics, setRecipeStatistics] = useState(null);
+  const [recipeCategoryType, setRecipeCategoryType] = useState('all');
   const [categoryStats, setCategoryStats] = useState([]);
   const [topIngredients, setTopIngredients] = useState([]);
-  const [weeklyTrend, setWeeklyTrend] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const dateRangeInvalid = startDate > endDate;
@@ -1401,14 +1510,13 @@ function StatsTab() {
     const end = new Date();
     const start = new Date();
     if (nextPeriod === 'all') {
-      start.setFullYear(2000, 0, 1);
+      start.setFullYear(2020, 0, 1);
     } else {
       start.setDate(start.getDate() - (nextPeriod - 1));
     }
     setStartDate(toLocalDateValue(start));
     setEndDate(toLocalDateValue(end));
     setQuickPeriod(nextPeriod);
-    setPeriod(nextPeriod);
   };
 
   const changeStartDate = (value) => {
@@ -1425,22 +1533,25 @@ function StatsTab() {
     let mounted = true;
 
     async function loadStats() {
+      if (dateRangeInvalid) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError('');
       try {
-        const [score, expired, categories, ingredients, trend] = await Promise.all([
-          adminStatsApi.getScoreAverage(),
-          adminStatsApi.getExpiredCount(),
-          adminStatsApi.getCategoryStats(period),
-          adminStatsApi.getTopIngredients(),
-          adminStatsApi.getWeeklyTrend(),
+        const [summaryData, materialData, recipeData, ingredients] = await Promise.all([
+          adminStatsApi.getSummary(startDate, endDate),
+          adminStatsApi.getMaterialStatistics(startDate, endDate),
+          adminStatsApi.getRecipeStatistics(startDate, endDate),
+          adminStatsApi.getTopIngredients(startDate, endDate),
         ]);
         if (mounted) {
-          setScoreAverage(score);
-          setExpiredCount(expired);
-          setCategoryStats(categories);
+          setSummary(summaryData);
+          setMaterialStatistics(materialData);
+          setRecipeStatistics(recipeData);
+          setCategoryStats(materialData?.categoryStatistics || []);
           setTopIngredients(ingredients);
-          setWeeklyTrend(trend?.weeks || []);
         }
       } catch (err) {
         if (mounted) {
@@ -1458,23 +1569,37 @@ function StatsTab() {
     return () => {
       mounted = false;
     };
-  }, [period]);
+  }, [startDate, endDate, dateRangeInvalid]);
 
   const byCategory = categoryStats
     .map((c) => ({ name: c.categoryName.split('/')[0], count: c.expiredCount }))
     .sort((a, b) => b.count - a.count);
+  const dailyMaterialStatistics = materialStatistics?.dailyStatistics ?? [];
+  const materialTotals = dailyMaterialStatistics.reduce(
+    (totals, item) => ({
+      registered: totals.registered + (item.registeredCount ?? 0),
+      expired: totals.expired + (item.expiredCount ?? 0),
+    }),
+    { registered: 0, expired: 0 }
+  );
 
-  const weekChangePct = expiredCount?.weekChangePct;
-
-  const statCardStyle = {
-    background: C.card,
-    borderRadius: '16px',
-    padding: '14px',
-    boxShadow: '0 2px 10px rgba(17,32,29,0.08)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  };
+  const expiredIngredientChangeRate = summary?.expiredIngredientChangeRate;
+  const recipeCategoryFilters = [
+    { key: 'all', label: '전체', countKey: 'recipeCount' },
+    { key: 'base', label: '기본 제공', countKey: 'baseRecipeCount' },
+    { key: 'member', label: '회원 등록', countKey: 'memberRecipeCount' },
+    { key: 'admin', label: '관리자 등록', countKey: 'adminRecipeCount' },
+  ];
+  const selectedRecipeFilter = recipeCategoryFilters.find(
+    (filter) => filter.key === recipeCategoryType
+  );
+  const selectedRecipeCategories = (recipeStatistics?.categoryStatistics ?? [])
+    .map((item) => ({
+      categoryName: item.categoryName,
+      recipeCount: item[selectedRecipeFilter.countKey] ?? 0,
+    }))
+    .filter((item) => item.recipeCount > 0)
+    .sort((a, b) => b.recipeCount - a.recipeCount);
 
   return (
     <div>
@@ -1505,7 +1630,7 @@ function StatsTab() {
           { key: 'overview', label: '통계 요약', icon: BarChart3 },
           { key: 'usage', label: '회원·이용 분석', icon: Activity },
           { key: 'materials', label: '재료·냉파 분석', icon: Refrigerator },
-          { key: 'recipes', label: '레시피·콘텐츠 분석', icon: BookOpen },
+          { key: 'recipes', label: '레시피 분석', icon: BookOpen },
         ].map(({ key, label, icon: Icon }) => {
           const active = section === key;
           return (
@@ -1526,25 +1651,20 @@ function StatsTab() {
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
             {[
-              { label: '평균 냉파 점수', value: loading ? '…' : `${scoreAverage?.averageScore ?? 0}점`, detail: `활성 회원 ${scoreAverage?.memberCount ?? 0}명 기준`, icon: Star, color: C.primary, bg: C.primaryLight, connected: true },
-              { label: '기간 내 등록 재료', value: '—건', detail: '이전 기간 대비 —%', icon: Package, color: '#3974C6', bg: '#EAF2FF' },
-              { label: '기간 내 만료 재료', value: loading ? '…' : `${expiredCount?.thisWeekCount ?? 0}건`, detail: '현재 API는 이번 주 기준', icon: CalendarDays, color: C.danger, bg: C.dangerLight, connected: true },
-              { label: '재료 만료율', value: '—%', detail: '등록 재료 대비 만료 비율', icon: TrendingDown, color: C.accent, bg: C.accentLight },
-              { label: '신규 등록 레시피', value: '—개', detail: '회원·관리자 등록 포함', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF' },
+              { label: '평균 냉파 점수', value: loading ? '…' : `${summary?.averageScore ?? 0}점`, detail: `선택 기간 점수 갱신 회원 ${summary?.scoreMemberCount ?? 0}명 기준`, icon: Star, color: C.primary, bg: C.primaryLight, connected: true },
+              { label: '기간 내 등록 재료', value: loading ? '…' : `${summary?.registeredIngredientCount ?? 0}건`, detail: `${startDate} ~ ${endDate}`, icon: Package, color: '#3974C6', bg: '#EAF2FF', connected: true },
+              { label: '기간 내 만료 재료', value: loading ? '…' : `${summary?.expiredIngredientCount ?? 0}건`, detail: expiredIngredientChangeRate == null ? '이전 기간 데이터 없음' : `이전 동일 기간 대비 ${expiredIngredientChangeRate > 0 ? '↑ ' : expiredIngredientChangeRate < 0 ? '↓ ' : ''}${Math.abs(expiredIngredientChangeRate).toFixed(1)}%`, icon: CalendarDays, color: C.danger, bg: C.dangerLight, connected: true },
+              { label: '신규 등록 레시피', value: loading ? '…' : `${summary?.createdRecipeCount ?? 0}개`, detail: '회원·관리자 등록 포함', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF', connected: true },
             ].map(({ label, value, detail, icon: Icon, color, bg, connected }) => (
-              <div key={label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-                <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '36px', height: '36px', borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{label}</span></div>
-                  <span style={{ fontSize: '9px', fontWeight: 800, color: connected ? C.primary : C.fgSubtle }}>{connected ? '현재' : 'API 연결 예정'}</span>
+              <div key={label} style={{ minHeight: '140px', padding: '17px 18px', border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: '12px', background: C.card, boxShadow: '0 1px 4px rgba(17,32,29,0.06)' }}>
+                <div style={{ minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '32px', height: '32px', borderRadius: '8px', background: bg, color, border: `1px solid ${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} /></span><span style={{ fontSize: '13px', fontWeight: 800, color: C.fgMuted }}>{label}</span></div>
+                  <span style={{ padding: '4px 7px', borderRadius: '999px', background: C.surface, fontSize: '9px', fontWeight: 800, color: connected ? C.primary : C.fgSubtle }}>{connected ? '선택 기간' : 'API 연결 예정'}</span>
                 </div>
-                <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color }}>{value}</div>
-                <div style={{ marginTop: '5px', fontSize: '10px', color: C.fgMuted }}>{detail}</div>
+                <div style={{ marginTop: '16px', fontSize: '26px', lineHeight: 1, fontWeight: 900, letterSpacing: '-0.03em', color: C.fg }}>{value}</div>
+                <div style={{ marginTop: '9px', fontSize: '10px', color: C.fgSubtle }}>{detail}</div>
               </div>
             ))}
-          </div>
-          <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>핵심 지표 변화</div><span style={{ fontSize: '10px', fontWeight: 800, color: C.fgSubtle }}>일별 통계 스케줄러 연결 예정</span></div>
-            <div style={{ height: '250px', marginTop: '14px', borderRadius: '12px', border: `1px dashed ${C.borderStrong}`, background: `repeating-linear-gradient(to bottom, transparent, transparent 49px, ${C.border} 50px)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}><BarChart3 size={28} style={{ opacity: 0.55 }} /><div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 800 }}>등록 재료·만료 재료·신규 레시피 추이</div><div style={{ marginTop: '4px', fontSize: '10px' }}>{startDate} ~ {endDate}</div></div>
           </div>
         </div>
       )}
@@ -1552,62 +1672,40 @@ function StatsTab() {
       {section === 'materials' && (
         <>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-        <div style={statCardStyle}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary, flexShrink: 0 }}>
-            <Star size={20} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
-              냉파 점수 평균 <Info size={12} color={C.fgMuted} />
-            </div>
-            <div style={{ fontSize: '22px', color: C.primary, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>
-              {loading ? '-' : `${scoreAverage?.averageScore ?? 0}점`}
-            </div>
-            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px' }}>
-              {loading ? '불러오는 중...' : `활성 회원 ${scoreAverage?.memberCount ?? 0}명 기준`}
-            </div>
-          </div>
+      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}><div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>재료 등록·만료 추이</div><span style={{ fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{GRANULARITY_LABELS[materialStatistics?.granularity] ?? '일별'} 집계</span></div>
+        <div style={{ height: '240px' }}>
+          {dailyMaterialStatistics.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyMaterialStatistics} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
+                <XAxis dataKey="date" tickFormatter={(date) => formatStatisticsDate(date, materialStatistics?.granularity)} tick={{ fontSize: 10, fill: C.fgMuted }} axisLine={{ stroke: C.borderStrong }} tickLine={false} minTickGap={24} />
+                <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }} cursor={{ fill: C.surface }} labelFormatter={(date) => formatStatisticsDate(date, materialStatistics?.granularity)} />
+                <Bar dataKey="registeredCount" fill="#3974C6" name="등록 재료" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="expiredCount" fill={C.danger} name="만료 재료" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: '100%', borderRadius: '12px', border: `1px dashed ${C.borderStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle, fontSize: '11px' }}>선택 기간에 재료 등록·만료 내역이 없습니다.</div>
+          )}
         </div>
-        <div style={statCardStyle}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
-            <CalendarDays size={20} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: C.fg, fontWeight: 700 }}>
-              이번주 유통기한 만료 건수 <InfoTooltip text="이번 주 월요일부터 일요일까지 등록된 만료 건수입니다." />
-            </div>
-            <div style={{ fontSize: '22px', color: C.accent, fontWeight: 900, lineHeight: 1.1, marginTop: '6px' }}>
-              {loading ? '-' : `${expiredCount?.thisWeekCount ?? 0}건`}
-            </div>
-            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {!loading && weekChangePct != null ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: weekChangePct > 0 ? C.danger : weekChangePct < 0 ? C.primary : C.fgMuted, fontWeight: 700 }}>
-                  {weekChangePct > 0 ? <TrendingUp size={11} /> : weekChangePct < 0 ? <TrendingDown size={11} /> : <Minus size={11} />}
-                  지난주 대비 {Math.abs(weekChangePct).toFixed(1)}% {weekChangePct > 0 ? '상승' : weekChangePct < 0 ? '하락' : '변동없음'}
-                </span>
-              ) : (
-                '이번주 기준'
-              )}
-            </div>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '18px', marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${C.border}`, fontSize: '11px', fontWeight: 800 }}>
+          <span style={{ color: '#3974C6' }}>총 등록 {materialTotals.registered}건</span>
+          <span style={{ color: C.danger }}>총 만료 {materialTotals.expired}건</span>
         </div>
       </div>
 
-      {/* Bar chart by category */}
       <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>카테고리별 만료량</div>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={byCategory} margin={{ top: 24, right: 16, left: -6, bottom: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, (dataMax) => (dataMax > 0 ? Math.ceil(dataMax * 1.25) : 1)]} />
-            <Tooltip
-              contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
-              cursor={{ fill: C.surface }}
-            />
-            <Bar dataKey="count" fill={C.primary} radius={[2, 2, 0, 0]} name="만료 횟수" maxBarSize={48} label={{ position: 'top', fill: C.fg, fontSize: 11, fontWeight: 700 }} />
-          </BarChart>
-        </ResponsiveContainer>
+        {byCategory.map((item) => (
+          <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '11px 12px', borderTop: `1px solid ${C.border}` }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: C.fg }}>{item.name}</span>
+            <span style={{ minWidth: '54px', textAlign: 'right', fontSize: '13px', fontWeight: 900, color: C.danger }}>{item.count}건</span>
+          </div>
+        ))}
+        {!loading && byCategory.length === 0 && (
+          <div style={{ fontSize: '12px', color: C.fgMuted, textAlign: 'center', padding: '18px 0' }}>선택 기간에 만료된 카테고리가 없습니다.</div>
+        )}
       </div>
 
       {/* Top wasted */}
@@ -1624,25 +1722,10 @@ function StatsTab() {
           </div>
         ))}
         {!loading && topIngredients.length === 0 && (
-          <div style={{ fontSize: '12px', color: C.fgMuted, textAlign: 'center', padding: '12px 0' }}>이번주 만료된 재료가 없습니다.</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted, textAlign: 'center', padding: '12px 0' }}>선택 기간에 만료된 재료가 없습니다.</div>
         )}
       </div>
 
-      {/* Weekly trend */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-        <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>주간 만료 추이</div>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={weeklyTrend} margin={{ top: 8, right: 16, left: -6, bottom: 0 }}>
-            <XAxis dataKey="label" tick={{ fontSize: 10, fill: C.fgMuted, fontWeight: 600 }} axisLine={{ stroke: C.borderStrong }} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: C.fgMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ background: C.card, borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgba(17,32,29,0.1)' }}
-              cursor={{ fill: C.surface }}
-            />
-            <Bar dataKey="count" fill={C.accent} radius={[2, 2, 0, 0]} name="만료 건수" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
         </>
       )}
 
@@ -1650,34 +1733,47 @@ function StatsTab() {
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
             {[
-              { label: '전체 레시피', detail: '삭제되지 않은 전체 레시피', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF' },
-              { label: '기본 제공 레시피', detail: '작성자 정보가 없는 초기 레시피', icon: Database, color: C.fgMuted, bg: C.surface },
-              { label: '회원 등록 레시피', detail: '일반 회원이 등록한 레시피', icon: Users, color: C.primary, bg: C.primaryLight },
-              { label: '관리자 등록 레시피', detail: '관리자 계정이 등록한 레시피', icon: ChefHat, color: '#3974C6', bg: '#EAF2FF' },
-            ].map(({ label, detail, icon: Icon, color, bg }) => (
+              { label: '전체 레시피', value: recipeStatistics?.totalRecipeCount, detail: '삭제되지 않은 전체 레시피', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF' },
+              { label: '기본 제공 레시피', value: recipeStatistics?.baseRecipeCount, detail: '작성자 정보가 없는 초기 레시피', icon: Database, color: C.fgMuted, bg: C.surface },
+              { label: '회원 등록 레시피', value: recipeStatistics?.memberRecipeCount, detail: '일반 회원이 등록한 레시피', icon: Users, color: C.primary, bg: C.primaryLight },
+              { label: '관리자 등록 레시피', value: recipeStatistics?.adminRecipeCount, detail: '관리자 계정이 등록한 레시피', icon: ChefHat, color: '#3974C6', bg: '#EAF2FF' },
+            ].map(({ label, value, detail, icon: Icon, color, bg }) => (
               <div key={label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-                <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '36px', height: '36px', borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{label}</span></div><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span></div>
-                <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color }}>—개</div>
+                <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '36px', height: '36px', borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{label}</span></div><span style={{ fontSize: '9px', fontWeight: 800, color: C.primary }}>현재</span></div>
+                <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color }}>{loading ? '…' : `${value ?? 0}개`}</div>
                 <div style={{ marginTop: '5px', fontSize: '10px', color: C.fgMuted }}>{detail}</div>
               </div>
             ))}
           </div>
 
-          {[
-            { title: '날짜별 레시피 등록 추이', description: '기본 제공·회원·관리자 등록 레시피를 구분합니다.', color: '#7A5AC8' },
-            { title: '카테고리별 레시피 현황', description: '카테고리별 레시피 수와 비율을 확인합니다.', color: '#3974C6' },
-          ].map((chart) => (
-            <div key={chart.title} style={{ padding: '16px', marginBottom: '12px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{chart.title}</div><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span></div>
-              <div style={{ height: '220px', marginTop: '12px', borderRadius: '12px', border: `1px dashed ${C.borderStrong}`, background: `repeating-linear-gradient(to bottom, transparent, transparent 43px, ${C.border} 44px)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle }}><BarChart3 size={28} color={chart.color} style={{ opacity: 0.55 }} /><div style={{ marginTop: '8px', fontSize: '12px', fontWeight: 800 }}>{chart.description}</div><div style={{ marginTop: '4px', fontSize: '10px' }}>{startDate} ~ {endDate}</div></div>
+          <div style={{ padding: '16px', marginBottom: '12px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>카테고리별 레시피</div><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>선택 기간</span></div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              {recipeCategoryFilters.map((filter) => {
+                const active = recipeCategoryType === filter.key;
+                return (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    onClick={() => setRecipeCategoryType(filter.key)}
+                    style={{ padding: '7px 11px', border: `1px solid ${active ? '#7A5AC8' : C.border}`, borderRadius: '9px', background: active ? '#7A5AC8' : C.card, color: active ? '#FFF' : C.fgMuted, fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
             </div>
-          ))}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {['좋아요가 많은 레시피 TOP 5', '댓글이 많은 레시피 TOP 5'].map((title) => (
-              <div key={title} style={{ minHeight: '190px', padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{title}</span><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>API 연결 예정</span></div><div style={{ height: '135px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fgSubtle, fontSize: '11px' }}>집계 결과가 여기에 표시됩니다.</div></div>
+            {selectedRecipeCategories.map((item) => (
+              <div key={item.categoryName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '11px 12px', borderTop: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: C.fg }}>{item.categoryName}</span>
+                <span style={{ minWidth: '54px', textAlign: 'right', fontSize: '13px', fontWeight: 900, color: '#7A5AC8' }}>{item.recipeCount}개</span>
+              </div>
             ))}
+            {!loading && selectedRecipeCategories.length === 0 && (
+              <div style={{ fontSize: '12px', color: C.fgMuted, textAlign: 'center', padding: '18px 0' }}>선택 기간에 해당 유형으로 등록된 레시피가 없습니다.</div>
+            )}
           </div>
+
         </div>
       )}
     </div>
@@ -2244,7 +2340,7 @@ export function AdminPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', scrollbarGutter: 'stable' }}>
         <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
-          {activeTab === 'home'        && <AdminHomeTab currentUser={currentUser} pendingCount={pendingInquiriesCount} answeredCount={answeredInquiriesCount} presetIngredients={presetIngredients} onNavigate={setActiveTab} onRefreshInquiryCounts={onFetchInquiryCounts} />}
+          {activeTab === 'home'        && <AdminHomeTab currentUser={currentUser} pendingCount={pendingInquiriesCount} onNavigate={setActiveTab} onRefreshInquiryCounts={onFetchInquiryCounts} />}
         {activeTab === 'members'     && <MembersTab currentUser={currentUser} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} adminSize={adminSize} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}

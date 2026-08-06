@@ -23,12 +23,33 @@ export const adminApi = {
     };
   },
 
+  async getMemberDetail(memberId) {
+    const data = unwrap(await axiosClient.get('/api/v1/admin/members/' + memberId, { preserveSessionOnUnauthorized: true }));
+    const member = toFrontendUser(data);
+    return {
+      ...member,
+      naengpaScore: data?.naengpaScore ?? data?.score ?? data?.totalScore ?? null,
+    };
+  },
+
   async updateMemberStatus(memberId, status) {
     await axiosClient.patch(`/api/v1/admin/members/${memberId}/status`, { status });
   },
 
   async updateMemberRole(memberId, role) {
     await axiosClient.patch(`/api/v1/admin/members/${memberId}/role`, { role });
+  },
+
+  async getMemberStatusHistories({ startDate, endDate, page = 0, size = 10 }) {
+    const data = unwrap(await axiosClient.get('/api/v1/admin/member-status-histories', {
+      params: { startDate, endDate, page, size },
+      preserveSessionOnUnauthorized: true,
+    }));
+    return {
+      content: data?.content ?? [],
+      totalPages: data?.totalPages ?? 0,
+      totalElements: data?.totalElements ?? 0,
+    };
   },
 
   async getProducts() {

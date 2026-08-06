@@ -47,6 +47,11 @@ axiosClient.interceptors.response.use(
     let fallbackMessage = '';
 
     if (error.response?.status === 401) {
+      if (originalRequest?.preserveSessionOnUnauthorized) {
+        const message = error.response?.data?.message || error.message;
+        return Promise.reject(new Error(message));
+      }
+
       if (isPublicEndpoint(originalRequest)) {
         const message = error.response?.data?.message || error.message;
         return Promise.reject(new Error(message));
