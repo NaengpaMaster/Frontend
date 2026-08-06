@@ -64,8 +64,12 @@ const useShoppingStore = create((set, get) => ({
   fetchAgentRecommendations: async (limit = 5) => {
     set({ recommendationLoading: true, recommendationError: null });
     try {
+      const excludeProductIds = get().recommendationItems
+        .map((item) => item.productId)
+        .filter(Boolean);
+
       // 추천 결과는 바로 DB에 저장하지 않고, 사용자가 확인 후 담을 수 있도록 화면 상태에만 보관
-      const response = await shoppingApi.recommendWithAgent({ limit });
+      const response = await shoppingApi.recommendWithAgent({ limit, excludeProductIds });
       set({ recommendationItems: (response.items || []).map(toViewRecommendationItem) });
     } catch (error) {
       set({ recommendationError: error.message, recommendationItems: [] });
