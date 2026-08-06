@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Check, ShoppingCart, X, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Check, ShoppingCart, X, Edit2, Sparkles } from 'lucide-react';
 import { CATEGORIES, CATEGORY_EMOJIS, C } from '@/shared/data/mockData';
 import { IngredientSearchField } from '@/domains/fridge/components/IngredientSearchField';
 
@@ -7,7 +7,20 @@ function openCoupangSearch(name) {
   window.open(`https://www.coupang.com/np/search?q=${encodeURIComponent(name)}`, '_blank', 'noopener,noreferrer');
 }
 
-export function ShoppingList({ items, onToggle, onUpdate, onDelete, onAdd, onClearChecked, onMoveCheckedToFridge }) {
+export function ShoppingList({
+  items,
+  onToggle,
+  onUpdate,
+  onDelete,
+  onAdd,
+  onClearChecked,
+  onMoveCheckedToFridge,
+  recommendationItems = [],
+  recommendationLoading = false,
+  recommendationError = null,
+  onFetchRecommendations,
+  onAddRecommendation,
+}) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ productId: null, name: '', quantity: '', category: '채소/과일' });
   const [editingId, setEditingId] = useState(null);
@@ -81,6 +94,24 @@ export function ShoppingList({ items, onToggle, onUpdate, onDelete, onAdd, onCle
           >
             <Plus size={14} strokeWidth={2.5} /> 항목 추가
           </button>
+          <button
+            onClick={() => onFetchRecommendations?.(5)}
+            disabled={recommendationLoading}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              padding: '10px 12px',
+              background: recommendationLoading ? C.surface : C.primaryLight,
+              color: recommendationLoading ? C.fgMuted : C.primary,
+              border: `1px solid ${recommendationLoading ? C.border : C.primaryMid}`,
+              borderRadius: '14px',
+              fontWeight: 800,
+              fontSize: '12px',
+              cursor: recommendationLoading ? 'wait' : 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Sparkles size={13} /> {recommendationLoading ? '추천 중' : 'AI 추천'}
+          </button>
           {checkedCount > 0 && (
             <>
               <button
@@ -144,6 +175,66 @@ export function ShoppingList({ items, onToggle, onUpdate, onDelete, onAdd, onCle
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {(recommendationItems.length > 0 || recommendationError) && (
+        <div style={{ padding: '12px 20px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: C.fg, fontWeight: 900, fontSize: '13px' }}>
+              <Sparkles size={14} color={C.primary} /> AI 추천 재료
+            </div>
+            <div style={{ fontSize: '10px', color: C.fgSubtle }}>원하는 항목만 담기</div>
+          </div>
+
+          {recommendationError ? (
+            <div style={{ padding: '10px 12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, fontSize: '12px' }}>
+              {recommendationError}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {recommendationItems.map((item) => (
+                <div
+                  key={item.productId}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: '8px',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    background: C.surface,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: C.fg, fontSize: '13px', fontWeight: 800 }}>
+                      {item.name} <span style={{ color: C.fgMuted, fontSize: '11px', fontWeight: 600 }}>{item.quantity}</span>
+                    </div>
+                    <div style={{ color: C.fgSubtle, fontSize: '11px', marginTop: '3px', lineHeight: 1.35 }}>
+                      {item.reason}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onAddRecommendation?.(item)}
+                    style={{
+                      background: C.primary,
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: '#FFF',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      padding: '8px 10px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    담기
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -72,6 +72,7 @@ const TAB_ICONS = {
   recipes:     { icon: ChefHat,       label: '레시피' },
   ingredients: { icon: Package,       label: '사전재료' },
   stats:       { icon: BarChart3,     label: '통계' },
+  aiUsage:     { icon: Activity,      label: 'AI사용량' },
   inquiries:   { icon: MessageSquare, label: '문의' },
 };
 
@@ -1965,6 +1966,166 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
   );
 }
 
+function LlmUsageLogsTab() {
+  const FALLBACK_USD_TO_KRW_RATE = 1460;
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [exchangeRate, setExchangeRate] = useState(FALLBACK_USD_TO_KRW_RATE);
+  const [exchangeRateSource, setExchangeRateSource] = useState('기본 환율');
+
+  const loadLogs = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await adminApi.getLlmUsageLogs();
+      setLogs(result);
+    } catch (err) {
+      setError(err.message || 'LLM 사용량 로그를 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadExchangeRate = async () => {
+    try {
+      const response = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await response.json();
+      const krwRate = Number(data?.rates?.KRW);
+
+      if (!response.ok || Number.isNaN(krwRate) || krwRate <= 0) {
+        throw new Error('환율 조회 실패');
+      }
+
+      setExchangeRate(krwRate);
+      setExchangeRateSource('실시간 환율');
+    } catch {
+      setExchangeRate(FALLBACK_USD_TO_KRW_RATE);
+      setExchangeRateSource('기본 환율');
+    }
+  };
+
+  useEffect(() => {
+    loadLogs();
+    loadExchangeRate();
+  }, []);
+
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatCost = (value) => {
+    const number = Number(value ?? 0);
+    if (Number.isNaN(number)) return '-';
+    const krw = number * exchangeRate;
+    return `약 ₩${Math.round(krw).toLocaleString()}`;
+  };
+
+  const successCount = logs.filter((log) => log.status === 'SUCCESS').length;
+  const failedCount = logs.filter((log) => log.status === 'FAILED').length;
+  const totalTokens = logs.reduce((sum, log) => sum + Number(log.totalTokens ?? 0), 0);
+  const totalCost = logs.reduce((sum, log) => sum + Number(log.estimatedCost ?? 0), 0);
+
+  const summaryCards = [
+    { label: '전체 호출', value: `${logs.length}건`, color: C.primary },
+    { label: '성공', value: `${successCount}건`, color: C.primary },
+    { label: '실패', value: `${failedCount}건`, color: C.danger },
+    { label: '총 토큰', value: totalTokens.toLocaleString(), color: C.fg },
+    { label: '예상 비용', value: formatCost(totalCost), color: C.accent },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>LLM 사용량 로그</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>
+            전체 회원의 AI 추천 호출 이력과 실패 원인을 확인합니다. 환율: 1 USD = ₩{Math.round(exchangeRate).toLocaleString()} ({exchangeRateSource})
+          </div>
+        </div>
+        <button
+          onClick={loadLogs}
+          disabled={loading}
+          style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '8px 13px', cursor: loading ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <RefreshCw size={14} className={loading ? 'admin-home-refreshing' : ''} /> 새로고침
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '12px', padding: '11px 13px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+        {summaryCards.map((card) => (
+          <div key={card.label} style={{ background: C.card, borderRadius: '14px', padding: '14px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+            <div style={{ color: C.fgMuted, fontSize: '11px', fontWeight: 800 }}>{card.label}</div>
+            <div style={{ color: card.color, fontSize: '22px', fontWeight: 900, marginTop: '7px' }}>{card.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)', overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>LLM 사용량 로그를 불러오는 중입니다.</div>
+        ) : logs.length === 0 ? (
+          <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>LLM 사용량 로그가 없습니다.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1040px' }}>
+              <thead>
+                <tr style={{ background: C.surface, color: C.fgMuted, fontSize: '11px', textAlign: 'left' }}>
+                  {['회원', '모델', '상태', 'Prompt', 'Completion', 'Total', '예상 비용', '실패 메시지', '호출 일시'].map((header) => (
+                    <th key={header} style={{ padding: '11px 12px', fontWeight: 900, borderBottom: `1px solid ${C.border}` }}>{header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => {
+                  const failed = log.status === 'FAILED';
+                  return (
+                    <tr key={log.llmUsageLogId} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                        <div style={{ fontSize: '12px', color: C.fg, fontWeight: 900 }}>{log.nickname || '알 수 없음'}</div>
+                        <div style={{ fontSize: '10px', color: C.fgMuted, marginTop: '3px' }}>{log.email || `memberId ${log.memberId}`}</div>
+                      </td>
+                      <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 700 }}>{log.modelName}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', borderRadius: '999px', background: failed ? C.dangerLight : C.primaryLight, color: failed ? C.danger : C.primary, fontSize: '10px', fontWeight: 900 }}>
+                          {failed ? 'FAILED' : 'SUCCESS'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', color: C.fg, fontSize: '12px', fontWeight: 800 }}>{log.promptTokens ?? 0}</td>
+                      <td style={{ padding: '12px', color: C.fg, fontSize: '12px', fontWeight: 800 }}>{log.completionTokens ?? 0}</td>
+                      <td style={{ padding: '12px', color: C.fg, fontSize: '12px', fontWeight: 900 }}>{log.totalTokens ?? 0}</td>
+                      <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>{formatCost(log.estimatedCost)}</td>
+                      <td style={{ padding: '12px', color: failed ? C.danger : C.fgSubtle, fontSize: '11px', maxWidth: '240px', whiteSpace: 'normal', lineHeight: 1.4 }}>
+                        {log.failureMessage || '-'}
+                      </td>
+                      <td style={{ padding: '12px', color: C.fgMuted, fontSize: '11px', whiteSpace: 'nowrap' }}>{formatDateTime(log.createdAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
   currentUser, recipes, inquiries, presetIngredients, onClose,
@@ -2088,6 +2249,7 @@ export function AdminPanel({
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} adminSize={adminSize} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
+        {activeTab === 'aiUsage'     && <LlmUsageLogsTab />}
         {activeTab === 'inquiries'   && (
           <InquiriesTab
             inquiries={inquiries}

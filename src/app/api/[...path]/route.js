@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.BACKEND_URL;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 
 async function proxy(request, { params }) {
   const { path } = await params;

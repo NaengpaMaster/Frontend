@@ -46,4 +46,8 @@ export const adminApi = {
   async setProductActive(productId, active) {
     return unwrap(await axiosClient.patch(`/api/v1/admin/products/${productId}/${active ? 'activate' : 'deactivate'}`));
   },
+
+  async getLlmUsageLogs() {
+    return unwrap(await axiosClient.get('/api/v1/admin/ai/usage-logs')) || [];
+  },
 };

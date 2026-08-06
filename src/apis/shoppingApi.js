@@ -20,4 +20,10 @@ export const shoppingApi = {
 
   moveToFridge: (id, data) =>
     axiosClient.post(`/api/v1/shopping-items/${id}/fridge`, data).then(unwrap),
+
+  recommendWithAgent: (data) =>
+    axiosClient.post('/api/v1/agent/shopping-recommendations', data).then(unwrap),
+
+  addAgentRecommendation: (item) =>
+    axiosClient.post('/api/v1/agent/tools/shopping-items', item).then(unwrap),
 };
