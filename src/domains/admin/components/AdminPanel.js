@@ -251,7 +251,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
   };
 
   return (
-    <div>
+    <div className="admin-shadcn-page admin-home-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '22px' }}>
         <div>
           <div style={{ fontSize: '22px', fontWeight: 800, color: C.fg, letterSpacing: '-0.03em' }}>
@@ -260,6 +260,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
           <div style={{ marginTop: '5px', fontSize: '13px', color: C.fgMuted }}>오늘의 서비스 운영 현황을 한눈에 확인하세요.</div>
         </div>
         <button
+          className="admin-shadcn-button admin-shadcn-button-outline"
           onClick={loadSummary}
           disabled={loading}
           aria-label="운영 현황 새로고침"
@@ -280,6 +281,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
           const Icon = card.icon;
           return (
             <div
+              className="admin-shadcn-card admin-shadcn-metric-card"
               key={card.label}
               role={card.tab ? 'button' : undefined}
               tabIndex={card.tab ? 0 : undefined}
@@ -422,7 +424,7 @@ function MemberSearchTab({ currentUser }) {
   };
 
   return (
-    <div>
+    <div className="admin-member-search">
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>회원 관리</div>
         <div style={{ fontSize: '12px', color: C.fgMuted }}>
@@ -439,6 +441,7 @@ function MemberSearchTab({ currentUser }) {
       <div style={{ position: 'relative', marginBottom: '12px' }}>
         <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
         <input
+          className="admin-shadcn-input"
           style={{
             width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px',
             padding: '10px 12px 10px 34px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
@@ -458,7 +461,7 @@ function MemberSearchTab({ currentUser }) {
         ].map((s) => (
           <div
             key={s.label}
-            className="stat-card-hover"
+            className="stat-card-hover admin-shadcn-card admin-shadcn-stat-filter"
             onClick={() => selectView(s.mode)}
             style={{
               background: C.card,
@@ -480,7 +483,7 @@ function MemberSearchTab({ currentUser }) {
           <div
             key={u.id}
             onClick={() => openMemberDetail(u)}
-            className="card-hover"
+            className="card-hover admin-shadcn-card admin-shadcn-list-item"
             style={{
               background: C.card,
               borderRadius: '16px',
@@ -665,7 +668,7 @@ function MemberOverviewTab({ startDate, endDate }) {
           { label: '선택 기간 신규 가입', value: statistics ? `${statistics.newMemberCount}명` : '—명', secondary: `${startDate} ~ ${endDate}`, color: '#3974C6', bg: '#EAF2FF', icon: UserPlus },
           { label: '선택 기간 비활성 처리', value: statistics ? `${statistics.inactiveProcessedMemberCount}명` : '—명', secondary: '기간 내 중복 회원은 1명으로 집계', color: C.danger, bg: C.dangerLight, icon: AlertTriangle },
         ].map((item) => (
-          <div key={item.label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+          <div key={item.label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
             <div style={{ minHeight: '34px', display: 'flex', alignItems: 'center', gap: '9px' }}>
               <span style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '10px', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><item.icon size={17} /></span>
               <span style={{ fontSize: '14px', lineHeight: 1.25, fontWeight: 900, color: C.fg }}>{item.label}</span>
@@ -677,7 +680,7 @@ function MemberOverviewTab({ startDate, endDate }) {
       </div>
       {statisticsError && <div style={{ marginBottom: '12px', color: C.fgSubtle, fontSize: '10px' }}>{statisticsError}</div>}
 
-      <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)', marginBottom: '12px' }}>
+      <div className="admin-shadcn-card admin-shadcn-panel" style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 신규 가입·비활성 처리 회원 추이</div>
           <span style={{ fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{GRANULARITY_LABELS[statistics?.granularity] ?? '일별'} 집계</span>
@@ -742,7 +745,7 @@ function MemberStatusHistoryTab({ startDate, endDate }) {
         <span style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted }}>총 {histories.totalElements}건</span>
       </div>
 
-      <div style={{ overflowX: 'auto', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+      <div className="admin-shadcn-card admin-shadcn-table-wrap" style={{ overflowX: 'auto', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: C.surface, color: C.fgMuted, textAlign: 'left' }}>
@@ -820,7 +823,7 @@ function MemberServiceUsageTab({ startDate, endDate }) {
           const selected = selectedMetric === key;
           const usage = statistics?.[key];
           return (
-            <button key={key} onClick={() => moveToGraph(key)} style={{ padding: '16px', textAlign: 'left', borderRadius: '16px', background: C.card, border: `1px solid ${selected ? color + '70' : 'transparent'}`, boxShadow: selected ? `0 2px 10px ${color}20` : '0 2px 10px rgba(17,32,29,0.08)', cursor: 'pointer' }}>
+            <button key={key} className={`admin-shadcn-card admin-shadcn-metric-card${selected ? ' is-selected' : ''}`} onClick={() => moveToGraph(key)} style={{ padding: '16px', textAlign: 'left', borderRadius: '16px', background: C.card, border: `1px solid ${selected ? color + '70' : 'transparent'}`, boxShadow: selected ? `0 2px 10px ${color}20` : '0 2px 10px rgba(17,32,29,0.08)', cursor: 'pointer' }}>
               <div style={{ minHeight: '36px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
                   <span style={{ width: '36px', height: '36px', flexShrink: 0, borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span>
@@ -836,7 +839,7 @@ function MemberServiceUsageTab({ startDate, endDate }) {
         })}
       </div>
 
-      <div style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+      <div className="admin-shadcn-card admin-shadcn-panel" style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 900, color: C.fg }}><Activity size={16} color={C.primary} /> 서비스별 이용 회원 추이</div><span style={{ fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{GRANULARITY_LABELS[statistics?.granularity] ?? '일별'} 집계</span></div>
         {error && <div style={{ marginTop: '10px', fontSize: '11px', color: C.danger }}>{error}</div>}
         <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
@@ -899,7 +902,7 @@ function MembersTab({ currentUser }) {
   const changeEndDate = (value) => { setEndDate(value); setQuickPeriod(null); };
 
   return (
-    <div>
+    <div className="admin-shadcn-page admin-members-page">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div>
           <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>회원 관리</div>
@@ -923,7 +926,7 @@ function MembersTab({ currentUser }) {
         )}
       </div>
       {showDateFilter && dateRangeInvalid && <div style={{ marginTop: '-8px', marginBottom: '12px', textAlign: 'right', color: C.danger, fontSize: '10px', fontWeight: 700 }}>시작일은 종료일보다 늦을 수 없습니다.</div>}
-      <div style={{ display: 'inline-flex', padding: '4px', marginBottom: '18px', background: C.surface, borderRadius: '12px' }}>
+      <div className="admin-shadcn-tabs" style={{ display: 'inline-flex', padding: '4px', marginBottom: '18px', background: C.surface, borderRadius: '12px' }}>
         {[
           { key: 'overview', label: '회원 현황', icon: BarChart3 },
           { key: 'search', label: '회원 검색·관리', icon: Search },
@@ -931,7 +934,7 @@ function MembersTab({ currentUser }) {
         ].map(({ key, label, icon: Icon }) => {
           const active = section === key;
           return (
-            <button key={key} onClick={() => setSection(key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 13px', border: 'none', borderRadius: '9px', background: active ? C.card : 'transparent', color: active ? C.primary : C.fgMuted, boxShadow: active ? '0 2px 8px rgba(17,32,29,0.08)' : 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><Icon size={14} />{label}</button>
+            <button key={key} className={`admin-shadcn-tab${active ? ' is-active' : ''}`} onClick={() => setSection(key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 13px', border: 'none', borderRadius: '9px', background: active ? C.card : 'transparent', color: active ? C.primary : C.fgMuted, boxShadow: active ? '0 2px 8px rgba(17,32,29,0.08)' : 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><Icon size={14} />{label}</button>
           );
         })}
       </div>
@@ -1488,7 +1491,7 @@ function StatsTab() {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-  const [section, setSection] = useState('overview');
+  const [section, setSection] = useState('usage');
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() - 29);
@@ -1602,7 +1605,7 @@ function StatsTab() {
     .sort((a, b) => b.recipeCount - a.recipeCount);
 
   return (
-    <div>
+    <div className="admin-shadcn-page admin-stats-page">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div>
           <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>서비스 통계</div>
@@ -1625,16 +1628,15 @@ function StatsTab() {
       </div>
       {dateRangeInvalid && <div style={{ marginTop: '-8px', marginBottom: '12px', textAlign: 'right', color: C.danger, fontSize: '10px', fontWeight: 700 }}>시작일은 종료일보다 늦을 수 없습니다.</div>}
 
-      <div style={{ display: 'inline-flex', padding: '4px', marginBottom: '18px', background: C.surface, borderRadius: '12px' }}>
+      <div className="admin-shadcn-tabs" style={{ display: 'inline-flex', padding: '4px', marginBottom: '18px', background: C.surface, borderRadius: '12px' }}>
         {[
-          { key: 'overview', label: '통계 요약', icon: BarChart3 },
           { key: 'usage', label: '회원·이용 분석', icon: Activity },
           { key: 'materials', label: '재료·냉파 분석', icon: Refrigerator },
           { key: 'recipes', label: '레시피 분석', icon: BookOpen },
         ].map(({ key, label, icon: Icon }) => {
           const active = section === key;
           return (
-            <button key={key} onClick={() => setSection(key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 13px', border: 'none', borderRadius: '9px', background: active ? C.card : 'transparent', color: active ? C.primary : C.fgMuted, boxShadow: active ? '0 2px 8px rgba(17,32,29,0.08)' : 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><Icon size={14} />{label}</button>
+            <button key={key} className={`admin-shadcn-tab${active ? ' is-active' : ''}`} onClick={() => setSection(key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 13px', border: 'none', borderRadius: '9px', background: active ? C.card : 'transparent', color: active ? C.primary : C.fgMuted, boxShadow: active ? '0 2px 8px rgba(17,32,29,0.08)' : 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><Icon size={14} />{label}</button>
           );
         })}
       </div>
@@ -1647,32 +1649,27 @@ function StatsTab() {
 
       {section === 'usage' && <MemberServiceUsageTab startDate={startDate} endDate={endDate} />}
 
-      {section === 'overview' && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
-            {[
-              { label: '평균 냉파 점수', value: loading ? '…' : `${summary?.averageScore ?? 0}점`, detail: `선택 기간 점수 갱신 회원 ${summary?.scoreMemberCount ?? 0}명 기준`, icon: Star, color: C.primary, bg: C.primaryLight, connected: true },
-              { label: '기간 내 등록 재료', value: loading ? '…' : `${summary?.registeredIngredientCount ?? 0}건`, detail: `${startDate} ~ ${endDate}`, icon: Package, color: '#3974C6', bg: '#EAF2FF', connected: true },
-              { label: '기간 내 만료 재료', value: loading ? '…' : `${summary?.expiredIngredientCount ?? 0}건`, detail: expiredIngredientChangeRate == null ? '이전 기간 데이터 없음' : `이전 동일 기간 대비 ${expiredIngredientChangeRate > 0 ? '↑ ' : expiredIngredientChangeRate < 0 ? '↓ ' : ''}${Math.abs(expiredIngredientChangeRate).toFixed(1)}%`, icon: CalendarDays, color: C.danger, bg: C.dangerLight, connected: true },
-              { label: '신규 등록 레시피', value: loading ? '…' : `${summary?.createdRecipeCount ?? 0}개`, detail: '회원·관리자 등록 포함', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF', connected: true },
-            ].map(({ label, value, detail, icon: Icon, color, bg, connected }) => (
-              <div key={label} style={{ minHeight: '140px', padding: '17px 18px', border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: '12px', background: C.card, boxShadow: '0 1px 4px rgba(17,32,29,0.06)' }}>
-                <div style={{ minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '32px', height: '32px', borderRadius: '8px', background: bg, color, border: `1px solid ${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} /></span><span style={{ fontSize: '13px', fontWeight: 800, color: C.fgMuted }}>{label}</span></div>
-                  <span style={{ padding: '4px 7px', borderRadius: '999px', background: C.surface, fontSize: '9px', fontWeight: 800, color: connected ? C.primary : C.fgSubtle }}>{connected ? '선택 기간' : 'API 연결 예정'}</span>
-                </div>
-                <div style={{ marginTop: '16px', fontSize: '26px', lineHeight: 1, fontWeight: 900, letterSpacing: '-0.03em', color: C.fg }}>{value}</div>
-                <div style={{ marginTop: '9px', fontSize: '10px', color: C.fgSubtle }}>{detail}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {section === 'materials' && (
         <>
 
-      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+        {[
+          { label: '평균 냉파 점수', value: loading ? '…' : `${summary?.averageScore ?? 0}점`, detail: `선택 기간 점수 갱신 회원 ${summary?.scoreMemberCount ?? 0}명 기준`, icon: Star, color: C.primary, bg: C.primaryLight },
+          { label: '기간 내 등록 재료', value: loading ? '…' : `${summary?.registeredIngredientCount ?? 0}건`, detail: `${startDate} ~ ${endDate}`, icon: Package, color: '#3974C6', bg: '#EAF2FF' },
+          { label: '기간 내 만료 재료', value: loading ? '…' : `${summary?.expiredIngredientCount ?? 0}건`, detail: expiredIngredientChangeRate == null ? '이전 기간 데이터 없음' : `이전 동일 기간 대비 ${expiredIngredientChangeRate > 0 ? '↑ ' : expiredIngredientChangeRate < 0 ? '↓ ' : ''}${Math.abs(expiredIngredientChangeRate).toFixed(1)}%`, icon: CalendarDays, color: C.danger, bg: C.dangerLight },
+        ].map(({ label, value, detail, icon: Icon, color, bg }) => (
+          <div key={label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ minHeight: '140px', padding: '17px 18px', border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: '12px', background: C.card, boxShadow: '0 1px 4px rgba(17,32,29,0.06)' }}>
+            <div style={{ minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '32px', height: '32px', borderRadius: '8px', background: bg, color, border: `1px solid ${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} /></span><span style={{ fontSize: '13px', fontWeight: 800, color: C.fgMuted }}>{label}</span></div>
+              <span style={{ padding: '4px 7px', borderRadius: '999px', background: C.surface, fontSize: '9px', fontWeight: 800, color: C.primary }}>선택 기간</span>
+            </div>
+            <div style={{ marginTop: '16px', fontSize: '26px', lineHeight: 1, fontWeight: 900, letterSpacing: '-0.03em', color: C.fg }}>{value}</div>
+            <div style={{ marginTop: '9px', fontSize: '10px', color: C.fgSubtle }}>{detail}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="admin-shadcn-card admin-shadcn-panel" style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}><div style={{ fontSize: '14px', fontWeight: 700, color: C.fg }}>재료 등록·만료 추이</div><span style={{ fontSize: '10px', fontWeight: 800, color: C.fgMuted }}>{GRANULARITY_LABELS[materialStatistics?.granularity] ?? '일별'} 집계</span></div>
         <div style={{ height: '240px' }}>
           {dailyMaterialStatistics.length > 0 ? (
@@ -1695,7 +1692,7 @@ function StatsTab() {
         </div>
       </div>
 
-      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+      <div className="admin-shadcn-card admin-shadcn-panel" style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '12px' }}>카테고리별 만료량</div>
         {byCategory.map((item) => (
           <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '11px 12px', borderTop: `1px solid ${C.border}` }}>
@@ -1709,7 +1706,7 @@ function StatsTab() {
       </div>
 
       {/* Top wasted */}
-      <div style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+      <div className="admin-shadcn-card admin-shadcn-panel" style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
         <div style={{ fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '10px' }}>가장 많이 만료된 재료 TOP 5</div>
         {topIngredients.map((item) => (
           <div key={item.rank} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto auto', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
@@ -1733,12 +1730,13 @@ function StatsTab() {
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', marginBottom: '12px' }}>
             {[
+              { label: '선택 기간 신규 레시피', value: summary?.createdRecipeCount, detail: `${startDate} ~ ${endDate} · 회원·관리자 등록 포함`, icon: Plus, color: '#7A5AC8', bg: '#F0EBFF' },
               { label: '전체 레시피', value: recipeStatistics?.totalRecipeCount, detail: '삭제되지 않은 전체 레시피', icon: BookOpen, color: '#7A5AC8', bg: '#F0EBFF' },
               { label: '기본 제공 레시피', value: recipeStatistics?.baseRecipeCount, detail: '작성자 정보가 없는 초기 레시피', icon: Database, color: C.fgMuted, bg: C.surface },
               { label: '회원 등록 레시피', value: recipeStatistics?.memberRecipeCount, detail: '일반 회원이 등록한 레시피', icon: Users, color: C.primary, bg: C.primaryLight },
               { label: '관리자 등록 레시피', value: recipeStatistics?.adminRecipeCount, detail: '관리자 계정이 등록한 레시피', icon: ChefHat, color: '#3974C6', bg: '#EAF2FF' },
             ].map(({ label, value, detail, icon: Icon, color, bg }) => (
-              <div key={label} style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+              <div key={label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ padding: '16px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
                 <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '36px', height: '36px', borderRadius: '11px', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} /></span><span style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{label}</span></div><span style={{ fontSize: '9px', fontWeight: 800, color: C.primary }}>현재</span></div>
                 <div style={{ marginTop: '14px', fontSize: '23px', fontWeight: 900, color }}>{loading ? '…' : `${value ?? 0}개`}</div>
                 <div style={{ marginTop: '5px', fontSize: '10px', color: C.fgMuted }}>{detail}</div>
@@ -1746,7 +1744,7 @@ function StatsTab() {
             ))}
           </div>
 
-          <div style={{ padding: '16px', marginBottom: '12px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+          <div className="admin-shadcn-card admin-shadcn-panel" style={{ padding: '16px', marginBottom: '12px', borderRadius: '16px', background: C.card, boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>카테고리별 레시피</div><span style={{ fontSize: '9px', fontWeight: 800, color: C.fgSubtle }}>선택 기간</span></div>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
               {recipeCategoryFilters.map((filter) => {

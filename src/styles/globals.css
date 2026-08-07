@@ -45,6 +45,124 @@
   gap: 12px;
 }
 
+/* 관리자 홈·회원·통계: 기존 구조를 유지한 shadcn/ui 계열 표면 스타일 */
+.admin-shadcn-page {
+  --admin-shadcn-border: #e4e4e7;
+  --admin-shadcn-muted: #71717a;
+  --admin-shadcn-muted-bg: #f4f4f5;
+  --admin-shadcn-ring: rgba(14, 132, 120, 0.22);
+  color: #18181b;
+}
+
+.admin-shadcn-card {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-shadcn-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.admin-shadcn-metric-card {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.admin-shadcn-metric-card:hover,
+.admin-shadcn-list-item:hover,
+.admin-shadcn-stat-filter:hover {
+  border-color: #d4d4d8 !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-1px);
+}
+
+.admin-shadcn-panel {
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.admin-shadcn-tabs {
+  gap: 2px;
+  padding: 3px !important;
+  background: var(--admin-shadcn-muted-bg) !important;
+  border: 1px solid #ededf0;
+  border-radius: 10px !important;
+}
+
+.admin-shadcn-tab {
+  min-height: 34px;
+  border-radius: 7px !important;
+  color: var(--admin-shadcn-muted) !important;
+  box-shadow: none !important;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.admin-shadcn-tab:hover {
+  color: #18181b !important;
+}
+
+.admin-shadcn-tab.is-active {
+  color: #18181b !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+.admin-shadcn-button {
+  min-height: 36px;
+  border-radius: 8px !important;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.admin-shadcn-button-outline {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-shadcn-border) !important;
+  color: #3f3f46 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.admin-shadcn-button-outline:hover:not(:disabled) {
+  background: #fafafa !important;
+  border-color: #d4d4d8 !important;
+}
+
+.admin-shadcn-input {
+  min-height: 40px;
+  background: #ffffff !important;
+  border: 1px solid var(--admin-shadcn-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.admin-shadcn-input:focus {
+  border-color: #0e8478 !important;
+  box-shadow: 0 0 0 3px var(--admin-shadcn-ring) !important;
+}
+
+.admin-shadcn-table-wrap {
+  border-radius: 10px !important;
+}
+
+.admin-shadcn-table-wrap thead tr {
+  background: #fafafa !important;
+}
+
+.admin-shadcn-table-wrap tbody tr {
+  transition: background 120ms ease;
+}
+
+.admin-shadcn-table-wrap tbody tr:hover {
+  background: #fafafa;
+}
+
+.admin-shadcn-page button:focus-visible,
+.admin-shadcn-page input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--admin-shadcn-ring) !important;
+}
+
+.admin-shadcn-page .recharts-default-tooltip {
+  border: 1px solid var(--admin-shadcn-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
 @media (max-width: 1100px) {
   .admin-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
