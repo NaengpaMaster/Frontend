@@ -16,12 +16,29 @@ const SCORE_REASON_META = {
     RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'}
 };
 
-const SCORE_ANALYSIS_REASON_ITEMS = [
-    {label: '재료 만료 방치', isPlus: false, color: '#F6C4B8'},
-    {label: '만료 방어 성공', isPlus: true, color: '#0E8478'},
-    {label: '냉파 레시피 등록', isPlus: true, color: '#F0CB84'},
-    {label: '오늘의 퀴즈 정답', isPlus: true, color: '#8DBEE8'},
-];
+const SCORE_ANALYSIS_REASON_LABELS = {
+    EXPIRED_PRODUCT: '재료 만료 방치',
+    NO_EXPIRED_4DAYS: '만료 방어 성공',
+    RECIPE_CREATED: '냉파 레시피 등록',
+    QUIZ_CORRECT: '오늘의 퀴즈 정답',
+};
+
+const SCORE_ANALYSIS_REASON_ORDER = Object.keys(SCORE_ANALYSIS_REASON_LABELS);
+
+function formatSignedScore(n) {
+    if (n > 0) return `+${n}점`;
+    if (n < 0) return `${n}점`;
+    return '0점';
+}
+
+function SkeletonBlock({width = '100%', height = '12px', style = {}}) {
+    return (
+        <div
+            className="score-analysis-skeleton"
+            style={{width, height, borderRadius: '6px', ...style}}
+        />
+    );
+}
 
 function highlightKeywords(text, keywordColors = {
     '레시피': {bg: '#FDECEA', color: '#E4572E'},
@@ -99,6 +116,19 @@ function getGradeEmoji(score) {
     return getGradeEntry(score).emoji;
 }
 
+function formatDateDot(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}.${m}.${d}`;
+}
+
+function getThisMonthRangeLabel() {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    return `${formatDateDot(monthStart)} ~ ${formatDateDot(today)}`;
+}
+
 function getGradeProgress(score) {
     const currentIndex = GRADE_TABLE.reduce((acc, g, i) => (score >= g.minScore ? i : acc), 0);
     const current = GRADE_TABLE[currentIndex];
@@ -110,11 +140,77 @@ function getGradeProgress(score) {
     return {next, rangeMin, rangeMax, percentage, pointsToNext};
 }
 
+function EmptyNotice({children}) {
+    return (
+        <div style={{
+            color: C.fgMuted,
+            fontSize: '13px',
+            textAlign: 'center',
+            padding: '20px 0',
+        }}>
+            {children}
+        </div>
+    );
+}
+
 function ScoreAnalysisTab({cardStyle}) {
-    const placeholderNotice = 'API 연결 후 표시됩니다';
+    const [highlight, setHighlight] = useState({status: 'loading', data: null});
+    const [byReason, setByReason] = useState({status: 'loading', data: []});
+    const [summary, setSummary] = useState({status: 'loading', data: null});
+
+    useEffect(() => {
+        let alive = true;
+
+        scoreApi.getAnalysisHighlight()
+            .then((data) => {
+                if (!alive) return;
+                setHighlight({status: data ? 'ready' : 'empty', data: data ?? null});
+            })
+            .catch(() => {
+                if (alive) setHighlight({status: 'error', data: null});
+            });
+
+        scoreApi.getAnalysisByReason()
+            .then((data) => {
+                if (!alive) return;
+                const list = data ?? [];
+                setByReason({status: list.length === 0 ? 'empty' : 'ready', data: list});
+            })
+            .catch(() => {
+                if (alive) setByReason({status: 'error', data: []});
+            });
+
+        scoreApi.getAnalysisSummary()
+            .then((data) => {
+                if (!alive) return;
+                const isEmpty = !data || (!data.totalGained && !data.totalLost && !data.netChange);
+                setSummary({status: isEmpty ? 'empty' : 'ready', data: data ?? null});
+            })
+            .catch(() => {
+                if (alive) setSummary({status: 'error', data: null});
+            });
+
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    const sortedByReason = [...byReason.data].sort(
+        (a, b) => SCORE_ANALYSIS_REASON_ORDER.indexOf(a.scoreReason) - SCORE_ANALYSIS_REASON_ORDER.indexOf(b.scoreReason)
+    );
+    const maxAbsDelta = Math.max(1, ...sortedByReason.map((item) => Math.abs(item.totalDelta)));
 
     return (
         <>
+            <div style={{marginBottom: '18px'}}>
+                <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '4px'}}>
+                    이번 달 점수 분석
+                </div>
+                <div style={{fontSize: '12px', fontWeight: 500, color: C.fgSubtle}}>
+                    {getThisMonthRangeLabel()}
+                </div>
+            </div>
+
             <div style={{
                 background: C.primaryLight,
                 border: `1px solid ${C.primaryMid}`,
@@ -126,13 +222,22 @@ function ScoreAnalysisTab({cardStyle}) {
                 marginBottom: '14px',
             }}>
                 <span style={{fontSize: '18px', flexShrink: 0}}>🏆</span>
-                <div style={{minWidth: 0}}>
+                <div style={{minWidth: 0, flex: 1}}>
                     <div style={{fontSize: '11px', fontWeight: 700, color: C.primary, marginBottom: '2px'}}>
                         이번 달 최대 영향 사유
                     </div>
-                    <div style={{fontSize: '13px', fontWeight: 700, color: C.fg}}>
-                        {placeholderNotice}
-                    </div>
+                    {highlight.status === 'loading' ? (
+                        <SkeletonBlock width="150px" height="15px"/>
+                    ) : highlight.status === 'ready' ? (
+                        <div style={{fontSize: '13px', fontWeight: 700, color: C.fg}}>
+                            {SCORE_ANALYSIS_REASON_LABELS[highlight.data.scoreReason] ?? highlight.data.scoreReason}
+                            {' · '}{highlight.data.count}건{' · '}{formatSignedScore(highlight.data.totalDelta)}
+                        </div>
+                    ) : (
+                        <div style={{fontSize: '13px', fontWeight: 600, color: C.fgMuted}}>
+                            {highlight.status === 'error' ? '하이라이트를 불러오지 못했어요' : '아직 하이라이트가 없어요'}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -140,123 +245,135 @@ function ScoreAnalysisTab({cardStyle}) {
                 <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px'}}>
                     사유별 점수 획득 현황
                 </div>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '20px',
-                    flexWrap: 'wrap',
-                }}>
-                    <div style={{position: 'relative', width: '120px', height: '120px', flexShrink: 0}}>
-                        <svg viewBox="0 0 36 36" style={{width: '100%', height: '100%', transform: 'rotate(-90deg)'}}>
-                            <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.surface} strokeWidth="4"/>
-                            {SCORE_ANALYSIS_REASON_ITEMS.map(({label, color}, idx) => {
-                                const segment = 100 / SCORE_ANALYSIS_REASON_ITEMS.length;
-                                const gap = 1.5;
-                                const dash = Math.max(segment - gap, 0);
-                                return (
-                                    <circle
-                                        key={label}
-                                        cx="18"
-                                        cy="18"
-                                        r="15.9155"
-                                        fill="none"
-                                        stroke={color}
-                                        strokeWidth="4"
-                                        strokeLinecap="round"
-                                        strokeDasharray={`${dash} ${100 - dash}`}
-                                        strokeDashoffset={-(idx * segment)}
-                                        opacity={0.5}
-                                    />
-                                );
-                            })}
-                        </svg>
-                        <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            textAlign: 'center',
-                            padding: '0 12px',
-                        }}>
-                            <div style={{fontSize: '10px', fontWeight: 700, color: C.fgSubtle, lineHeight: 1.35}}>
-                                API 연결 후<br/>표시됩니다
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{flex: 1, minWidth: '140px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                        {SCORE_ANALYSIS_REASON_ITEMS.map(({label, color}) => (
-                            <div key={label} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '8px',
-                            }}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0}}>
-                                    <span style={{
-                                        width: '8px',
-                                        height: '8px',
-                                        borderRadius: '50%',
-                                        background: color,
-                                        flexShrink: 0,
-                                    }}/>
-                                    <span style={{fontSize: '12px', fontWeight: 700, color: C.fg}}>{label}</span>
-                                </div>
-                                <span style={{fontSize: '12px', fontWeight: 700, color: C.fgSubtle}}>-점</span>
+                {byReason.status === 'loading' ? (
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '14px'}}>
+                        {[0, 1, 2, 3].map((i) => (
+                            <div key={i}>
+                                <SkeletonBlock width="96px" height="11px" style={{marginBottom: '8px'}}/>
+                                <SkeletonBlock width="100%" height="10px" style={{borderRadius: '999px'}}/>
                             </div>
                         ))}
                     </div>
-                </div>
-                <div style={{
-                    fontSize: '12px',
-                    color: C.fgMuted,
-                    textAlign: 'center',
-                    marginTop: '16px',
-                    paddingTop: '14px',
-                    borderTop: `1px dashed ${C.border}`,
-                }}>
-                    {placeholderNotice}
-                </div>
+                ) : byReason.status === 'ready' ? (
+                    <div>
+                        {sortedByReason.map((item, idx) => {
+                            const width = (Math.abs(item.totalDelta) / maxAbsDelta) * 50;
+                            const isPositive = item.totalDelta >= 0;
+                            return (
+                                <div key={item.scoreReason}
+                                     style={{marginBottom: idx < sortedByReason.length - 1 ? '14px' : 0}}>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'baseline',
+                                        marginBottom: '6px',
+                                    }}>
+                                        <span style={{fontSize: '12px', fontWeight: 700, color: C.fg}}>
+                                            {SCORE_ANALYSIS_REASON_LABELS[item.scoreReason] ?? item.scoreReason}
+                                        </span>
+                                        <span style={{fontSize: '11px', fontWeight: 600, color: C.fgMuted}}>
+                                            {item.count}건 · {formatSignedScore(item.totalDelta)}
+                                        </span>
+                                    </div>
+                                    <div style={{
+                                        position: 'relative',
+                                        height: '10px',
+                                        background: C.surface,
+                                        borderRadius: '999px',
+                                    }}>
+                                        <div style={{
+                                            position: 'absolute',
+                                            left: '50%',
+                                            top: 0,
+                                            bottom: 0,
+                                            width: '1px',
+                                            background: C.border,
+                                        }}/>
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            bottom: 0,
+                                            borderRadius: isPositive ? '0 999px 999px 0' : '999px 0 0 999px',
+                                            background: isPositive ? C.primary : C.accent,
+                                            ...(isPositive
+                                                ? {left: '50%', width: `${width}%`}
+                                                : {right: '50%', width: `${width}%`}),
+                                        }}/>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <EmptyNotice>
+                        {byReason.status === 'error' ? '데이터를 불러오지 못했어요' : '아직 점수 변동 기록이 없어요'}
+                    </EmptyNotice>
+                )}
             </div>
 
             <div style={{...cardStyle, marginBottom: '14px'}}>
                 <div style={{fontSize: '14px', fontWeight: 700, color: C.fg, marginBottom: '14px'}}>
                     이번 달 점수 변동 요약
                 </div>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                    gap: '8px',
-                }}>
-                    {[
-                        {label: '총 획득', color: C.primary, bg: '#F3FBFA'},
-                        {label: '총 감점', color: C.accent, bg: '#FDF4F3'},
-                        {label: '순변동', color: C.fg, bg: C.surface},
-                    ].map(({label, color, bg}) => (
-                        <div key={label} style={{
-                            background: bg,
-                            border: `1px solid ${C.border}`,
-                            borderRadius: '14px',
-                            padding: '14px 6px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '6px',
-                            textAlign: 'center',
-                        }}>
-                            <div style={{fontSize: '11px', fontWeight: 700, color: C.fgMuted}}>{label}</div>
-                            <div style={{fontSize: '18px', fontWeight: 900, color}}>-</div>
-                        </div>
-                    ))}
-                </div>
-                <div style={{
-                    fontSize: '12px',
-                    color: C.fgMuted,
-                    textAlign: 'center',
-                    marginTop: '14px',
-                }}>
-                    {placeholderNotice}
-                </div>
+                {summary.status === 'loading' ? (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                        gap: '8px',
+                    }}>
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} style={{
+                                background: C.surface,
+                                border: `1px solid ${C.border}`,
+                                borderRadius: '14px',
+                                padding: '14px 6px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '8px',
+                            }}>
+                                <SkeletonBlock width="34px" height="9px"/>
+                                <SkeletonBlock width="42px" height="16px"/>
+                            </div>
+                        ))}
+                    </div>
+                ) : summary.status === 'ready' ? (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                        gap: '8px',
+                    }}>
+                        {[
+                            {label: '총 획득', value: `+${summary.data.totalGained}점`, color: C.primary, bg: '#F3FBFA'},
+                            {
+                                label: '총 감점',
+                                value: `${summary.data.totalLost > 0 ? '-' : ''}${summary.data.totalLost}점`,
+                                color: C.accent,
+                                bg: '#FDF4F3'
+                            },
+                            {label: '순변동', value: formatSignedScore(summary.data.netChange), color: C.fg, bg: C.surface},
+                        ].map(({label, value, color, bg}) => (
+                            <div key={label} style={{
+                                background: bg,
+                                border: `1px solid ${C.border}`,
+                                borderRadius: '14px',
+                                padding: '14px 6px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '6px',
+                                textAlign: 'center',
+                            }}>
+                                <div style={{fontSize: '11px', fontWeight: 700, color: C.fgMuted}}>{label}</div>
+                                <div style={{fontSize: '18px', fontWeight: 900, color}}>{value}</div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <EmptyNotice>
+                        {summary.status === 'error' ? '데이터를 불러오지 못했어요' : '아직 점수 변동 기록이 없어요'}
+                    </EmptyNotice>
+                )}
             </div>
         </>
     );

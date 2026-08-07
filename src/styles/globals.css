@@ -135,6 +135,12 @@
   animation-delay: 140ms;
 }
 
+.score-analysis-skeleton {
+  background: linear-gradient(90deg, #EBEEEF 25%, #DEE4E2 37%, #EBEEEF 63%);
+  background-size: 400% 100%;
+  animation: score-analysis-skeleton-pulse 1.4s ease infinite;
+}
+
 .home-loading-dots span:nth-child(3) {
   animation-delay: 280ms;
 }
@@ -264,6 +270,15 @@
   }
 }
 
+@keyframes score-analysis-skeleton-pulse {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-loading-spinner,
   .home-loading-dots span,
@@ -271,7 +286,8 @@
   .expiry-popup-panel,
   .expiry-popup-bell,
   .expiry-popup-bell::after,
-  .expiry-popup-section {
+  .expiry-popup-section,
+  .score-analysis-skeleton {
     animation: none;
   }
 
