@@ -13,6 +13,7 @@ import { FamilyFridgeModal } from '@/domains/fridge/components/FamilyFridgeModal
 import { RecipeView } from '@/domains/recipes/components/RecipeView';
 import { ShoppingList } from '@/domains/shopping/components/ShoppingList';
 import { InquiryPage } from '@/domains/inquiry/components/InquiryPage';
+import { QuizPage } from '@/domains/quiz/components/QuizPage';
 import { AuthScreen } from '@/domains/auth/components/AuthScreen';
 import { MyPage } from '@/domains/mypage/components/MyPage';
 import { SubscriptionPage } from '@/domains/subscription/components/SubscriptionPage';
@@ -577,6 +578,7 @@ export default function App() {
                 onAddRecommendation={addAgentRecommendationItem}
               />
             )}
+            {activeTab === 'quiz' && <QuizPage />}
             {activeTab === 'inquiry' && (
               <InquiryPage
                 inquiries={inquiries}

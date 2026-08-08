@@ -11,7 +11,7 @@ import {statsApi} from '@/apis/statsApi';
 import {scoreApi} from '@/apis/scoreApi';
 
 const SCORE_REASON_META = {
-    EXPIRED_PRODUCT: {icon: null, meta: '냉장고 만료 1일 방치 페널티'},
+    EXPIRED_PRODUCT: {icon: null, meta: '냉장고 만료 재료 1일 방치 페널티'},
     NO_EXPIRED_4DAYS: {icon: '✅', meta: '4일 연속 냉장고 방어 보너스'},
     RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'}
 };
@@ -723,13 +723,13 @@ function ScoreDetailModal({
                                         {isPlus ? '+' : '−'}
                                     </div>
                                     <div style={{
-                                        fontSize: '11px',
+                                        fontSize: '12px',
                                         fontWeight: 700,
                                         color: C.fg,
                                         lineHeight: 1.25,
                                     }}>{label}</div>
                                     <div style={{
-                                        fontSize: '9px',
+                                        fontSize: '10px',
                                         color: C.fgMuted,
                                         lineHeight: 1.35,
                                         wordBreak: 'keep-all',
@@ -744,9 +744,9 @@ function ScoreDetailModal({
                                 </div>
                             ))}
                         </div>
-                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '14px'}}>ⓘ 만료/유지점수는 매일 00:00에 반영 되며, 레시피 등록 점수는 즉시 반영 됩니다.
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '14px'}}>ⓘ 만료/유지 점수는 매일 00:00에 반영됩니다.
                         </div>
-                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 퀴즈 정답 점수는 제출 즉시 반영됩니다.
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 레시피 등록 점수와 퀴즈 정답 점수는 즉시 반영됩니다.
                         </div>
                         <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 회원 가입 시 초기 점수 10점이 지급 됩니다.
                         </div>
