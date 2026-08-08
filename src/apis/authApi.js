@@ -34,6 +34,11 @@ function unwrap(response) {
   return response.data?.data;
 }
 
+function normalizeRole(role) {
+  const normalized = String(role || '').trim().toUpperCase();
+  return normalized === 'ADMIN' || normalized === 'ROLE_ADMIN' ? 'admin' : 'user';
+}
+
 export function toFrontendUser(member) {
   if (!member) {
     return null;
@@ -46,7 +51,7 @@ export function toFrontendUser(member) {
     nickname: member.nickname,
     email: member.email,
     password: '',
-    role: member.role === 'ADMIN' ? 'admin' : 'user',
+    role: normalizeRole(member.role),
     householdType: HOUSEHOLD_LABELS[member.householdType] || '기타',
     preferences: {
       favoriteFoods: member.favoriteFoods || [],

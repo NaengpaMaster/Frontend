@@ -60,6 +60,12 @@ export const fridgeApi = {
   requestItem: (fridgeItemId, data) =>
     axiosClient.post(`/api/v1/fridge-items/${fridgeItemId}/request`, data).then(unwrap),
 
+  acceptShareRequest: (shareRequestId, data) =>
+    axiosClient.patch(`/api/v1/fridge-item-share-requests/${shareRequestId}/accept`, data).then(unwrap),
+
+  rejectShareRequest: (shareRequestId) =>
+    axiosClient.patch(`/api/v1/fridge-item-share-requests/${shareRequestId}/reject`).then(unwrap),
+
   searchProducts: (keyword) =>
     axiosClient.get('/api/v1/products/search', { params: { keyword } }).then(unwrap),
 

@@ -389,6 +389,27 @@ export default function App() {
     await requestIngredient(id, data);
   };
 
+  const handleAcceptShareRequest = async (notification, data) => {
+    await fridgeApi.acceptShareRequest(notification.targetId, {
+      transferAll: data.transferAll,
+      remainingQuantity: data.transferAll ? null : data.remainingQuantity,
+      memo: '식재료 요청 수락',
+    });
+    await notificationApi.markAsRead(notification.notificationId);
+    const unreadNotifications = await notificationApi.getUnread();
+    setNotifications(unreadNotifications || []);
+    await fetchIngredients(selectedFridgeId);
+    await refreshHomeRecommendations();
+  };
+
+  const handleRejectShareRequest = async (notification) => {
+    if (!window.confirm('이 식재료 요청을 거절할까요?')) return;
+    await fridgeApi.rejectShareRequest(notification.targetId);
+    await notificationApi.markAsRead(notification.notificationId);
+    const unreadNotifications = await notificationApi.getUnread();
+    setNotifications(unreadNotifications || []);
+  };
+
   // ─── Inquiry handlers ───────────────────────────────────────────────────────
   const handleAddInquiry = async (subject, content) => {
     if (!currentUser) return;
@@ -610,6 +631,8 @@ export default function App() {
                 await confirmNotifications();
                 setActiveTab('fridge');
               }}
+              onAcceptShareRequest={handleAcceptShareRequest}
+              onRejectShareRequest={handleRejectShareRequest}
             />
           )}
         </div>

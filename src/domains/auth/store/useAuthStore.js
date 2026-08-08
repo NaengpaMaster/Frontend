@@ -5,7 +5,10 @@ const useAuthStore = create((set) => ({
   authLoading: true,
   showMyPage: false,
   showAdmin: false,
-  setCurrentUser: (user) => set({ currentUser: user }),
+  setCurrentUser: (user) => set({
+    currentUser: user,
+    showAdmin: user?.role === 'admin',
+  }),
   setAuthLoading: (authLoading) => set({ authLoading }),
   setShowMyPage: (val) => set({ showMyPage: val }),
   setShowAdmin: (val) => set((state) => ({
