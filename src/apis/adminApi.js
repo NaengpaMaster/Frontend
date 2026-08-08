@@ -68,6 +68,24 @@ export const adminApi = {
     return unwrap(await axiosClient.patch(`/api/v1/admin/products/${productId}/${active ? 'activate' : 'deactivate'}`));
   },
 
+
+  async getFridges() {
+    return unwrap(await axiosClient.get('/api/v1/admin/fridges')) || [];
+  },
+
+  async getFridge(fridgeId) {
+    return unwrap(await axiosClient.get(`/api/v1/admin/fridges/${fridgeId}`));
+  },
+
+
+  async cancelFridgeInvite(fridgeId, inviteId) {
+    await axiosClient.delete(`/api/v1/admin/fridges/${fridgeId}/invites/${inviteId}`);
+  },
+
+  async removeFridgeMember(fridgeId, memberId) {
+    await axiosClient.delete(`/api/v1/admin/fridges/${fridgeId}/members/${memberId}`);
+  },
+
   async getLlmUsageLogs() {
     return unwrap(await axiosClient.get('/api/v1/admin/ai/usage-logs')) || [];
   },

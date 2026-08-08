@@ -82,6 +82,7 @@ const TAB_ICONS = {
   stats:       { icon: BarChart3,     label: '통계' },
   aiUsage:     { icon: Activity,      label: 'AI사용량' },
   inquiries:   { icon: MessageSquare, label: '문의' },
+  fridges:     { icon: Refrigerator, label: '가족공유' },
 };
 
 const CATEGORY_IDS = {
@@ -2220,6 +2221,186 @@ function LlmUsageLogsTab() {
   );
 }
 
+
+function FamilyFridgesTab() {
+  const [fridges, setFridges] = useState([]);
+  const [selectedFridge, setSelectedFridge] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    return String(value).replace('T', ' ').slice(0, 16);
+  };
+
+  const isSubscribedFridge = (fridge) => ['ACTIVE', 'TRIALING'].includes(fridge?.subscriptionStatus);
+  const getSubscriptionLabel = (fridge) => isSubscribedFridge(fridge) ? '구독' : '무료';
+
+  const loadFridges = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await adminApi.getFridges();
+      setFridges(result || []);
+      setSelectedFridge((current) => {
+        if (!current) return result?.[0] ?? null;
+        return result?.find((fridge) => fridge.fridgeId === current.fridgeId) ?? result?.[0] ?? null;
+      });
+    } catch (err) {
+      setError(err.message || '가족공유 냉장고 목록을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFridges();
+  }, []);
+
+  const handleSelectFridge = async (fridgeId) => {
+    const cached = fridges.find((fridge) => fridge.fridgeId === fridgeId);
+    setSelectedFridge(cached || null);
+    try {
+      const detail = await adminApi.getFridge(fridgeId);
+      setSelectedFridge(detail);
+      setFridges((items) => items.map((item) => item.fridgeId === fridgeId ? detail : item));
+    } catch (err) {
+      setError(err.message || '가족공유 냉장고 상세를 불러오지 못했습니다.');
+    }
+  };
+
+  const handleRemoveMember = async (member) => {
+    if (!selectedFridge || member.role === 'OWNER' || !isSubscribedFridge(selectedFridge)) return;
+    if (!window.confirm(`${member.email || member.nickname || '구성원'}님을 가족공유 냉장고에서 내보낼까요?`)) return;
+    try {
+      await adminApi.removeFridgeMember(selectedFridge.fridgeId, member.memberId);
+      const detail = await adminApi.getFridge(selectedFridge.fridgeId);
+      setSelectedFridge(detail);
+      setFridges((items) => items.map((item) => item.fridgeId === detail.fridgeId ? detail : item));
+    } catch (err) {
+      alert(err.message || '구성원 내보내기에 실패했습니다.');
+    }
+  };
+
+  const handleCancelInvite = async (invite) => {
+    if (!selectedFridge) return;
+    if (!window.confirm(`${invite.inviteeEmail || '초대 대상'}님에게 보낸 가족공유 초대를 취소할까요?`)) return;
+    try {
+      await adminApi.cancelFridgeInvite(selectedFridge.fridgeId, invite.fridgeInviteId);
+      const detail = await adminApi.getFridge(selectedFridge.fridgeId);
+      setSelectedFridge(detail);
+      setFridges((items) => items.map((item) => item.fridgeId === detail.fridgeId ? detail : item));
+    } catch (err) {
+      alert(err.message || '초대 취소에 실패했습니다.');
+    }
+  };
+
+  const memberCount = selectedFridge ? `${selectedFridge.activeMemberCount}/${selectedFridge.maxMemberCount}` : '-';
+
+  return (
+    <div className="admin-shadcn-page admin-fridges-page">
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-end', marginBottom: '18px' }}>
+        <div>
+          <div style={{ fontSize: '24px', fontWeight: 900, color: C.fg, letterSpacing: '-0.03em' }}>가족공유 관리</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>가족공유 냉장고 현황을 확인하고 구독 냉장고의 구성원만 운영 조치할 수 있습니다.</div>
+        </div>
+        <button onClick={loadFridges} disabled={loading} style={{ border: `1px solid ${C.border}`, borderRadius: '12px', background: C.card, color: C.fg, padding: '9px 13px', fontSize: '12px', fontWeight: 900, cursor: loading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <RefreshCw size={14} /> 새로고침
+        </button>
+      </div>
+
+      {error && <div style={{ marginBottom: '12px', padding: '12px', borderRadius: '12px', background: C.dangerLight, color: C.danger, fontSize: '12px', fontWeight: 800 }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 0.9fr) minmax(420px, 1.1fr)', gap: '14px', alignItems: 'start' }}>
+        <div className="admin-shadcn-card" style={{ background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>냉장고 목록</div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '3px' }}>총 {fridges.length}개</div>
+          </div>
+          <div style={{ display: 'grid', maxHeight: '620px', overflowY: 'auto' }}>
+            {fridges.length === 0 && <div style={{ padding: '18px', color: C.fgMuted, fontSize: '13px' }}>{loading ? '불러오는 중...' : '가족공유 냉장고가 없습니다.'}</div>}
+            {fridges.map((fridge) => {
+              const active = selectedFridge?.fridgeId === fridge.fridgeId;
+              return (
+                <button key={fridge.fridgeId} onClick={() => handleSelectFridge(fridge.fridgeId)} style={{ border: 'none', borderBottom: `1px solid ${C.border}`, background: active ? C.primaryLight : C.card, textAlign: 'left', padding: '13px 16px', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: C.fg, fontSize: '13px', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fridge.name}</div>
+                      <div style={{ color: C.fgMuted, fontSize: '11px', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fridge.ownerEmail || '-'}</div>
+                    </div>
+                    <div style={{ display: 'grid', gap: '4px', justifyItems: 'end', flexShrink: 0 }}>
+                      <span style={{ borderRadius: '999px', padding: '3px 7px', background: isSubscribedFridge(fridge) ? C.primaryLight : C.surface, color: isSubscribedFridge(fridge) ? C.primary : C.fgMuted, fontSize: '10px', fontWeight: 900 }}>{getSubscriptionLabel(fridge)}</span>
+                      <span style={{ color: C.fgMuted, fontSize: '10px', fontWeight: 800 }}>{fridge.activeMemberCount}/{fridge.maxMemberCount}명</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="admin-shadcn-card" style={{ background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)', padding: '16px' }}>
+          {!selectedFridge ? (
+            <div style={{ color: C.fgMuted, fontSize: '13px' }}>냉장고를 선택해주세요.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ color: C.fg, fontSize: '18px', fontWeight: 900 }}>{selectedFridge.name}</div>
+                  <div style={{ color: C.fgMuted, fontSize: '12px', marginTop: '4px' }}>owner: {selectedFridge.ownerEmail || '-'}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <span style={{ borderRadius: '999px', padding: '5px 9px', background: C.primaryLight, color: C.primary, fontSize: '11px', fontWeight: 900 }}>구성원 {memberCount}</span>
+                  <span style={{ borderRadius: '999px', padding: '5px 9px', background: C.surface, color: C.fgMuted, fontSize: '11px', fontWeight: 900 }}>초대대기 {selectedFridge.pendingInviteCount}</span>
+                  <span style={{ borderRadius: '999px', padding: '5px 9px', background: isSubscribedFridge(selectedFridge) ? C.primaryLight : C.surface, color: isSubscribedFridge(selectedFridge) ? C.primary : C.fgMuted, fontSize: '11px', fontWeight: 900 }}>{getSubscriptionLabel(selectedFridge)}</span>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 900, color: C.fg, marginBottom: '8px' }}>구성원</div>
+                <div style={{ border: `1px solid ${C.border}`, borderRadius: '12px', overflow: 'hidden' }}>
+                  {(selectedFridge.members || []).map((member) => (
+                    <div key={`${member.fridgeMemberId}-${member.memberId}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 1.4fr) 72px 116px 92px', gap: '10px', alignItems: 'center', padding: '11px 12px', borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ color: C.fg, fontSize: '12px', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email || '-'}</div>
+                        <div style={{ color: C.fgMuted, fontSize: '11px', marginTop: '2px' }}>{member.nickname || '-'}</div>
+                      </div>
+                      <div style={{ color: member.role === 'OWNER' ? C.primary : C.fgMuted, fontSize: '11px', fontWeight: 900 }}>{member.role}</div>
+                      <div style={{ color: C.fgMuted, fontSize: '11px' }}>{formatDateTime(member.joinedAt)}</div>
+                      {isSubscribedFridge(selectedFridge) && member.role !== 'OWNER' ? (
+                        <button onClick={() => handleRemoveMember(member)} style={{ width: '86px', justifySelf: 'end', border: `1px solid ${C.danger}`, borderRadius: '9px', background: C.dangerLight, color: C.danger, padding: '7px 9px', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <UserMinus size={13} /> 내보내기
+                        </button>
+                      ) : (
+                        <span style={{ width: '86px', justifySelf: 'end', textAlign: 'center', color: C.fgMuted, fontSize: '11px', fontWeight: 800 }}>-</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 900, color: C.fg, marginBottom: '8px' }}>대기중 초대</div>
+                <div style={{ border: `1px solid ${C.border}`, borderRadius: '12px', overflow: 'hidden' }}>
+                  {(selectedFridge.pendingInvites || []).length === 0 && <div style={{ padding: '13px', color: C.fgMuted, fontSize: '12px' }}>대기중 초대가 없습니다.</div>}
+                  {(selectedFridge.pendingInvites || []).map((invite) => (
+                    <div key={invite.fridgeInviteId} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '10px', alignItems: 'center', padding: '11px 12px', borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ color: C.fgMuted, fontSize: '11px' }}>보낸 사람<br /><b style={{ color: C.fg }}>{invite.inviterEmail || '-'}</b></div>
+                      <div style={{ color: C.fgMuted, fontSize: '11px' }}>받는 사람<br /><b style={{ color: C.fg }}>{invite.inviteeEmail || '-'}</b></div>
+                      <div style={{ color: C.fgMuted, fontSize: '11px' }}>{formatDateTime(invite.createdAt)}</div>
+                      <button onClick={() => handleCancelInvite(invite)} style={{ border: `1px solid ${C.danger}`, borderRadius: '9px', background: C.dangerLight, color: C.danger, padding: '7px 9px', fontSize: '11px', fontWeight: 900, cursor: 'pointer' }}>초대 취소</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
   currentUser, recipes, inquiries, presetIngredients, onClose,
@@ -2344,6 +2525,7 @@ export function AdminPanel({
         {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'aiUsage'     && <LlmUsageLogsTab />}
+        {activeTab === 'fridges'     && <FamilyFridgesTab />}
         {activeTab === 'inquiries'   && (
           <InquiriesTab
             inquiries={inquiries}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { AlertTriangle, BellRing, Check, ChevronRight, X } from 'lucide-react';
 import { C, getDayLabel, getDaysUntilExpiry } from '@/shared/data/mockData';
 
@@ -13,7 +14,7 @@ function groupNotifications(notifications) {
   };
 }
 
-function NotificationSection({ title, description, notifications, tone }) {
+function NotificationSection({ title, description, notifications, tone, onStartAcceptShareRequest, onRejectShareRequest }) {
   if (notifications.length === 0) return null;
 
   const isDanger = tone === 'danger';
@@ -69,7 +70,24 @@ function NotificationSection({ title, description, notifications, tone }) {
                   {notification.content}
                 </div>
               </div>
-              {Number.isFinite(days) && (
+              {notification.type === 'FRIDGE_ITEM_REQUESTED' ? (
+                <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => onStartAcceptShareRequest?.(notification)}
+                    style={{ border: 'none', borderRadius: '8px', background: C.primary, color: '#FFFFFF', fontSize: '11px', fontWeight: 900, padding: '7px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    수락
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRejectShareRequest?.(notification)}
+                    style={{ border: `1px solid ${C.border}`, borderRadius: '8px', background: C.surface, color: C.fgMuted, fontSize: '11px', fontWeight: 900, padding: '7px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    거절
+                  </button>
+                </div>
+              ) : Number.isFinite(days) && (
                 <div
                   style={{
                     borderRadius: '999px',
@@ -98,7 +116,11 @@ function NotificationSection({ title, description, notifications, tone }) {
   );
 }
 
-export function ExpiryNotificationPopup({ notifications, onClose, onConfirm, onGoFridge }) {
+export function ExpiryNotificationPopup({ notifications, onClose, onConfirm, onGoFridge, onAcceptShareRequest, onRejectShareRequest }) {
+  const [acceptingNotification, setAcceptingNotification] = useState(null);
+  const [acceptTransferAll, setAcceptTransferAll] = useState(false);
+  const [acceptRemainingQuantity, setAcceptRemainingQuantity] = useState('');
+  const [acceptError, setAcceptError] = useState('');
   const { expired, expiring, messages } = groupNotifications(notifications);
   const totalCount = expired.length + expiring.length + messages.length;
   const hasExpiryNotification = expired.length > 0 || expiring.length > 0;
@@ -196,20 +218,57 @@ export function ExpiryNotificationPopup({ notifications, onClose, onConfirm, onG
             description="만료된 재료는 상태를 확인하고 사용 여부를 정리해주세요."
             notifications={expired}
             tone="danger"
+            onStartAcceptShareRequest={(notification) => { setAcceptingNotification(notification); setAcceptTransferAll(false); setAcceptRemainingQuantity(''); setAcceptError(''); }}
+            onRejectShareRequest={onRejectShareRequest}
           />
           <NotificationSection
             title="곧 먹어야 하는 재료가 있어요"
             description="소비기한이 3일 이내인 재료예요. 오늘 식단에 먼저 활용해보세요."
             notifications={expiring}
             tone="accent"
+            onStartAcceptShareRequest={(notification) => { setAcceptingNotification(notification); setAcceptTransferAll(false); setAcceptRemainingQuantity(''); setAcceptError(''); }}
+            onRejectShareRequest={onRejectShareRequest}
           />
           <NotificationSection
             title="새 소식이 있어요"
             description="문의 답변이나 댓글 답변처럼 확인이 필요한 알림이에요."
             notifications={messages}
             tone="accent"
+            onStartAcceptShareRequest={(notification) => { setAcceptingNotification(notification); setAcceptTransferAll(false); setAcceptRemainingQuantity(''); setAcceptError(''); }}
+            onRejectShareRequest={onRejectShareRequest}
           />
         </div>
+
+        {acceptingNotification && (
+          <div style={{ margin: '0 16px 14px', padding: '14px', border: `1px solid ${C.primaryMid}`, borderRadius: '10px', background: C.primaryLight, display: 'grid', gap: '10px' }}>
+            <div>
+              <div style={{ color: C.fg, fontSize: '13px', fontWeight: 900 }}>요청 수락하기</div>
+              <div style={{ color: C.fgMuted, fontSize: '11px', marginTop: '3px', lineHeight: 1.35 }}>{acceptingNotification.content}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button type="button" onClick={() => { setAcceptTransferAll(false); setAcceptError(''); }} style={{ border: `1px solid ${!acceptTransferAll ? C.primary : C.border}`, borderRadius: '9px', background: !acceptTransferAll ? C.card : C.surface, color: !acceptTransferAll ? C.primary : C.fgMuted, padding: '9px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>일부 보내기</button>
+              <button type="button" onClick={() => { setAcceptTransferAll(true); setAcceptRemainingQuantity(''); setAcceptError(''); }} style={{ border: `1px solid ${acceptTransferAll ? C.danger : C.border}`, borderRadius: '9px', background: acceptTransferAll ? C.dangerLight : C.surface, color: acceptTransferAll ? C.danger : C.fgMuted, padding: '9px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>전체 보내기</button>
+            </div>
+            {!acceptTransferAll && (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', color: C.fgMuted, fontSize: '11px', fontWeight: 900, marginBottom: '5px' }}>보낼 수량</label>
+                  <div style={{ border: `1px solid ${C.primaryMid}`, borderRadius: '9px', background: C.card, color: C.primary, padding: '10px 11px', fontSize: '12px', fontWeight: 900 }}>요청받은 수량만큼 보내기</div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: C.fgMuted, fontSize: '11px', fontWeight: 900, marginBottom: '5px' }}>내 냉장고에 남길 수량</label>
+                  <input value={acceptRemainingQuantity} onChange={(event) => { setAcceptError(''); setAcceptRemainingQuantity(event.target.value); }} placeholder="예: 1개, 200g" style={{ width: '100%', boxSizing: 'border-box', border: `1px solid ${C.border}`, borderRadius: '9px', background: C.card, color: C.fg, padding: '10px 11px', fontSize: '13px', outline: 'none' }} />
+                </div>
+              </div>
+            )}
+            {acceptTransferAll && <div style={{ color: C.danger, fontSize: '11px', fontWeight: 800 }}>전체 보내기를 선택하면 내 냉장고에서 해당 재료가 삭제됩니다.</div>}
+            {acceptError && <div style={{ color: C.danger, fontSize: '11px', fontWeight: 800 }}>{acceptError}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button type="button" onClick={() => setAcceptingNotification(null)} style={{ border: `1px solid ${C.border}`, borderRadius: '9px', background: C.surface, color: C.fgMuted, padding: '10px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>취소</button>
+              <button type="button" onClick={async () => { if (!acceptTransferAll && !acceptRemainingQuantity.trim()) { setAcceptError('일부만 보낼 때는 남길 수량을 입력해주세요.'); return; } await onAcceptShareRequest?.(acceptingNotification, { transferAll: acceptTransferAll, remainingQuantity: acceptRemainingQuantity.trim() }); setAcceptingNotification(null); }} style={{ border: 'none', borderRadius: '9px', background: C.primary, color: '#FFFFFF', padding: '10px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>수락 완료</button>
+            </div>
+          </div>
+        )}
 
         <div
           style={{
