@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon } from 'lucide-react';
+import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, Crown, Refrigerator } from 'lucide-react';
 import { fridgeApi } from '@/apis/fridgeApi';
 import { C } from '@/shared/data/mockData';
 
@@ -7,6 +7,13 @@ const HOUSEHOLD_TYPES = ['1인', '2인', '3인 이상', '기타'];
 const FAVORITE_FOODS_LIST = ['한식', '중식', '양식', '일식', '아시안', '후식', '분식'];
 const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9 ]+$/;
 const INVALID_NICKNAME_MESSAGE = '닉네임은 한글, 영문, 숫자, 공백만 사용할 수 있습니다.';
+
+const SUBSCRIPTION_STATUS_LABELS = {
+  TRIALING: '무료 체험 중',
+  ACTIVE: '프리미엄 이용 중',
+  CANCELED: '해지 예약',
+  EXPIRED: '만료',
+};
 
 const inputStyle = {
   width: '100%',
@@ -73,7 +80,18 @@ function normalizePreferences(user) {
   };
 }
 
-export function MyPage({ user, onClose, onLogout, onUpdate, onOpenAdmin }) {
+export function MyPage({
+  user,
+  onClose,
+  onLogout,
+  onUpdate,
+  onOpenAdmin,
+  fridgeInfo,
+  subscriptionStatus,
+  subscriptionLoading = false,
+  onOpenSubscription,
+  onOpenFamilyManagement,
+}) {
   const [form, setForm] = useState({
     ...user,
     preferences: normalizePreferences(user),
@@ -185,6 +203,18 @@ export function MyPage({ user, onClose, onLogout, onUpdate, onOpenAdmin }) {
     }
   };
 
+  const isPremium = subscriptionStatus?.premium;
+  const currentMemberId = user?.memberId ?? Number(user?.id);
+  const isFamilyPremiumMember = isPremium
+    && subscriptionStatus?.memberId
+    && currentMemberId
+    && Number(subscriptionStatus.memberId) !== Number(currentMemberId);
+  const subscriptionLabel = subscriptionStatus?.status
+    ? SUBSCRIPTION_STATUS_LABELS[subscriptionStatus.status] ?? subscriptionStatus.status
+    : '무료 이용 중';
+  const premiumTitle = isFamilyPremiumMember ? '가족 프리미엄 이용 중' : subscriptionLabel;
+  const premiumBadge = isFamilyPremiumMember ? '가족 구성원' : '구독 중';
+
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 200, display: 'flex', justifyContent: 'center' }}
@@ -206,32 +236,122 @@ export function MyPage({ user, onClose, onLogout, onUpdate, onOpenAdmin }) {
             borderBottom: `1px solid ${C.border}`,
             background: C.card,
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            flexDirection: 'column',
+            gap: '14px',
           }}
         >
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '18px',
-                background: C.primaryLight,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <UserIcon size={22} color={C.primary} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '18px',
+                  background: C.primaryLight,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <UserIcon size={22} color={C.primary} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>{user.name}</div>
+                <div style={{ fontSize: '12px', color: C.fgMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>{user.name}</div>
-              <div style={{ fontSize: '12px', color: C.fgMuted }}>{user.email}</div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted, flexShrink: 0 }}>
+              <X size={20} />
+            </button>
+          </div>
+          <div
+            style={{
+              width: '100%',
+              background: isPremium ? 'linear-gradient(135deg, #0E8478 0%, #0AAE9F 100%)' : '#F5FAF8',
+              border: isPremium ? 'none' : `1px solid ${C.border}`,
+              borderRadius: '18px',
+              padding: '14px',
+              color: isPremium ? '#FFFFFF' : C.fg,
+              boxSizing: 'border-box',
+              boxShadow: isPremium ? '0 12px 24px rgba(14,132,120,0.18)' : 'inset 0 0 0 1px rgba(255,255,255,0.45)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: '11px', minWidth: 0 }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '15px', background: isPremium ? 'rgba(255,255,255,0.16)' : '#E0F4F0', display: 'grid', placeItems: 'center', flexShrink: 0, color: isPremium ? '#FFFFFF' : C.primary }}>
+                  {isPremium ? <Crown size={19} /> : <Refrigerator size={19} />}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 950, color: isPremium ? '#FFFFFF' : C.primary }}>
+                      {subscriptionLoading ? '구독 확인 중' : isPremium ? premiumTitle : '프리미엄 구독 안내'}
+                    </span>
+                    <span style={{ padding: '3px 7px', borderRadius: '999px', background: isPremium ? 'rgba(255,255,255,0.18)' : C.primaryLight, color: isPremium ? '#FFFFFF' : C.primary, fontSize: '10px', fontWeight: 900 }}>
+                      {isPremium ? premiumBadge : '미구독'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', marginTop: '5px', color: isPremium ? '#EAFBF8' : C.fgMuted, lineHeight: 1.35 }}>
+                    {isPremium
+                      ? isFamilyPremiumMember
+                        ? '결제자 가족 냉장고에 참여 중이라 프리미엄 기능을 함께 사용할 수 있어요.'
+                        : '무료 기능에 더해 프리미엄 기능 3가지를 사용할 수 있어요.'
+                      : 'AI 추천, 영수증 등록, 가족 공유는 구독으로 이용할 수 있어요.'}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '9px' }}>
+                    {[
+                      { label: 'AI 장보기', enabled: isPremium },
+                      { label: '영수증 등록', enabled: isPremium },
+                      { label: '가족공유', enabled: isPremium },
+                    ].map((feature) => (
+                      <span
+                        key={feature.label}
+                        style={{
+                          padding: '5px 8px',
+                          borderRadius: '999px',
+                          background: isPremium ? 'rgba(255,255,255,0.14)' : '#FFFFFF',
+                          color: isPremium ? '#EAFBF8' : C.fgMuted,
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          border: isPremium ? '1px solid rgba(255,255,255,0.12)' : `1px solid ${C.border}`,
+                        }}
+                      >
+                        {feature.enabled ? 'O' : 'X'} {feature.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ flexShrink: 0, alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '7px' }}>
+                {!isPremium ? (
+                  <button
+                    onClick={onOpenSubscription}
+                    disabled={subscriptionLoading}
+                    style={{ padding: '11px 14px', border: 'none', borderRadius: '14px', background: subscriptionLoading ? C.card : C.primary, color: subscriptionLoading ? C.fgMuted : '#FFFFFF', fontSize: '12px', fontWeight: 950, cursor: subscriptionLoading ? 'wait' : 'pointer', boxShadow: subscriptionLoading ? 'none' : '0 8px 18px rgba(14,132,120,0.18)' }}
+                  >
+                    구독 보기
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={onOpenFamilyManagement}
+                      style={{ padding: '10px 12px', border: '1px solid rgba(255,255,255,0.32)', borderRadius: '13px', background: 'rgba(255,255,255,0.16)', color: '#FFFFFF', fontSize: '12px', fontWeight: 950, cursor: 'pointer' }}
+                    >
+                      가족 관리
+                    </button>
+                    {!isFamilyPremiumMember && (
+                      <button
+                        onClick={() => alert('구독 취소 기능은 결제 취소 API 연결 후 사용할 수 있습니다.')}
+                        style={{ padding: '2px 3px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.55)', fontSize: '9px', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}
+                      >
+                        구독취소
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted }}>
-            <X size={20} />
-          </button>
         </div>
 
         {/* Body */}

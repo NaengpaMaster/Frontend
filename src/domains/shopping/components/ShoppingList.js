@@ -9,6 +9,9 @@ function openCoupangSearch(name) {
 
 export function ShoppingList({
   items,
+  accessibleFridges = [],
+  selectedFridgeId,
+  onSelectFridge,
   onToggle,
   onUpdate,
   onDelete,
@@ -25,8 +28,10 @@ export function ShoppingList({
   const [form, setForm] = useState({ productId: null, name: '', quantity: '', category: '채소/과일' });
   const [editingId, setEditingId] = useState(null);
   const [editingQuantity, setEditingQuantity] = useState('');
+  const [formError, setFormError] = useState('');
 
   const checkedCount = items.filter((i) => i.checked).length;
+  const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
     const catItems = items.filter((i) => i.category === cat);
@@ -34,11 +39,22 @@ export function ShoppingList({
     return acc;
   }, {});
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    const quantity = form.quantity.trim();
     if (!form.productId || !form.name) return;
-    onAdd({ ...form, checked: false });
-    setForm({ productId: null, name: '', quantity: '', category: '채소/과일' });
-    setShowAdd(false);
+    if (!quantity) {
+      setFormError('수량을 입력해주세요.');
+      return;
+    }
+
+    setFormError('');
+    try {
+      await onAdd({ ...form, quantity, checked: false });
+      setForm({ productId: null, name: '', quantity: '', category: '채소/과일' });
+      setShowAdd(false);
+    } catch (error) {
+      setFormError(error.message || '장보기 항목 추가에 실패했습니다.');
+    }
   };
 
   const startEdit = (item) => {
@@ -82,6 +98,36 @@ export function ShoppingList({
         <div style={{ height: '6px', background: C.primaryLight, borderRadius: '3px', overflow: 'hidden', marginBottom: '14px' }}>
           <div style={{ height: '100%', width: `${progress}%`, background: C.primary, borderRadius: '3px', transition: 'width 0.4s ease' }} />
         </div>
+
+        {accessibleFridges.length > 0 && (
+          <div style={{ display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '12px' }}>
+            {accessibleFridges.map((fridge) => {
+              const selected = fridge.fridgeId === selectedFridgeId;
+              const label = fridge.mine ? '내 장보기' : `${fridge.ownerNickname || fridge.ownerEmail}님의 장보기`;
+              return (
+                <button
+                  key={fridge.fridgeId}
+                  onClick={() => onSelectFridge?.(fridge.fridgeId)}
+                  style={{
+                    whiteSpace: 'nowrap', padding: '8px 11px', borderRadius: '14px',
+                    border: `1px solid ${selected ? C.primary : C.border}`,
+                    background: selected ? C.primaryLight : C.surface,
+                    color: selected ? C.primary : C.fgMuted,
+                    fontSize: '12px', fontWeight: 900, cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {currentFridge && !currentFridge.mine && (
+          <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '14px', background: C.primaryLight, color: C.primary, fontSize: '12px', fontWeight: 800 }}>
+            지금 {currentFridge.ownerNickname || currentFridge.ownerEmail}님의 공유 장보기를 보고 있어요.
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
@@ -156,19 +202,20 @@ export function ShoppingList({
               />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <input style={inputStyle} placeholder="수량 (예: 2개)" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
+              <input style={inputStyle} placeholder="수량 (예: 2개)" value={form.quantity} onChange={(e) => { setFormError(''); setForm({ ...form, quantity: e.target.value }); }} onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
               <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: C.fgMuted }}>
                 {CATEGORY_EMOJIS[form.category]} {form.category}
               </div>
             </div>
+            {formError && <div style={{ fontSize: '12px', color: C.danger, fontWeight: 700 }}>{formError}</div>}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={handleAdd}
-                disabled={!form.productId || !form.name}
+                disabled={!form.productId || !form.name || !form.quantity.trim()}
                 style={{
-                  width: '100%', padding: '10px 16px', background: form.productId && form.name ? C.primary : C.surface,
-                  color: form.productId && form.name ? '#FFF' : C.fgMuted, border: 'none', borderRadius: '10px',
-                  fontWeight: 700, cursor: form.productId && form.name ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', fontSize: '13px',
+                  width: '100%', padding: '10px 16px', background: form.productId && form.name && form.quantity.trim() ? C.primary : C.surface,
+                  color: form.productId && form.name && form.quantity.trim() ? '#FFF' : C.fgMuted, border: 'none', borderRadius: '10px',
+                  fontWeight: 700, cursor: form.productId && form.name && form.quantity.trim() ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', fontSize: '13px',
                 }}
               >
                 추가

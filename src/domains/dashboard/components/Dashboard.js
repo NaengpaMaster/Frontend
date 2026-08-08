@@ -1,5 +1,5 @@
 import {useState, useEffect} from 'react';
-import {BarChart3, ChevronRight, Zap, TrendingDown, User, X} from 'lucide-react';
+import {BarChart3, ChevronRight, Zap, TrendingDown, User, Users, X} from 'lucide-react';
 import {
     getDaysUntilExpiry, getExpiryStatus, getDayLabel,
     STATUS_COLORS, C,
@@ -1075,10 +1075,16 @@ export function Dashboard({
                               homeRecipesTotal,
                               urgentHomeRecipes,
                               currentUser,
+                              fridgeInfo,
+                              subscriptionStatus,
+                              familyInvites = [],
                               loading = false,
                               discardedItems,
                               onNavigate,
                               onOpenMyPage,
+                              onOpenFamilyManagement,
+                              onAcceptFamilyInvite,
+                              onRejectFamilyInvite,
                               onOpenRecipe
                           }) {
     const [showScoreDetail, setShowScoreDetail] = useState(false);
@@ -1137,6 +1143,7 @@ export function Dashboard({
         );
     }
 
+    const isPremium = subscriptionStatus?.premium;
     const gradeEntry = getGradeEntry(wasteScore);
     const grade = gradeEntry.label;
 
@@ -1278,6 +1285,30 @@ export function Dashboard({
                     >
                         <User size={18}/>
                     </button>
+                    {isPremium && (
+                        <button
+                            onClick={onOpenFamilyManagement}
+                            style={{
+                                height: '42px',
+                                padding: '0 12px',
+                                background: C.primaryLight,
+                                border: `1px solid ${C.primaryMid}`,
+                                borderRadius: '14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '5px',
+                                cursor: 'pointer',
+                                color: C.primary,
+                                fontSize: '11px',
+                                fontWeight: 900,
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Users size={15}/>
+                            가족관리
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1292,6 +1323,36 @@ export function Dashboard({
                 <StatsDetailModal
                     onClose={() => setShowStatsDetail(false)}
                 />
+            )}
+
+
+            {familyInvites.length > 0 && (
+                <div style={{padding: '12px 20px', background: C.primaryLight, borderBottom: `1px solid ${C.primaryMid}`}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <Users size={16} color={C.primary}/>
+                        <div style={{flex: 1, minWidth: 0}}>
+                            <div style={{fontSize: '13px', fontWeight: 900, color: C.primary}}>
+                                가족 냉장고 공유 신청이 도착했어요
+                            </div>
+                            <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                                {familyInvites[0].inviterNickname || familyInvites[0].inviterEmail}님의 냉장고 초대
+                                {familyInvites.length > 1 ? ` 외 ${familyInvites.length - 1}건` : ''}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => onAcceptFamilyInvite?.(familyInvites[0].fridgeInviteId)}
+                            style={{padding: '8px 10px', border: 'none', borderRadius: '12px', background: C.primary, color: '#FFFFFF', fontSize: '11px', fontWeight: 900, cursor: 'pointer', flexShrink: 0}}
+                        >
+                            수락
+                        </button>
+                        <button
+                            onClick={() => onRejectFamilyInvite?.(familyInvites[0].fridgeInviteId)}
+                            style={{padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: '12px', background: C.card, color: C.fgMuted, fontSize: '11px', fontWeight: 900, cursor: 'pointer', flexShrink: 0}}
+                        >
+                            거절
+                        </button>
+                    </div>
+                </div>
             )}
 
             {/* Urgent alert strip */}
