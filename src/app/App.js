@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { authApi } from '@/apis/authApi';
+import { fridgeApi } from '@/apis/fridgeApi';
 import { notificationApi } from '@/apis/notificationApi';
+import { subscriptionApi } from '@/apis/subscriptionApi';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { Sidebar } from '@/shared/components/Sidebar';
 import { Dashboard } from '@/domains/dashboard/components/Dashboard';
 import { FridgeManager } from '@/domains/fridge/components/FridgeManager';
+import { FamilyFridgeModal } from '@/domains/fridge/components/FamilyFridgeModal';
 import { RecipeView } from '@/domains/recipes/components/RecipeView';
 import { ShoppingList } from '@/domains/shopping/components/ShoppingList';
 import { InquiryPage } from '@/domains/inquiry/components/InquiryPage';
 import { AuthScreen } from '@/domains/auth/components/AuthScreen';
 import { MyPage } from '@/domains/mypage/components/MyPage';
+import { SubscriptionPage } from '@/domains/subscription/components/SubscriptionPage';
 import { AdminPanel } from '@/domains/admin/components/AdminPanel';
 import { ExpiryNotificationPopup } from '@/shared/components/ExpiryNotificationPopup';
 
@@ -36,6 +40,13 @@ export default function App() {
   const [dismissedNotificationKey, setDismissedNotificationKey] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [homeLoading, setHomeLoading] = useState(true);
+  const [fridgeInfo, setFridgeInfo] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [showSubscriptionPage, setShowSubscriptionPage] = useState(false);
+  const [showFamilyFridgeModal, setShowFamilyFridgeModal] = useState(false);
+  const [receivedFamilyInvites, setReceivedFamilyInvites] = useState([]);
+  const [homeIngredients, setHomeIngredients] = useState([]);
 
   const {
     currentUser,
@@ -50,8 +61,9 @@ export default function App() {
   } = useAuthStore();
   const { activeTab, setActiveTab } = useUiStore();
   const {
-    ingredients, presetIngredients,
-    fetchIngredients, addIngredient, updateIngredient, useIngredient, deleteIngredient, setPresetIngredients,
+    ingredients, presetIngredients, accessibleFridges, selectedFridgeId,
+    fetchAccessibleFridges, setSelectedFridgeId,
+    fetchIngredients, addIngredient, updateIngredient, useIngredient, deleteIngredient, transferIngredient, requestIngredient, setPresetIngredients,
   } = useIngredientStore();
   const {
     recipes, userRecipes, userRecipesLoading, userRecipesPage, userRecipesTotalPages,
@@ -64,7 +76,7 @@ export default function App() {
   const {
     shoppingItems,
     recommendationItems, recommendationLoading, recommendationError,
-    fetchShoppingItems, addShoppingItem, toggleShoppingItem, updateShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge,
+    fetchShoppingItems, addShoppingItem, toggleShoppingItem, updateShoppingItem, deleteShoppingItem, clearChecked, moveCheckedToFridge, setSelectedFridgeId: setShoppingSelectedFridgeId,
     fetchAgentRecommendations, addAgentRecommendationItem,
   } = useShoppingStore();
   const {
@@ -113,20 +125,57 @@ export default function App() {
     async function fetchHomeData() {
       if (!currentUser) {
         setHomeLoading(true);
+        setFridgeInfo(null);
+        setSubscriptionStatus(null);
+        setReceivedFamilyInvites([]);
+        setHomeIngredients([]);
         return;
       }
 
       setHomeLoading(true);
+      setSubscriptionLoading(true);
       try {
-        await Promise.allSettled([
-          fetchIngredients(),
-          fetchShoppingItems(),
+        const results = await Promise.allSettled([
+          fetchAccessibleFridges(),
+          fetchShoppingItems(selectedFridgeId),
           fetchHomeRecipes(),
           fetchUrgentHomeRecipes(),
+          fridgeApi.getMyFridge(),
+          subscriptionApi.getMySubscription(),
+          fridgeApi.getReceivedInvites(),
         ]);
+        if (!mounted) return;
+
+        const accessibleFridgesResult = results[0];
+        if (accessibleFridgesResult.status === 'fulfilled') {
+          const fridges = accessibleFridgesResult.value || [];
+          const defaultFridgeId = fridges.find((fridge) => fridge.mine)?.fridgeId ?? fridges[0]?.fridgeId;
+          if (defaultFridgeId) {
+            const myItems = await fridgeApi.getItems(defaultFridgeId);
+            const mappedMyItems = myItems.map((item) => ({
+              id: item.fridgeItemId,
+              productId: item.productId,
+              name: item.productName,
+              category: ({ 1: '채소/과일', 2: '채소/과일', 3: '육류/어류', 4: '육류/어류', 5: '유제품/계란', 6: '기타', 7: '기타', 8: '양념/소스', 9: '가공식품', 10: '기타' })[item.productCategoryId] ?? '기타',
+              quantity: item.quantity,
+              expiryDate: item.expiryDate,
+              memo: item.memo,
+            }));
+            setHomeIngredients(mappedMyItems);
+            await fetchIngredients(defaultFridgeId);
+          }
+        }
+
+        const fridgeResult = results[4];
+        const subscriptionResult = results[5];
+        const receivedInvitesResult = results[6];
+        setFridgeInfo(fridgeResult.status === 'fulfilled' ? fridgeResult.value : null);
+        setSubscriptionStatus(subscriptionResult.status === 'fulfilled' ? subscriptionResult.value : null);
+        setReceivedFamilyInvites(receivedInvitesResult.status === 'fulfilled' ? receivedInvitesResult.value || [] : []);
       } finally {
         if (mounted) {
           setHomeLoading(false);
+          setSubscriptionLoading(false);
         }
       }
     }
@@ -136,7 +185,14 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [currentUser, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
+  }, [currentUser, fetchAccessibleFridges, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
+
+  useEffect(() => {
+    if (!currentUser || !selectedFridgeId) return;
+    setShoppingSelectedFridgeId(selectedFridgeId);
+    fetchIngredients(selectedFridgeId);
+    fetchShoppingItems(selectedFridgeId);
+  }, [currentUser, selectedFridgeId, fetchIngredients, fetchShoppingItems, setShoppingSelectedFridgeId]);
 
   useEffect(() => {
     let mounted = true;
@@ -242,6 +298,33 @@ export default function App() {
     return saved;
   };
 
+  const handleOpenFamilyManagement = () => {
+    setShowFamilyFridgeModal(true);
+  };
+
+  const refreshFamilyInvites = async () => {
+    try {
+      const invites = await fridgeApi.getReceivedInvites();
+      setReceivedFamilyInvites(invites || []);
+    } catch {
+      setReceivedFamilyInvites([]);
+    }
+  };
+
+  const handleAcceptFamilyInvite = async (inviteId) => {
+    await fridgeApi.acceptInvite(inviteId);
+    await Promise.allSettled([
+      fetchIngredients(),
+      fridgeApi.getMyFridge().then(setFridgeInfo),
+      refreshFamilyInvites(),
+    ]);
+  };
+
+  const handleRejectFamilyInvite = async (inviteId) => {
+    await fridgeApi.rejectInvite(inviteId);
+    await refreshFamilyInvites();
+  };
+
   // ─── Recipe handlers ────────────────────────────────────────────────────────
   const handleAddRecipe = (data) => addRecipe(data, currentUser?.id);
 
@@ -292,6 +375,20 @@ export default function App() {
     }
   };
 
+  const handleTransferIngredient = async (id, data) => {
+    setHomeLoading(true);
+    try {
+      await transferIngredient(id, data);
+      await refreshHomeRecommendations();
+    } finally {
+      setHomeLoading(false);
+    }
+  };
+
+  const handleRequestIngredient = async (id, data) => {
+    await requestIngredient(id, data);
+  };
+
   // ─── Inquiry handlers ───────────────────────────────────────────────────────
   const handleAddInquiry = async (subject, content) => {
     if (!currentUser) return;
@@ -303,7 +400,7 @@ export default function App() {
     setHomeLoading(true);
     try {
       await moveCheckedToFridge();
-      await fetchIngredients();
+      await fetchIngredients(selectedFridgeId);
       await refreshHomeRecommendations();
       setActiveTab('fridge');
     } finally {
@@ -390,14 +487,20 @@ export default function App() {
           <div className="app-scroll-pad" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
             {activeTab === 'home' && (
               <Dashboard
-                ingredients={ingredients}
+                ingredients={homeIngredients}
                 homeRecipes={homeRecipes}
                 homeRecipesTotal={homeRecipesTotal}
                 urgentHomeRecipes={urgentHomeRecipes}
                 currentUser={currentUser}
+                fridgeInfo={fridgeInfo}
+                subscriptionStatus={subscriptionStatus}
+                familyInvites={receivedFamilyInvites}
                 loading={homeLoading}
                 onNavigate={setActiveTab}
                 onOpenMyPage={() => setShowMyPage(true)}
+                onOpenFamilyManagement={handleOpenFamilyManagement}
+                onAcceptFamilyInvite={handleAcceptFamilyInvite}
+                onRejectFamilyInvite={handleRejectFamilyInvite}
                 onOpenRecipe={(id) => { setPendingRecipeId(id); setActiveTab('recipe'); }}
               />
             )}
@@ -405,10 +508,15 @@ export default function App() {
               <FridgeManager
                 ingredients={ingredients}
                 presetIngredients={presetIngredients}
+                accessibleFridges={accessibleFridges}
+                selectedFridgeId={selectedFridgeId}
+                onSelectFridge={setSelectedFridgeId}
                 onAdd={handleAddIngredient}
                 onUpdate={handleUpdateIngredient}
                 onUse={handleUseIngredient}
                 onDelete={handleDeleteIngredient}
+                onTransfer={handleTransferIngredient}
+                onRequest={handleRequestIngredient}
               />
             )}
             {activeTab === 'recipe' && (
@@ -432,6 +540,9 @@ export default function App() {
             {activeTab === 'shopping' && (
               <ShoppingList
                 items={shoppingItems}
+                accessibleFridges={accessibleFridges}
+                selectedFridgeId={selectedFridgeId}
+                onSelectFridge={setSelectedFridgeId}
                 onToggle={toggleShoppingItem}
                 onUpdate={updateShoppingItem}
                 onDelete={deleteShoppingItem}
@@ -467,6 +578,26 @@ export default function App() {
               onLogout={handleLogout}
               onUpdate={handleUpdateUser}
               onOpenAdmin={() => setShowAdmin(true)}
+              fridgeInfo={fridgeInfo}
+              subscriptionStatus={subscriptionStatus}
+              subscriptionLoading={subscriptionLoading}
+              onOpenSubscription={() => setShowSubscriptionPage(true)}
+              onOpenFamilyManagement={handleOpenFamilyManagement}
+            />
+          )}
+
+          {showSubscriptionPage && (
+            <SubscriptionPage
+              subscriptionStatus={subscriptionStatus}
+              onClose={() => setShowSubscriptionPage(false)}
+            />
+          )}
+
+          {showFamilyFridgeModal && (
+            <FamilyFridgeModal
+              onClose={() => setShowFamilyFridgeModal(false)}
+              subscriptionStatus={subscriptionStatus}
+              currentUser={currentUser}
             />
           )}
 

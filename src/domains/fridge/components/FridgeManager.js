@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, Edit2, Plus, Search, X, Trash2 } from 'lucide-react';
+import { CheckCircle, Edit2, HandHeart, Plus, Search, Send, X, Trash2 } from 'lucide-react';
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel, STATUS_COLORS,
   CATEGORIES, CATEGORY_EMOJIS, TODAY, C,
@@ -242,13 +242,230 @@ function UseModal({
   );
 }
 
-export function FridgeManager({ ingredients, presetIngredients, onAdd, onUpdate, onUse, onDelete }) {
+
+
+function RequestModal({
+  ingredient,
+  currentFridgeId,
+  accessibleFridges,
+  onClose,
+  onRequest,
+}) {
+  const myFridge = accessibleFridges.find((fridge) => fridge.mine);
+  const [requestedQuantity, setRequestedQuantity] = useState('');
+  const [message, setMessage] = useState(`${ingredient.name} 조금 나눠줄 수 있어?`);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const inputStyle = {
+    width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px',
+    padding: '10px 12px', color: C.fg, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+  };
+
+  const handleSubmit = async () => {
+    if (!myFridge) {
+      setError('요청을 받을 내 냉장고를 찾을 수 없습니다.');
+      return;
+    }
+    if (myFridge.fridgeId === currentFridgeId) {
+      setError('내 냉장고 재료는 요청할 수 없습니다.');
+      return;
+    }
+    if (!requestedQuantity.trim()) {
+      setError('요청 수량을 입력해주세요.');
+      return;
+    }
+
+    await onRequest(ingredient.id, {
+      sourceFridgeId: currentFridgeId,
+      targetFridgeId: myFridge.fridgeId,
+      requestedQuantity: requestedQuantity.trim(),
+      message: message.trim() || null,
+    });
+    setDone(true);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.4)', zIndex: 130, display: 'flex', alignItems: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: C.bg, borderRadius: '24px 24px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: '480px', margin: '0 auto' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '18px', color: C.fg }}>식재료 요청하기</div>
+            <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px' }}>{ingredient.name} · 현재 {ingredient.quantity}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted }}><X size={20} /></button>
+        </div>
+
+        {done ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ padding: '18px', borderRadius: '16px', background: C.primaryLight, color: C.primary, fontSize: '13px', fontWeight: 800, textAlign: 'center' }}>
+              요청을 보냈어요. 상대방 알림에 표시됩니다.
+            </div>
+            <button onClick={onClose} style={{ width: '100%', background: C.primary, color: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '14px', fontWeight: 900, fontSize: '15px', cursor: 'pointer' }}>
+              확인
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted, display: 'block', marginBottom: '6px' }}>요청 수량</label>
+              <input style={inputStyle} placeholder="예: 2개, 300g" value={requestedQuantity} onChange={(event) => { setError(''); setRequestedQuantity(event.target.value); }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted, display: 'block', marginBottom: '6px' }}>요청 메시지</label>
+              <input style={inputStyle} placeholder="예: 양파 2개만 나눠줄 수 있어?" value={message} onChange={(event) => setMessage(event.target.value)} />
+            </div>
+            {error && <div style={{ color: C.danger, fontSize: '12px', fontWeight: 700 }}>{error}</div>}
+            <button onClick={handleSubmit} style={{ width: '100%', background: C.primary, color: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '14px', fontWeight: 900, fontSize: '15px', cursor: 'pointer' }}>
+              요청 보내기
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TransferModal({
+  ingredient,
+  currentFridgeId,
+  accessibleFridges,
+  onClose,
+  onTransfer,
+  onRequest,
+}) {
+  const targetFridges = accessibleFridges.filter((fridge) => fridge.fridgeId !== currentFridgeId);
+  const [targetFridgeId, setTargetFridgeId] = useState(targetFridges[0]?.fridgeId ?? '');
+  const [transferQuantity, setTransferQuantity] = useState('');
+  const [transferAll, setTransferAll] = useState(false);
+  const [remainingQuantity, setRemainingQuantity] = useState('');
+  const [memo, setMemo] = useState('식재료 나눔');
+  const [error, setError] = useState('');
+
+  const inputStyle = {
+    width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px',
+    padding: '10px 12px', color: C.fg, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+  };
+
+  const handleSubmit = async () => {
+    if (!targetFridgeId) {
+      setError('전달할 냉장고를 선택해주세요.');
+      return;
+    }
+    if (!transferQuantity.trim()) {
+      setError('보낼 수량을 입력해주세요.');
+      return;
+    }
+    if (!transferAll && !remainingQuantity.trim()) {
+      setError('일부만 나눌 때는 내 냉장고에 남길 수량을 입력해주세요.');
+      return;
+    }
+
+    await onTransfer(ingredient.id, {
+      sourceFridgeId: currentFridgeId,
+      targetFridgeId: Number(targetFridgeId),
+      transferQuantity: transferQuantity.trim(),
+      transferAll,
+      remainingQuantity: transferAll ? null : remainingQuantity.trim(),
+      expiryDate: ingredient.expiryDate === '기한없음' ? null : ingredient.expiryDate,
+      memo: memo.trim() || '식재료 나눔',
+    });
+    onClose();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,32,29,0.4)', zIndex: 130, display: 'flex', alignItems: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: C.bg, borderRadius: '24px 24px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: '480px', margin: '0 auto' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '18px', color: C.fg }}>식재료 나누기</div>
+            <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px' }}>{ingredient.name} · 현재 {ingredient.quantity}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted }}><X size={20} /></button>
+        </div>
+
+        {targetFridges.length === 0 ? (
+          <div style={{ padding: '18px', borderRadius: '16px', background: C.card, color: C.fgMuted, fontSize: '13px', textAlign: 'center' }}>
+            나눌 수 있는 공유 냉장고가 없습니다.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted, display: 'block', marginBottom: '6px' }}>받는 냉장고</label>
+              <select value={targetFridgeId} onChange={(event) => setTargetFridgeId(event.target.value)} style={inputStyle}>
+                {targetFridges.map((fridge) => (
+                  <option key={fridge.fridgeId} value={fridge.fridgeId}>{fridge.mine ? '내 냉장고' : `${fridge.ownerNickname || fridge.ownerEmail}님의 냉장고`}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted, display: 'block', marginBottom: '6px' }}>보낼 수량</label>
+              <input style={inputStyle} placeholder="예: 2개, 300g" value={transferQuantity} onChange={(event) => { setError(''); setTransferQuantity(event.target.value); }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => { setTransferAll(false); setError(''); }}
+                style={{ background: !transferAll ? C.primaryLight : C.surface, border: `1px solid ${!transferAll ? C.primary : C.border}`, color: !transferAll ? C.primary : C.fgMuted, borderRadius: '12px', padding: '10px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}
+              >
+                일부 보내기
+              </button>
+              <button
+                type="button"
+                onClick={() => { setTransferAll(true); setRemainingQuantity(''); setError(''); }}
+                style={{ background: transferAll ? C.dangerLight : C.surface, border: `1px solid ${transferAll ? C.danger : C.border}`, color: transferAll ? C.danger : C.fgMuted, borderRadius: '12px', padding: '10px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}
+              >
+                전체 보내기
+              </button>
+            </div>
+            {!transferAll && (
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted, display: 'block', marginBottom: '6px' }}>내 냉장고에 남길 수량</label>
+                <input style={inputStyle} placeholder="예: 1개, 200g" value={remainingQuantity} onChange={(event) => { setError(''); setRemainingQuantity(event.target.value); }} />
+              </div>
+            )}
+            {transferAll && (
+              <div style={{ padding: '10px 12px', borderRadius: '12px', background: C.dangerLight, color: C.danger, fontSize: '12px', fontWeight: 800 }}>
+                전체 보내기를 선택하면 현재 냉장고에서는 이 재료가 삭제됩니다.
+              </div>
+            )}
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 800, color: C.fgMuted, display: 'block', marginBottom: '6px' }}>메모</label>
+              <input style={inputStyle} placeholder="예: 부모님께 전달" value={memo} onChange={(event) => setMemo(event.target.value)} />
+            </div>
+            {error && <div style={{ color: C.danger, fontSize: '12px', fontWeight: 700 }}>{error}</div>}
+            <button onClick={handleSubmit} style={{ width: '100%', background: C.primary, color: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '14px', fontWeight: 900, fontSize: '15px', cursor: 'pointer' }}>
+              전달하기
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function FridgeManager({
+  ingredients,
+  presetIngredients,
+  accessibleFridges = [],
+  selectedFridgeId,
+  onSelectFridge,
+  onAdd,
+  onUpdate,
+  onUse,
+  onDelete,
+  onTransfer,
+  onRequest,
+}) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('전체');
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [using, setUsing] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [transferring, setTransferring] = useState(null);
+  const [requesting, setRequesting] = useState(null);
+  const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
 
   const filtered = ingredients
     .filter((i) => {
@@ -279,6 +496,37 @@ export function FridgeManager({ ingredients, presetIngredients, onAdd, onUpdate,
             </div>
           </div>
         </div>
+
+
+        {accessibleFridges.length > 0 && (
+          <div style={{ display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '12px' }}>
+            {accessibleFridges.map((fridge) => {
+              const selected = fridge.fridgeId === selectedFridgeId;
+              const label = fridge.mine ? '내 냉장고' : `${fridge.ownerNickname || fridge.ownerEmail}님의 냉장고`;
+              return (
+                <button
+                  key={fridge.fridgeId}
+                  onClick={() => onSelectFridge?.(fridge.fridgeId)}
+                  style={{
+                    whiteSpace: 'nowrap', padding: '8px 11px', borderRadius: '14px',
+                    border: `1px solid ${selected ? C.primary : C.border}`,
+                    background: selected ? C.primaryLight : C.surface,
+                    color: selected ? C.primary : C.fgMuted,
+                    fontSize: '12px', fontWeight: 900, cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {currentFridge && !currentFridge.mine && (
+          <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '14px', background: C.primaryLight, color: C.primary, fontSize: '12px', fontWeight: 800 }}>
+            지금 {currentFridge.ownerNickname || currentFridge.ownerEmail}님의 공유 냉장고를 보고 있어요.
+          </div>
+        )}
 
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
@@ -379,6 +627,18 @@ export function FridgeManager({ ingredients, presetIngredients, onAdd, onUpdate,
                   <button onClick={() => setEditing(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                     <Edit2 size={12} /> 수정
                   </button>
+                  {accessibleFridges.length > 1 && (
+                    <>
+                      <button onClick={() => setTransferring(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.primaryLight, border: `1px solid ${C.primaryMid}`, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                        <Send size={12} /> 나눔
+                      </button>
+                      {!currentFridge?.mine && (
+                        <button onClick={() => setRequesting(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.primaryMid}`, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                          <HandHeart size={12} /> 요청
+                        </button>
+                      )}
+                    </>
+                  )}
                   {deleteConfirm === ingredient.id ? (
                     <>
                       <button onClick={() => { onDelete(ingredient.id); setDeleteConfirm(null); }} style={{ background: C.dangerLight, borderRadius: '10px', color: C.danger, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>삭제 확인</button>
@@ -423,6 +683,24 @@ export function FridgeManager({ ingredients, presetIngredients, onAdd, onUpdate,
         />
       )}
       {using && <UseModal ingredient={using} onClose={() => setUsing(null)} onUse={onUse} />}
+      {transferring && (
+        <TransferModal
+          ingredient={transferring}
+          currentFridgeId={selectedFridgeId}
+          accessibleFridges={accessibleFridges}
+          onClose={() => setTransferring(null)}
+          onTransfer={onTransfer}
+        />
+      )}
+      {requesting && (
+        <RequestModal
+          ingredient={requesting}
+          currentFridgeId={selectedFridgeId}
+          accessibleFridges={accessibleFridges}
+          onClose={() => setRequesting(null)}
+          onRequest={onRequest}
+        />
+      )}
     </div>
   );
 }

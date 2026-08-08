@@ -33,16 +33,18 @@ const toViewRecommendationItem = (item) => ({
 
 const useShoppingStore = create((set, get) => ({
   shoppingItems: [],
+  selectedFridgeId: null,
   recommendationItems: [],
   recommendationLoading: false,
   recommendationError: null,
   loading: false,
   error: null,
 
-  fetchShoppingItems: async () => {
+  fetchShoppingItems: async (fridgeId) => {
     set({ loading: true, error: null });
     try {
-      const items = await shoppingApi.getAll();
+      const targetFridgeId = fridgeId ?? get().selectedFridgeId;
+      const items = await shoppingApi.getAll(targetFridgeId);
       set({ shoppingItems: items.map(toViewShoppingItem) });
     } catch (error) {
       set({ error: error.message });
@@ -51,17 +53,29 @@ const useShoppingStore = create((set, get) => ({
     }
   },
 
-  addShoppingItem: async (item) => {
+  setSelectedFridgeId: (selectedFridgeId) => set((state) => {
+    if (state.selectedFridgeId === selectedFridgeId) {
+      return { selectedFridgeId };
+    }
+    return {
+      selectedFridgeId,
+      recommendationItems: [],
+      recommendationError: null,
+    };
+  }),
+
+  addShoppingItem: async (item, fridgeId) => {
+    const targetFridgeId = fridgeId ?? get().selectedFridgeId;
     const created = await shoppingApi.create({
       productId: item.productId,
       quantity: item.quantity,
-    });
+    }, targetFridgeId);
 
-    await get().fetchShoppingItems();
+    await get().fetchShoppingItems(targetFridgeId);
     return created;
   },
 
-  fetchAgentRecommendations: async (limit = 5) => {
+  fetchAgentRecommendations: async (limit = 5, fridgeId) => {
     set({ recommendationLoading: true, recommendationError: null });
     try {
       const excludeProductIds = get().recommendationItems
@@ -69,7 +83,8 @@ const useShoppingStore = create((set, get) => ({
         .filter(Boolean);
 
       // 추천 결과는 바로 DB에 저장하지 않고, 사용자가 확인 후 담을 수 있도록 화면 상태에만 보관
-      const response = await shoppingApi.recommendWithAgent({ limit, excludeProductIds });
+      const targetFridgeId = fridgeId ?? get().selectedFridgeId;
+      const response = await shoppingApi.recommendWithAgent({ limit, excludeProductIds, fridgeId: targetFridgeId });
       set({ recommendationItems: (response.items || []).map(toViewRecommendationItem) });
     } catch (error) {
       set({ recommendationError: error.message, recommendationItems: [] });
@@ -84,7 +99,7 @@ const useShoppingStore = create((set, get) => ({
       quantity: item.quantity || '1개',
     });
 
-    await get().fetchShoppingItems();
+    await get().fetchShoppingItems(get().selectedFridgeId);
     set({
       recommendationItems: get().recommendationItems.filter(
         (recommendationItem) => recommendationItem.productId !== item.productId
@@ -96,33 +111,38 @@ const useShoppingStore = create((set, get) => ({
     const item = get().shoppingItems.find((shoppingItem) => shoppingItem.id === id);
     if (!item) return;
 
-    await shoppingApi.toggle(id, !item.checked);
-    await get().fetchShoppingItems();
+    const targetFridgeId = get().selectedFridgeId;
+    await shoppingApi.toggle(id, !item.checked, targetFridgeId);
+    await get().fetchShoppingItems(targetFridgeId);
   },
 
   updateShoppingItem: async (id, quantity) => {
-    await shoppingApi.update(id, { quantity });
-    await get().fetchShoppingItems();
+    const targetFridgeId = get().selectedFridgeId;
+    await shoppingApi.update(id, { quantity }, targetFridgeId);
+    await get().fetchShoppingItems(targetFridgeId);
   },
 
   deleteShoppingItem: async (id) => {
-    await shoppingApi.delete(id);
-    await get().fetchShoppingItems();
+    const targetFridgeId = get().selectedFridgeId;
+    await shoppingApi.delete(id, targetFridgeId);
+    await get().fetchShoppingItems(targetFridgeId);
   },
 
   clearChecked: async () => {
     const checkedItems = get().shoppingItems.filter((item) => item.checked);
-    await Promise.all(checkedItems.map((item) => shoppingApi.delete(item.id)));
-    await get().fetchShoppingItems();
+    const targetFridgeId = get().selectedFridgeId;
+    await Promise.all(checkedItems.map((item) => shoppingApi.delete(item.id, targetFridgeId)));
+    await get().fetchShoppingItems(targetFridgeId);
   },
 
   moveCheckedToFridge: async () => {
     const checkedItems = get().shoppingItems.filter((item) => item.checked);
+    const targetFridgeId = get().selectedFridgeId;
     await Promise.all(checkedItems.map((item) => shoppingApi.moveToFridge(item.id, {
       expiryDate: null,
       memo: '장보기 목록에서 반영',
-    })));
-    await get().fetchShoppingItems();
+    }, targetFridgeId)));
+    await get().fetchShoppingItems(targetFridgeId);
   },
 }));
 

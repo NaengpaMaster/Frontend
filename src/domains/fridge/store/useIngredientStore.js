@@ -28,13 +28,27 @@ const toViewIngredient = (item) => ({
 const useIngredientStore = create((set, get) => ({
   ingredients: [],
   presetIngredients: initialPresetIngredients,
+  accessibleFridges: [],
+  selectedFridgeId: null,
   loading: false,
   error: null,
 
-  fetchIngredients: async () => {
+  fetchAccessibleFridges: async () => {
+    const fridges = await fridgeApi.getAccessibleFridges();
+    set((state) => ({
+      accessibleFridges: fridges || [],
+      selectedFridgeId: state.selectedFridgeId ?? fridges?.find((fridge) => fridge.mine)?.fridgeId ?? fridges?.[0]?.fridgeId ?? null,
+    }));
+    return fridges || [];
+  },
+
+  setSelectedFridgeId: (selectedFridgeId) => set({ selectedFridgeId }),
+
+  fetchIngredients: async (fridgeId) => {
     set({ loading: true, error: null });
     try {
-      const items = await fridgeApi.getItems();
+      const targetFridgeId = fridgeId ?? get().selectedFridgeId;
+      const items = await fridgeApi.getItems(targetFridgeId);
       set({ ingredients: items.map(toViewIngredient) });
     } catch (error) {
       set({ error: error.message });
@@ -44,14 +58,15 @@ const useIngredientStore = create((set, get) => ({
   },
 
   addIngredient: async (data) => {
+    const targetFridgeId = get().selectedFridgeId;
     await fridgeApi.createItem({
       productId: data.productId,
       quantity: data.quantity,
       expiryDate: data.expiryDate,
       memo: data.memo,
-    });
+    }, targetFridgeId);
 
-    await get().fetchIngredients();
+    await get().fetchIngredients(targetFridgeId);
   },
 
   addIngredients: (items) => set((state) => ({
@@ -59,30 +74,43 @@ const useIngredientStore = create((set, get) => ({
   })),
 
   updateIngredient: async (id, data) => {
+    const targetFridgeId = get().selectedFridgeId;
     await fridgeApi.updateItem(id, {
       productId: data.productId,
       quantity: data.quantity,
       expiryDate: data.expiryDate,
       memo: data.memo,
-    });
+    }, targetFridgeId);
 
-    await get().fetchIngredients();
+    await get().fetchIngredients(targetFridgeId);
   },
 
   useIngredient: async (id, remainingQuantity) => {
     if (remainingQuantity) {
-      await fridgeApi.usePartial(id, remainingQuantity);
-      await get().fetchIngredients();
+      const targetFridgeId = get().selectedFridgeId;
+      await fridgeApi.usePartial(id, remainingQuantity, targetFridgeId);
+      await get().fetchIngredients(targetFridgeId);
       return;
     }
 
-    await fridgeApi.useAll(id);
-    await get().fetchIngredients();
+    const targetFridgeId = get().selectedFridgeId;
+    await fridgeApi.useAll(id, targetFridgeId);
+    await get().fetchIngredients(targetFridgeId);
   },
 
   deleteIngredient: async (id) => {
-    await fridgeApi.deleteItem(id);
-    await get().fetchIngredients();
+    const targetFridgeId = get().selectedFridgeId;
+    await fridgeApi.deleteItem(id, targetFridgeId);
+    await get().fetchIngredients(targetFridgeId);
+  },
+
+  transferIngredient: async (id, data) => {
+    await fridgeApi.transferItem(id, data);
+    await get().fetchIngredients(get().selectedFridgeId);
+  },
+
+  requestIngredient: async (id, data) => {
+    await fridgeApi.requestItem(id, data);
   },
 
   setPresetIngredients: (presetsOrFn) => set((state) => ({
