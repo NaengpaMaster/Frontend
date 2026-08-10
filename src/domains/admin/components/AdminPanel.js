@@ -238,11 +238,6 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
       color: C.danger, bg: C.dangerLight, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
       description: '1건 이상이면 위험 상태로 표시', tab: 'inquiries',
     },
-    {
-      label: '통계 마지막 집계', value: null, icon: Database,
-      color: C.warn, bg: C.warnLight, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
-      description: '집계 지연 또는 실패 시 위험 상태로 표시', tab: 'stats',
-    },
   ];
 
   const displayValue = (card) => {
