@@ -86,6 +86,70 @@ export default function App() {
   } = useInquiryStore();
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!authApi.hasStoredRefreshToken()) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get('oauthError');
+
+    if (!oauthError) return;
+
+    const fallbackMessages = {
+      cancelled: '소셜 계정 연동이 취소되었습니다.',
+      duplicate: '이미 다른 계정에 연동된 소셜 계정입니다.',
+      inactive: '탈퇴 또는 비활성 처리된 회원입니다. 관리자에게 문의해주세요.',
+      failed: '소셜 계정 연동 중 오류가 발생했습니다. 다시 시도해주세요.',
+    };
+    const oauthErrorMessage = params.get('oauthErrorMessage');
+    window.alert(oauthErrorMessage || fallbackMessages[oauthError] || fallbackMessages.failed);
+
+    params.delete('oauthError');
+    params.delete('oauthErrorMessage');
+    const nextSearch = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const accessToken = params.get('oauthAccessToken');
+    const refreshToken = params.get('oauthRefreshToken');
+
+    if (!accessToken || !refreshToken) return;
+
+    let mounted = true;
+
+    async function completeOAuthLogin() {
+      try {
+        authApi.applyOAuthTokens(accessToken, refreshToken);
+        const user = await authApi.getMe();
+        if (!mounted) return;
+        setCurrentUser(user);
+        setShowAdmin(user?.role === 'admin');
+        params.delete('oauthAccessToken');
+        params.delete('oauthRefreshToken');
+        const nextSearch = params.toString();
+        window.history.replaceState({}, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+      } catch {
+        if (mounted) {
+          resetAuth();
+        }
+      } finally {
+        if (mounted) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    completeOAuthLogin();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resetAuth, setAuthLoading, setCurrentUser, setShowAdmin]);
+
+  useEffect(() => {
     let mounted = true;
 
     async function restoreSession() {

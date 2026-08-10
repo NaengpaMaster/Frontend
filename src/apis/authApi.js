@@ -68,6 +68,13 @@ export const authApi = {
     return Boolean(getRefreshToken());
   },
 
+
+
+  applyOAuthTokens(accessToken, refreshToken) {
+    saveAccessToken(accessToken);
+    saveRefreshToken(refreshToken);
+  },
+
   async login(email, password) {
     const tokenResponse = unwrap(await axiosClient.post('/api/v1/auth/login', { email, password }));
     saveAccessToken(tokenResponse.accessToken);
@@ -76,8 +83,13 @@ export const authApi = {
   },
 
   async logout() {
+    const refreshToken = getRefreshToken();
     try {
-      await axiosClient.post('/api/v1/auth/logout');
+      await axiosClient.post(
+        '/api/v1/auth/logout',
+        refreshToken ? { refreshToken } : undefined,
+        { skipUnauthorizedRedirect: true }
+      );
     } finally {
       clearAccessToken();
     }
@@ -123,6 +135,39 @@ export const authApi = {
       { email, code },
       { skipUnauthorizedRedirect: true }
     ));
+  },
+
+
+  async sendOAuth2EmailVerification(email) {
+    return unwrap(await axiosClient.post(
+      '/api/v1/auth/oauth2/email-verifications',
+      { email },
+      { skipUnauthorizedRedirect: true }
+    ));
+  },
+
+  async completeOAuth2Email({ signupToken, email, nickname, householdType }) {
+    const tokenResponse = unwrap(await axiosClient.post(
+      '/api/v1/auth/oauth2/email-completion',
+      {
+        signupToken,
+        email,
+        nickname: nickname || undefined,
+        householdType: toBackendHouseholdType(householdType),
+      },
+      { skipUnauthorizedRedirect: true }
+    ));
+    saveAccessToken(tokenResponse.accessToken);
+    saveRefreshToken(tokenResponse.refreshToken);
+    return tokenResponse;
+  },
+
+  async getSocialAccounts() {
+    return unwrap(await axiosClient.get('/api/v1/members/me/social-accounts'));
+  },
+
+  async unlinkSocialAccount(provider) {
+    return unwrap(await axiosClient.delete(`/api/v1/members/me/social-accounts/${provider}`));
   },
 
   async getMe() {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, Crown, Refrigerator } from 'lucide-react';
+import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, Crown, Refrigerator, Link2, Unlink } from 'lucide-react';
+import { authApi } from '@/apis/authApi';
+import { getAccessToken } from '@/apis/axiosClient';
 import { fridgeApi } from '@/apis/fridgeApi';
 import { C } from '@/shared/data/mockData';
 
@@ -7,6 +9,16 @@ const HOUSEHOLD_TYPES = ['1인', '2인', '3인 이상', '기타'];
 const FAVORITE_FOODS_LIST = ['한식', '중식', '양식', '일식', '아시안', '후식', '분식'];
 const NICKNAME_PATTERN = /^[가-힣A-Za-z0-9 ]+$/;
 const INVALID_NICKNAME_MESSAGE = '닉네임은 한글, 영문, 숫자, 공백만 사용할 수 있습니다.';
+
+const SOCIAL_PROVIDER_LABELS = {
+  KAKAO: '카카오',
+  NAVER: '네이버',
+};
+
+const SOCIAL_PROVIDER_STYLES = {
+  KAKAO: { logo: 'K', background: '#FEE500', color: '#191919' },
+  NAVER: { logo: 'N', background: '#03C75A', color: '#FFFFFF' },
+};
 
 const SUBSCRIPTION_STATUS_LABELS = {
   TRIALING: '무료 체험 중',
@@ -102,6 +114,9 @@ export function MyPage({
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [socialAccounts, setSocialAccounts] = useState([]);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [socialError, setSocialError] = useState('');
 
   useEffect(() => {
     setForm({
@@ -109,6 +124,27 @@ export function MyPage({
       preferences: normalizePreferences(user),
     });
   }, [user]);
+
+  useEffect(() => {
+    let alive = true;
+    setSocialLoading(true);
+    setSocialError('');
+
+    authApi.getSocialAccounts()
+      .then((accounts) => {
+        if (alive) setSocialAccounts(accounts || []);
+      })
+      .catch((error) => {
+        if (alive) setSocialError(error.message || '소셜 연동 정보를 불러오지 못했습니다.');
+      })
+      .finally(() => {
+        if (alive) setSocialLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [user?.memberId, user?.id]);
 
   useEffect(() => {
     const keyword = avoidInput.trim();
@@ -178,6 +214,30 @@ export function MyPage({
         ),
       },
     });
+  };
+
+  const handleLinkSocialAccount = (provider) => {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      setSocialError('소셜 계정 연동을 위해 다시 로그인해주세요.');
+      return;
+    }
+
+    const query = new URLSearchParams({ linkAccessToken: accessToken });
+    window.location.href = `/oauth2/authorization/${provider.toLowerCase()}?${query.toString()}`;
+  };
+
+  const handleUnlinkSocialAccount = async (provider) => {
+    const providerLabel = SOCIAL_PROVIDER_LABELS[provider] || provider;
+    if (!window.confirm(`${providerLabel} 연동을 해지할까요?`)) return;
+
+    setSocialError('');
+    try {
+      await authApi.unlinkSocialAccount(provider);
+      setSocialAccounts((accounts) => accounts.filter((account) => account.provider !== provider));
+    } catch (error) {
+      setSocialError(error.message || '소셜 연동 해지에 실패했습니다.');
+    }
   };
 
   const handleSave = async () => {
@@ -424,6 +484,80 @@ export function MyPage({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Social accounts */}
+          <div style={{ marginBottom: '20px' }}>
+            <div style={sectionTitle}>소셜 로그인 연동</div>
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: '16px', background: C.card, overflow: 'hidden' }}>
+              {socialLoading ? (
+                <div style={{ padding: '14px', color: C.fgMuted, fontSize: '12px' }}>연동 정보를 확인 중입니다.</div>
+              ) : (
+                <>
+                  {Object.keys(SOCIAL_PROVIDER_LABELS).map((provider) => {
+                    const account = socialAccounts.find((item) => item.provider === provider);
+                    const linked = Boolean(account);
+
+                    return (
+                      <div key={provider} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '13px 14px', borderBottom: `1px solid ${C.border}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: '34px',
+                              height: '34px',
+                              borderRadius: '13px',
+                              background: SOCIAL_PROVIDER_STYLES[provider]?.background || C.primaryLight,
+                              color: SOCIAL_PROVIDER_STYLES[provider]?.color || C.primary,
+                              display: 'grid',
+                              placeItems: 'center',
+                              flexShrink: 0,
+                              fontSize: '15px',
+                              fontWeight: 950,
+                              letterSpacing: '-0.03em',
+                            }}
+                          >
+                            {SOCIAL_PROVIDER_STYLES[provider]?.logo || <Link2 size={16} />}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ color: C.fg, fontSize: '13px', fontWeight: 900 }}>{SOCIAL_PROVIDER_LABELS[provider]}</div>
+                            <div style={{ color: C.fgMuted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {linked ? account.providerEmail || user.email || '연동 완료' : '아직 연동되지 않았습니다.'}
+                            </div>
+                          </div>
+                        </div>
+                        {linked ? (
+                          <button
+                            onClick={() => handleUnlinkSocialAccount(provider)}
+                            disabled={socialAccounts.length <= 1}
+                            title={socialAccounts.length <= 1 ? '마지막 소셜 연동은 해지할 수 없습니다.' : '연동 해지'}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', border: `1px solid ${socialAccounts.length <= 1 ? C.border : C.danger}`, borderRadius: '10px', background: socialAccounts.length <= 1 ? C.surface : C.dangerLight, color: socialAccounts.length <= 1 ? C.fgMuted : C.danger, padding: '7px 9px', fontSize: '11px', fontWeight: 800, cursor: socialAccounts.length <= 1 ? 'not-allowed' : 'pointer', flexShrink: 0 }}
+                          >
+                            <Unlink size={12} />
+                            해지
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleLinkSocialAccount(provider)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', border: `1px solid ${C.primary}`, borderRadius: '10px', background: C.primaryLight, color: C.primary, padding: '7px 10px', fontSize: '11px', fontWeight: 900, cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            <Link2 size={12} />
+                            연동하기
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+            <div style={{ fontSize: '11px', color: C.fgMuted, lineHeight: 1.4, marginTop: '8px' }}>
+              카카오/네이버를 추가로 연동하면 다음 로그인부터 원하는 소셜 계정으로 접속할 수 있어요. 마지막 로그인 수단은 계정 보호를 위해 해지할 수 없습니다.
+            </div>
+            {socialError && (
+              <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '12px', padding: '9px 11px', fontSize: '12px', fontWeight: 700, marginTop: '8px' }}>
+                {socialError}
+              </div>
+            )}
           </div>
 
           {/* Favorite foods */}
