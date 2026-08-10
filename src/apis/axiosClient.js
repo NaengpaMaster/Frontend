@@ -8,6 +8,8 @@ const PUBLIC_ENDPOINTS = [
   { method: 'post', url: '/api/v1/auth/refresh' },
   { method: 'post', url: '/api/v1/auth/email-verifications' },
   { method: 'post', url: '/api/v1/auth/email-verifications/confirm' },
+  { method: 'post', url: '/api/v1/auth/oauth2/email-verifications' },
+  { method: 'post', url: '/api/v1/auth/oauth2/email-completion' },
   { method: 'post', url: '/api/v1/members' },
   { method: 'get', url: '/api/v1/members/check-email' },
 ];
@@ -97,6 +99,13 @@ export function saveRefreshToken(refreshToken) {
     return;
   }
   window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export function getAccessToken() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
 export function getRefreshToken() {
