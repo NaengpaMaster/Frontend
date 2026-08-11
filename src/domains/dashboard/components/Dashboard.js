@@ -1,5 +1,5 @@
 import {useState, useEffect} from 'react';
-import {BarChart3, ChevronRight, Zap, TrendingDown, User, Users, X} from 'lucide-react';
+import {BarChart3, Bot, ChevronRight, Zap, TrendingDown, User, Users, X} from 'lucide-react';
 import {
     getDaysUntilExpiry, getExpiryStatus, getDayLabel,
     STATUS_COLORS, C,
@@ -9,6 +9,7 @@ import {
 import {CATEGORY_NAMES} from '@/domains/fridge/store/useIngredientStore';
 import {statsApi} from '@/apis/statsApi';
 import {scoreApi} from '@/apis/scoreApi';
+import {InquiryChatModal} from '@/domains/inquiry/components/InquiryChatModal';
 
 const SCORE_REASON_META = {
     EXPIRED_PRODUCT: {icon: null, meta: '냉장고 만료 재료 1일 방치 페널티'},
@@ -1089,6 +1090,7 @@ export function Dashboard({
                           }) {
     const [showScoreDetail, setShowScoreDetail] = useState(false);
     const [showStatsDetail, setShowStatsDetail] = useState(false);
+    const [showInquiryChat, setShowInquiryChat] = useState(false);
     const [wasteScore, setWasteScore] = useState(null);
     const [scoreLoading, setScoreLoading] = useState(true);
     const sorted = [...ingredients].sort(
@@ -1554,6 +1556,36 @@ export function Dashboard({
                         )}
                     </div>
 
+                    <div style={{padding: '20px 20px 20px'}}>
+                        <button
+                            type="button"
+                            onClick={() => setShowInquiryChat(true)}
+                            className="card-hover"
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '14px 16px',
+                                border: `1px solid ${C.primaryMid}`,
+                                borderRadius: '16px',
+                                background: C.primaryLight,
+                                color: C.fg,
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                            }}
+                        >
+                            <span style={{width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '12px', background: C.card, color: C.primary}}>
+                                <Bot size={20}/>
+                            </span>
+                            <span style={{flex: 1}}>
+                                <span style={{display: 'block', fontSize: '14px', fontWeight: 800}}>서비스 이용이 궁금한가요?</span>
+                                <span style={{display: 'block', marginTop: '3px', fontSize: '12px', color: C.fgMuted}}>문의 AI 챗봇에게 바로 물어보세요.</span>
+                            </span>
+                            <ChevronRight size={17} color={C.primary}/>
+                        </button>
+                    </div>
+
                 </div>
 
                 <div className="dash-col-right">
@@ -1629,6 +1661,8 @@ export function Dashboard({
                     </div>
                 </div>
             </div>
+
+            {showInquiryChat && <InquiryChatModal onClose={() => setShowInquiryChat(false)} />}
         </div>
     );
 }
