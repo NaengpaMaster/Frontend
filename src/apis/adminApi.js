@@ -56,8 +56,17 @@ export const adminApi = {
     };
   },
 
-  async getProducts() {
-    return unwrap(await axiosClient.get('/api/v1/admin/products')) || [];
+  async getProducts({ search, page = 0, size = 10 } = {}) {
+    const data = unwrap(await axiosClient.get('/api/v1/admin/products', {
+      params: { search: search || undefined, page, size },
+    }));
+    return {
+      content: data?.content ?? [],
+      totalPages: data?.totalPages ?? 0,
+      totalElements: data?.totalElements ?? 0,
+      totalProductCount: data?.totalProductCount ?? 0,
+      activeProductCount: data?.activeProductCount ?? 0,
+    };
   },
 
   async createProduct(data) {
@@ -90,8 +99,19 @@ export const adminApi = {
     await axiosClient.delete(`/api/v1/admin/fridges/${fridgeId}/members/${memberId}`);
   },
 
-  async getLlmUsageLogs() {
-    return unwrap(await axiosClient.get('/api/v1/admin/ai/usage-logs')) || [];
+  async getLlmUsageLogs({ featureType, page = 0, size = 10 } = {}) {
+    const data = unwrap(await axiosClient.get('/api/v1/admin/ai/usage-logs', {
+      params: { featureType: featureType === 'ALL' ? undefined : featureType, page, size },
+    }));
+    return {
+      content: data?.content ?? [],
+      totalPages: data?.totalPages ?? 0,
+      totalElements: data?.totalElements ?? 0,
+      successCount: data?.successCount ?? 0,
+      failedCount: data?.failedCount ?? 0,
+      totalTokens: data?.totalTokens ?? 0,
+      totalEstimatedCost: data?.totalEstimatedCost ?? 0,
+    };
   },
 
   async sendWeeklyFridgeReports({ force = false } = {}) {
