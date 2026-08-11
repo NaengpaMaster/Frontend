@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight, Mail } from 'lucide-react';
 import {
   C,
   CATEGORY_EMOJIS,
@@ -2435,19 +2435,24 @@ function FamilyFridgesTab() {
 
 // ─── Main AdminPanel ──────────────────────────────────────────────────────────
 export function AdminPanel({
-  currentUser, recipes, inquiries, presetIngredients, onClose,
+  currentUser, initialTab = 'home', recipes, inquiries, presetIngredients, onClose,
   onFetchRecipes, adminPage, adminTotalPages, adminTotalElements, adminSize,
   onAdminUpdateRecipe, onAdminDeleteRecipe,
   onFetchInquiries, onFetchInquiryDetail, onFetchInquiryCounts, pendingInquiriesCount, answeredInquiriesCount,
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [schedulerRunning, setSchedulerRunning] = useState(false);
+  const [weeklyReportSending, setWeeklyReportSending] = useState(false);
 
   useEffect(() => {
     onFetchInquiryCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const handleRunScheduler = async () => {
     if (schedulerRunning) return;
@@ -2456,6 +2461,18 @@ export function AdminPanel({
       await scoreApi.postScheduler();
     } finally {
       setSchedulerRunning(false);
+    }
+  };
+
+  const handleSendWeeklyFridgeReports = async () => {
+    if (weeklyReportSending) return;
+    if (!window.confirm('주간 냉장고 리포트 메일을 지금 발송할까요?')) return;
+    setWeeklyReportSending(true);
+    try {
+      const result = await adminApi.sendWeeklyFridgeReports({ force: true });
+      window.alert(`주간 냉장고 리포트 메일 발송을 실행했습니다.\\n발송 성공: ${result?.sentCount ?? 0}건`);
+    } finally {
+      setWeeklyReportSending(false);
     }
   };
 
@@ -2484,6 +2501,13 @@ export function AdminPanel({
             style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: schedulerRunning ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}
           >
             <Clock size={14} /> {schedulerRunning ? '실행 중...' : '스케줄러 실행'}
+          </button>
+          <button
+            onClick={handleSendWeeklyFridgeReports}
+            disabled={weeklyReportSending}
+            style={{ background: C.primaryLight, border: `1px solid ${C.primary}33`, borderRadius: '14px', padding: '8px 14px', cursor: weeklyReportSending ? 'wait' : 'pointer', color: C.primary, fontWeight: 800, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Mail size={14} /> {weeklyReportSending ? '발송 중...' : '주간 메일 발송'}
           </button>
           <button onClick={onClose} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <X size={14} /> 닫기

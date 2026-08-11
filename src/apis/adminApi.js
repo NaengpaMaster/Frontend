@@ -93,4 +93,10 @@ export const adminApi = {
   async getLlmUsageLogs() {
     return unwrap(await axiosClient.get('/api/v1/admin/ai/usage-logs')) || [];
   },
+
+  async sendWeeklyFridgeReports({ force = false } = {}) {
+    return unwrap(await axiosClient.post('/api/v1/admin/weekly-fridge-reports/send', null, {
+      params: { force },
+    }));
+  },
 };
