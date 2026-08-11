@@ -78,9 +78,10 @@ const useShoppingStore = create((set, get) => ({
   fetchAgentRecommendations: async (limit = 5, fridgeId) => {
     set({ recommendationLoading: true, recommendationError: null });
     try {
-      const excludeProductIds = get().recommendationItems
+      const excludeProductIds = [...get().shoppingItems, ...get().recommendationItems]
         .map((item) => item.productId)
-        .filter(Boolean);
+        .filter(Boolean)
+        .filter((productId, index, productIds) => productIds.indexOf(productId) === index);
 
       // 추천 결과는 바로 DB에 저장하지 않고, 사용자가 확인 후 담을 수 있도록 화면 상태에만 보관
       const targetFridgeId = fridgeId ?? get().selectedFridgeId;
@@ -94,17 +95,21 @@ const useShoppingStore = create((set, get) => ({
   },
 
   addAgentRecommendationItem: async (item) => {
-    await shoppingApi.addAgentRecommendation({
-      productId: item.productId,
-      quantity: item.quantity || '1개',
-    });
+    try {
+      await shoppingApi.addAgentRecommendation({
+        productId: item.productId,
+        quantity: item.quantity || '1개',
+      });
 
-    await get().fetchShoppingItems(get().selectedFridgeId);
-    set({
-      recommendationItems: get().recommendationItems.filter(
-        (recommendationItem) => recommendationItem.productId !== item.productId
-      ),
-    });
+      await get().fetchShoppingItems(get().selectedFridgeId);
+      set({
+        recommendationItems: get().recommendationItems.filter(
+          (recommendationItem) => recommendationItem.productId !== item.productId
+        ),
+      });
+    } catch (error) {
+      set({ recommendationError: error.message });
+    }
   },
 
   toggleShoppingItem: async (id) => {
