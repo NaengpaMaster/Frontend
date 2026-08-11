@@ -188,7 +188,7 @@ export default function App() {
     let mounted = true;
 
     async function fetchHomeData() {
-      if (!currentUser) {
+      if (!currentUser || currentUser.role === 'admin') {
         setHomeLoading(true);
         setFridgeInfo(null);
         setSubscriptionStatus(null);
@@ -253,7 +253,7 @@ export default function App() {
   }, [currentUser, fetchAccessibleFridges, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
 
   useEffect(() => {
-    if (!currentUser || !selectedFridgeId) return;
+    if (!currentUser || currentUser.role === 'admin' || !selectedFridgeId) return;
     setShoppingSelectedFridgeId(selectedFridgeId);
     fetchIngredients(selectedFridgeId);
     fetchShoppingItems(selectedFridgeId);
@@ -263,7 +263,7 @@ export default function App() {
     let mounted = true;
 
     async function fetchNotifications() {
-      if (!currentUser || activeTab !== 'home') return;
+      if (!currentUser || currentUser.role === 'admin' || activeTab !== 'home') return;
 
       try {
         const unreadNotifications = await notificationApi.getUnread();

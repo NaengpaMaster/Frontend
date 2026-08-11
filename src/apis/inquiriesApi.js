@@ -19,6 +19,11 @@ export const inquiriesApi = {
     axiosClient.delete(`/api/v1/inquiries/${id}`).then(unwrap),
 };
 
+export const inquiryChatApi = {
+  sendMessage: (conversationSessionId, content) =>
+    axiosClient.post('/api/v1/inquiry-chat/messages', { conversationSessionId, content }).then(unwrap),
+};
+
 export const adminInquiriesApi = {
   getAll: (params) =>
     axiosClient.get('/api/v1/admin/inquiries', { params }).then(unwrap),

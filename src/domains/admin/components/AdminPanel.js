@@ -182,7 +182,7 @@ function DatePartsSelect({ label, value, onChange, invalid = false }) {
 
 // ─── Admin Home ───────────────────────────────────────────────────────────────
 function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryCounts }) {
-  const [memberCounts, setMemberCounts] = useState({ active: null, inactive: null });
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -190,12 +190,9 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
     setLoading(true);
     setError('');
     try {
-      const [active, inactive] = await Promise.all([
-        adminApi.getMembers({ role: 'USER', status: 'ACTIVE', size: 1 }),
-        adminApi.getMembers({ role: 'USER', status: 'INACTIVE', size: 1 }),
-        onRefreshInquiryCounts(),
-      ]);
-      setMemberCounts({ active: active.totalElements, inactive: inactive.totalElements });
+      const home = await adminApi.getHome();
+      setSummary(home);
+      await onRefreshInquiryCounts();
     } catch (err) {
       setError(err.message || '운영 현황을 불러오지 못했습니다.');
     } finally {
@@ -210,39 +207,42 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
 
   const summaryCards = [
     {
-      label: '활성 회원', value: memberCounts.active, suffix: '명', icon: Users,
+      label: '활성 회원', value: summary?.activeMemberCount, suffix: '명', icon: Users,
       color: C.primary, bg: C.primaryLight, tab: 'members', statusLabel: '현재', statusColor: C.primary,
       description: '서비스를 이용할 수 있는 전체 회원',
     },
     {
-      label: '신규 가입 회원', value: null, suffix: '명', icon: UserPlus,
-      color: '#3974C6', bg: '#EAF2FF', pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
-      description: '오늘', secondary: '최근 7일 —명', tab: 'members',
+      label: '신규 가입 회원', value: summary?.todayNewMemberCount, suffix: '명', icon: UserPlus,
+      color: '#3974C6', bg: '#EAF2FF', statusLabel: '오늘', statusColor: '#3974C6',
+      description: '오늘 가입한 회원', tab: 'members',
     },
     {
-      label: '탈퇴 · 비활성 전환', value: null, suffix: '명', icon: UserMinus,
-      color: C.fgMuted, bg: C.surface, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
-      description: '오늘', secondary: `최근 7일 —명 · 현재 비활성 ${memberCounts.inactive ?? '—'}명`, tab: 'members',
+      label: '비활성 전환', value: summary?.todayInactiveMemberCount, suffix: '명', icon: UserMinus,
+      color: C.fgMuted, bg: C.surface, statusLabel: '오늘', statusColor: C.fgMuted,
+      description: '오늘 비활성 처리된 회원', secondary: `현재 비활성 ${summary?.inactiveMemberCount ?? '—'}명`, tab: 'members',
     },
     {
-      label: '전체 미답변 문의', value: pendingCount, suffix: '건', icon: MessageSquare,
-      color: pendingCount > 0 ? C.accent : C.primary,
-      bg: pendingCount > 0 ? C.accentLight : C.primaryLight,
-      tab: 'inquiries', urgent: pendingCount > 0,
-      statusLabel: pendingCount > 0 ? '확인 필요' : '정상',
-      statusColor: pendingCount > 0 ? C.accent : C.primary,
-      description: pendingCount > 0 ? '답변을 기다리는 문의가 있습니다.' : '대기 중인 문의가 없습니다.',
+      label: '전체 미답변 문의', value: summary?.pendingInquiryCount ?? pendingCount, suffix: '건', icon: MessageSquare,
+      color: (summary?.pendingInquiryCount ?? pendingCount) > 0 ? C.accent : C.primary,
+      bg: (summary?.pendingInquiryCount ?? pendingCount) > 0 ? C.accentLight : C.primaryLight,
+      tab: 'inquiries', urgent: (summary?.pendingInquiryCount ?? pendingCount) > 0,
+      statusLabel: (summary?.pendingInquiryCount ?? pendingCount) > 0 ? '확인 필요' : '정상',
+      statusColor: (summary?.pendingInquiryCount ?? pendingCount) > 0 ? C.accent : C.primary,
+      description: (summary?.pendingInquiryCount ?? pendingCount) > 0 ? '답변을 기다리는 문의가 있습니다.' : '대기 중인 문의가 없습니다.',
     },
     {
-      label: '24시간 초과 미답변', value: null, suffix: '건', icon: AlertTriangle,
-      color: C.danger, bg: C.dangerLight, pending: true, statusLabel: 'API 연결 예정', statusColor: C.fgSubtle,
-      description: '1건 이상이면 위험 상태로 표시', tab: 'inquiries',
+      label: '24시간 초과 미답변', value: summary?.overduePendingInquiryCount, suffix: '건', icon: AlertTriangle,
+      color: C.danger, bg: C.dangerLight,
+      urgent: (summary?.overduePendingInquiryCount ?? 0) > 0,
+      statusLabel: (summary?.overduePendingInquiryCount ?? 0) > 0 ? '위험' : '정상',
+      statusColor: (summary?.overduePendingInquiryCount ?? 0) > 0 ? C.danger : C.primary,
+      description: (summary?.overduePendingInquiryCount ?? 0) > 0 ? '24시간 이상 답변을 기다린 문의가 있습니다.' : '24시간 초과 미답변 문의가 없습니다.',
+      tab: 'inquiries',
     },
   ];
 
   const displayValue = (card) => {
-    if (loading && !card.pending) return '…';
-    if (card.pending) return '—';
+    if (loading) return '…';
     return `${card.value ?? 0}${card.suffix ?? ''}`;
   };
 
@@ -2063,6 +2063,7 @@ function LlmUsageLogsTab() {
   const [error, setError] = useState('');
   const [exchangeRate, setExchangeRate] = useState(FALLBACK_USD_TO_KRW_RATE);
   const [exchangeRateSource, setExchangeRateSource] = useState('기본 환율');
+  const [featureType, setFeatureType] = useState('ALL');
 
   const loadLogs = async () => {
     setLoading(true);
@@ -2120,21 +2121,24 @@ function LlmUsageLogsTab() {
     return `약 ₩${Math.round(krw).toLocaleString()}`;
   };
 
-  const successCount = logs.filter((log) => log.status === 'SUCCESS').length;
-  const failedCount = logs.filter((log) => log.status === 'FAILED').length;
-  const totalTokens = logs.reduce((sum, log) => sum + Number(log.totalTokens ?? 0), 0);
-  const totalCost = logs.reduce((sum, log) => sum + Number(log.estimatedCost ?? 0), 0);
+  const filteredLogs = featureType === 'ALL'
+    ? logs
+    : logs.filter((log) => log.featureType === featureType);
+  const successCount = filteredLogs.filter((log) => log.status === 'SUCCESS').length;
+  const failedCount = filteredLogs.filter((log) => log.status === 'FAILED').length;
+  const totalTokens = filteredLogs.reduce((sum, log) => sum + Number(log.totalTokens ?? 0), 0);
+  const totalCost = filteredLogs.reduce((sum, log) => sum + Number(log.estimatedCost ?? 0), 0);
 
   const summaryCards = [
-    { label: '전체 호출', value: `${logs.length}건`, color: C.primary },
-    { label: '성공', value: `${successCount}건`, color: C.primary },
-    { label: '실패', value: `${failedCount}건`, color: C.danger },
-    { label: '총 토큰', value: totalTokens.toLocaleString(), color: C.fg },
-    { label: '예상 비용', value: formatCost(totalCost), color: C.accent },
+    { label: '전체 호출', value: `${filteredLogs.length}건`, icon: Activity, color: C.primary, bg: C.primaryLight },
+    { label: '성공', value: `${successCount}건`, icon: CheckCircle, color: C.primary, bg: C.primaryLight },
+    { label: '실패', value: `${failedCount}건`, icon: AlertTriangle, color: C.danger, bg: C.dangerLight },
+    { label: '총 토큰', value: totalTokens.toLocaleString(), icon: Database, color: '#3974C6', bg: '#EAF2FF' },
+    { label: '예상 비용', value: formatCost(totalCost), icon: TrendingUp, color: C.accent, bg: C.accentLight },
   ];
 
   return (
-    <div>
+    <div className="admin-shadcn-page admin-ai-usage-page">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>LLM 사용량 로그</div>
@@ -2143,9 +2147,10 @@ function LlmUsageLogsTab() {
           </div>
         </div>
         <button
+          className="admin-shadcn-button admin-shadcn-button-outline"
           onClick={loadLogs}
           disabled={loading}
-          style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '8px 13px', cursor: loading ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          style={{ padding: '8px 11px', cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
         >
           <RefreshCw size={14} className={loading ? 'admin-home-refreshing' : ''} /> 새로고침
         </button>
@@ -2157,38 +2162,70 @@ function LlmUsageLogsTab() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '14px' }}>
-        {summaryCards.map((card) => (
-          <div key={card.label} style={{ background: C.card, borderRadius: '14px', padding: '14px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
-            <div style={{ color: C.fgMuted, fontSize: '11px', fontWeight: 800 }}>{card.label}</div>
-            <div style={{ color: card.color, fontSize: '22px', fontWeight: 900, marginTop: '7px' }}>{card.value}</div>
-          </div>
+      <div className="admin-shadcn-tabs" style={{ display: 'inline-flex', marginBottom: '18px', flexWrap: 'wrap' }}>
+        {[
+          ['ALL', '전체'],
+          ['SHOPPING_RECOMMENDATION', '장보기 추천'],
+          ['INQUIRY_QNA', '문의 Q&A'],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={`admin-shadcn-tab${featureType === value ? ' is-active' : ''}`}
+            onClick={() => setFeatureType(value)}
+            style={{
+              padding: '7px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 800,
+              border: 'none', background: featureType === value ? C.card : 'transparent',
+            }}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
-      <div style={{ background: C.card, borderRadius: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ minHeight: '126px', padding: '16px 17px', borderTop: `3px solid ${card.color}`, borderRadius: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: card.bg, color: card.color, border: `1px solid ${card.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={16} />
+                </span>
+                <span style={{ color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>{card.label}</span>
+              </div>
+              <div style={{ color: C.fg, fontSize: '25px', lineHeight: 1, letterSpacing: '-0.03em', fontWeight: 900, marginTop: '17px' }}>{card.value}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="admin-shadcn-card admin-shadcn-panel admin-shadcn-table-wrap" style={{ overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>LLM 사용량 로그를 불러오는 중입니다.</div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>LLM 사용량 로그가 없습니다.</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1040px' }}>
               <thead>
                 <tr style={{ background: C.surface, color: C.fgMuted, fontSize: '11px', textAlign: 'left' }}>
-                  {['회원', '모델', '상태', 'Prompt', 'Completion', 'Total', '예상 비용', '실패 메시지', '호출 일시'].map((header) => (
+                  {['회원', '기능', '모델', '상태', 'Prompt', 'Completion', 'Total', '예상 비용', '실패 메시지', '호출 일시'].map((header) => (
                     <th key={header} style={{ padding: '11px 12px', fontWeight: 900, borderBottom: `1px solid ${C.border}` }}>{header}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => {
+                {filteredLogs.map((log) => {
                   const failed = log.status === 'FAILED';
                   return (
                     <tr key={log.llmUsageLogId} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '12px', verticalAlign: 'top' }}>
                         <div style={{ fontSize: '12px', color: C.fg, fontWeight: 900 }}>{log.nickname || '알 수 없음'}</div>
                         <div style={{ fontSize: '10px', color: C.fgMuted, marginTop: '3px' }}>{log.email || `memberId ${log.memberId}`}</div>
+                      </td>
+                      <td style={{ padding: '12px', color: C.fg, fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                        {log.featureType === 'INQUIRY_QNA' ? '문의 Q&A' : '장보기 추천'}
                       </td>
                       <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 700 }}>{log.modelName}</td>
                       <td style={{ padding: '12px' }}>

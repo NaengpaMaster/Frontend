@@ -6,6 +6,10 @@ function unwrap(response) {
 }
 
 export const adminApi = {
+  async getHome() {
+    return unwrap(await axiosClient.get('/api/v1/admin/home'));
+  },
+
   async getMembers({ role, status, search, page = 0, size = 10 }) {
     const data = unwrap(await axiosClient.get('/api/v1/admin/members', {
       params: {
