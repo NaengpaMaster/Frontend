@@ -655,6 +655,7 @@ export default function App() {
                 onDelete={handleDeleteIngredient}
                 onTransfer={handleTransferIngredient}
                 onRequest={handleRequestIngredient}
+                onReceiptRegistered={() => fetchIngredients(selectedFridgeId)}
               />
             )}
             {activeTab === 'recipe' && (

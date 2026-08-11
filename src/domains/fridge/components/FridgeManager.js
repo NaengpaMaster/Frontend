@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { CheckCircle, Edit2, HandHeart, Plus, Search, Send, X, Trash2 } from 'lucide-react';
+import { CheckCircle, Edit2, FileText, HandHeart, Plus, Search, Send, X, Trash2 } from 'lucide-react';
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel, STATUS_COLORS,
   CATEGORIES, CATEGORY_EMOJIS, TODAY, C,
 } from '@/shared/data/mockData';
 import { IngredientSearchField } from './IngredientSearchField';
+import { ReceiptImportModal } from './ReceiptImportModal';
 
 function addDays(days) {
   const date = new Date();
@@ -456,6 +457,7 @@ export function FridgeManager({
   onDelete,
   onTransfer,
   onRequest,
+  onReceiptRegistered,
 }) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('전체');
@@ -465,6 +467,7 @@ export function FridgeManager({
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [transferring, setTransferring] = useState(null);
   const [requesting, setRequesting] = useState(null);
+  const [showReceiptImport, setShowReceiptImport] = useState(false);
   const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
 
   const filtered = ingredients
@@ -527,6 +530,28 @@ export function FridgeManager({
             지금 {currentFridge.ownerNickname || currentFridge.ownerEmail}님의 공유 냉장고를 보고 있어요.
           </div>
         )}
+
+        <button
+          onClick={() => setShowReceiptImport(true)}
+          style={{
+            width: '100%',
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+            padding: '10px',
+            background: C.primaryLight,
+            color: C.primary,
+            border: `1px solid ${C.primaryMid}`,
+            borderRadius: '14px',
+            fontSize: '13px',
+            fontWeight: 900,
+            cursor: 'pointer',
+          }}
+        >
+          <FileText size={15} /> 영수증으로 재료 등록
+        </button>
 
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
@@ -699,6 +724,12 @@ export function FridgeManager({
           accessibleFridges={accessibleFridges}
           onClose={() => setRequesting(null)}
           onRequest={onRequest}
+        />
+      )}
+      {showReceiptImport && (
+        <ReceiptImportModal
+          onClose={() => setShowReceiptImport(false)}
+          onRegistered={onReceiptRegistered}
         />
       )}
     </div>
