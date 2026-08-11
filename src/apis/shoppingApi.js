@@ -23,7 +23,4 @@ export const shoppingApi = {
 
   recommendWithAgent: (data) =>
     axiosClient.post('/api/v1/agent/shopping-recommendations', data).then(unwrap),
-
-  addAgentRecommendation: (item) =>
-    axiosClient.post('/api/v1/agent/tools/shopping-items', item).then(unwrap),
 };

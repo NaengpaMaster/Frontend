@@ -95,14 +95,17 @@ const useShoppingStore = create((set, get) => ({
   },
 
   addAgentRecommendationItem: async (item) => {
+    set({ recommendationError: null });
     try {
-      await shoppingApi.addAgentRecommendation({
+      const targetFridgeId = get().selectedFridgeId;
+      await shoppingApi.create({
         productId: item.productId,
         quantity: item.quantity || '1개',
-      });
+      }, targetFridgeId);
 
-      await get().fetchShoppingItems(get().selectedFridgeId);
+      await get().fetchShoppingItems(targetFridgeId);
       set({
+        recommendationError: null,
         recommendationItems: get().recommendationItems.filter(
           (recommendationItem) => recommendationItem.productId !== item.productId
         ),

@@ -234,11 +234,12 @@ export function ShoppingList({
             <div style={{ fontSize: '10px', color: C.fgSubtle }}>원하는 항목만 담기</div>
           </div>
 
-          {recommendationError ? (
+          {recommendationError && (
             <div style={{ padding: '10px 12px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, fontSize: '12px' }}>
               {recommendationError}
             </div>
-          ) : (
+          )}
+          {recommendationItems.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {recommendationItems.map((item) => (
                 <div
