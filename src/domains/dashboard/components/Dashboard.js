@@ -1662,7 +1662,12 @@ export function Dashboard({
                 </div>
             </div>
 
-            {showInquiryChat && <InquiryChatModal onClose={() => setShowInquiryChat(false)} />}
+            {showInquiryChat && (
+                <InquiryChatModal
+                    onClose={() => setShowInquiryChat(false)}
+                    onOpenInquiry={() => onNavigate('inquiry')}
+                />
+            )}
         </div>
     );
 }
