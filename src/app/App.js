@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { authApi } from '@/apis/authApi';
 import { fridgeApi } from '@/apis/fridgeApi';
 import { notificationApi } from '@/apis/notificationApi';
+import { adminInquiriesApi } from '@/apis/inquiriesApi';
 import { subscriptionApi } from '@/apis/subscriptionApi';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { Sidebar } from '@/shared/components/Sidebar';
@@ -19,6 +20,7 @@ import { MyPage } from '@/domains/mypage/components/MyPage';
 import { SubscriptionPage } from '@/domains/subscription/components/SubscriptionPage';
 import { AdminPanel } from '@/domains/admin/components/AdminPanel';
 import { ExpiryNotificationPopup } from '@/shared/components/ExpiryNotificationPopup';
+import { AdminInquiryNotificationPopup } from '@/shared/components/AdminInquiryNotificationPopup';
 
 import useAuthStore from '@/domains/auth/store/useAuthStore';
 import useUiStore from '@/shared/store/useUiStore';
@@ -48,6 +50,9 @@ export default function App() {
   const [showFamilyFridgeModal, setShowFamilyFridgeModal] = useState(false);
   const [receivedFamilyInvites, setReceivedFamilyInvites] = useState([]);
   const [homeIngredients, setHomeIngredients] = useState([]);
+  const [lastAdminInquiryAlertKey, setLastAdminInquiryAlertKey] = useState('');
+  const [adminInquiryPopup, setAdminInquiryPopup] = useState(null);
+  const [adminInitialTab, setAdminInitialTab] = useState('home');
 
   const {
     currentUser,
@@ -344,6 +349,45 @@ export default function App() {
     };
   }, [showMyPage, setCurrentUser, setShowMyPage]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function notifyPendingAdminInquiries() {
+      if (currentUser?.role !== 'admin') return;
+
+      try {
+        const pending = await adminInquiriesApi.getAll({ isAnswered: false, page: 0, size: 1 });
+        if (!mounted) return;
+
+        const pendingCount = pending?.totalElements ?? 0;
+        if (pendingCount <= 0) return;
+
+        const alertKey = `${currentUser.id ?? currentUser.memberId ?? currentUser.email}:${pendingCount}`;
+        if (alertKey === lastAdminInquiryAlertKey) return;
+
+        setLastAdminInquiryAlertKey(alertKey);
+        setAdminInquiryPopup({ count: pendingCount });
+      } catch {
+        return;
+      }
+    }
+
+    notifyPendingAdminInquiries();
+
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser, lastAdminInquiryAlertKey]);
+
+  const closeAdminInquiryPopup = () => {
+    setAdminInquiryPopup(null);
+  };
+
+  const goAdminInquiriesFromPopup = () => {
+    setAdminInquiryPopup(null);
+    setAdminInitialTab('inquiries');
+  };
+
   // ─── Auth handlers ─────────────────────────────────────────────────────────
   const handleLogin = (user) => {
     setCurrentUser(user);
@@ -518,8 +562,16 @@ export default function App() {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', background: '#F2F4F5' }}>
         <div style={{ width: '100%', maxWidth: '720px', height: '100%', position: 'relative', overflow: 'hidden' }}>
+          {adminInquiryPopup && (
+            <AdminInquiryNotificationPopup
+              count={adminInquiryPopup.count}
+              onClose={closeAdminInquiryPopup}
+              onGoInquiries={goAdminInquiriesFromPopup}
+            />
+          )}
           <AdminPanel
             currentUser={currentUser}
+            initialTab={adminInitialTab}
             recipes={recipes}
             inquiries={adminInquiries}
             presetIngredients={presetIngredients}
@@ -626,6 +678,8 @@ export default function App() {
             {activeTab === 'shopping' && (
               <ShoppingList
                 items={shoppingItems}
+                subscriptionStatus={subscriptionStatus}
+                onOpenSubscription={() => setShowSubscriptionPage(true)}
                 accessibleFridges={accessibleFridges}
                 selectedFridgeId={selectedFridgeId}
                 onSelectFridge={setSelectedFridgeId}

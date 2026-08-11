@@ -21,6 +21,8 @@ export function ShoppingList({
   recommendationItems = [],
   recommendationLoading = false,
   recommendationError = null,
+  subscriptionStatus = null,
+  onOpenSubscription,
   onFetchRecommendations,
   onAddRecommendation,
 }) {
@@ -32,6 +34,7 @@ export function ShoppingList({
 
   const checkedCount = items.filter((i) => i.checked).length;
   const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
+  const canUseAiRecommendation = Boolean(subscriptionStatus?.premium);
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
     const catItems = items.filter((i) => i.category === cat);
@@ -141,14 +144,21 @@ export function ShoppingList({
             <Plus size={14} strokeWidth={2.5} /> 항목 추가
           </button>
           <button
-            onClick={() => onFetchRecommendations?.(5)}
+            onClick={() => {
+              if (!canUseAiRecommendation) {
+                onOpenSubscription?.();
+                return;
+              }
+              onFetchRecommendations?.(5);
+            }}
             disabled={recommendationLoading}
+            title={canUseAiRecommendation ? 'AI 추천 받기' : '구독 후 사용할 수 있어요'}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
               padding: '10px 12px',
-              background: recommendationLoading ? C.surface : C.primaryLight,
-              color: recommendationLoading ? C.fgMuted : C.primary,
-              border: `1px solid ${recommendationLoading ? C.border : C.primaryMid}`,
+              background: recommendationLoading ? C.surface : canUseAiRecommendation ? C.primaryLight : '#FFF7ED',
+              color: recommendationLoading ? C.fgMuted : canUseAiRecommendation ? C.primary : '#C06B16',
+              border: `1px solid ${recommendationLoading ? C.border : canUseAiRecommendation ? C.primaryMid : '#FED7AA'}`,
               borderRadius: '14px',
               fontWeight: 800,
               fontSize: '12px',
@@ -156,7 +166,7 @@ export function ShoppingList({
               whiteSpace: 'nowrap',
             }}
           >
-            <Sparkles size={13} /> {recommendationLoading ? '추천 중' : 'AI 추천'}
+            <Sparkles size={13} /> {recommendationLoading ? '추천 중' : canUseAiRecommendation ? 'AI 추천' : 'AI 추천 잠금'}
           </button>
           {checkedCount > 0 && (
             <>
