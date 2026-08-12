@@ -46,7 +46,6 @@ export default function App() {
   const [fridgeInfo, setFridgeInfo] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-  const [showSubscriptionPage, setShowSubscriptionPage] = useState(false);
   const [showFamilyFridgeModal, setShowFamilyFridgeModal] = useState(false);
   const [receivedFamilyInvites, setReceivedFamilyInvites] = useState([]);
   const [homeIngredients, setHomeIngredients] = useState([]);
@@ -615,6 +614,7 @@ export default function App() {
         currentUser={currentUser}
         onOpenMyPage={() => setShowMyPage(true)}
         onOpenAdmin={() => setShowAdmin(true)}
+        onOpenSubscription={() => setActiveTab('subscription')}
       />
       <div className="app-main" style={{ display: 'flex', justifyContent: 'center', height: '100%', overflow: 'hidden' }}>
         <div
@@ -666,7 +666,7 @@ export default function App() {
                 onRequest={handleRequestIngredient}
                 onReceiptRegistered={() => fetchIngredients(selectedFridgeId)}
                 subscriptionStatus={subscriptionStatus}
-                onOpenSubscription={() => setShowSubscriptionPage(true)}
+                onOpenSubscription={() => setActiveTab('subscription')}
               />
             )}
             {activeTab === 'recipe' && (
@@ -691,7 +691,7 @@ export default function App() {
               <ShoppingList
                 items={shoppingItems}
                 subscriptionStatus={subscriptionStatus}
-                onOpenSubscription={() => setShowSubscriptionPage(true)}
+                onOpenSubscription={() => setActiveTab('subscription')}
                 accessibleFridges={accessibleFridges}
                 selectedFridgeId={selectedFridgeId}
                 onSelectFridge={setSelectedFridgeId}
@@ -719,6 +719,12 @@ export default function App() {
                 onDeleteInquiry={deleteInquiry}
               />
             )}
+            {activeTab === 'subscription' && (
+              <SubscriptionPage
+                subscriptionStatus={subscriptionStatus}
+                onOpenFamilyManagement={handleOpenFamilyManagement}
+              />
+            )}
           </div>
 
           <BottomNav active={activeTab} onChange={setActiveTab} />
@@ -734,15 +740,8 @@ export default function App() {
               fridgeInfo={fridgeInfo}
               subscriptionStatus={subscriptionStatus}
               subscriptionLoading={subscriptionLoading}
-              onOpenSubscription={() => setShowSubscriptionPage(true)}
+              onOpenSubscription={() => setActiveTab('subscription')}
               onOpenFamilyManagement={handleOpenFamilyManagement}
-            />
-          )}
-
-          {showSubscriptionPage && (
-            <SubscriptionPage
-              subscriptionStatus={subscriptionStatus}
-              onClose={() => setShowSubscriptionPage(false)}
             />
           )}
 

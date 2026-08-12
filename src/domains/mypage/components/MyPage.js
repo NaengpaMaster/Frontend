@@ -391,24 +391,7 @@ export function MyPage({
                   >
                     구독 보기
                   </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={onOpenFamilyManagement}
-                      style={{ padding: '10px 12px', border: '1px solid rgba(255,255,255,0.32)', borderRadius: '13px', background: 'rgba(255,255,255,0.16)', color: '#FFFFFF', fontSize: '12px', fontWeight: 950, cursor: 'pointer' }}
-                    >
-                      가족 관리
-                    </button>
-                    {!isFamilyPremiumMember && (
-                      <button
-                        onClick={() => alert('구독 취소 기능은 결제 취소 API 연결 후 사용할 수 있습니다.')}
-                        style={{ padding: '2px 3px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.55)', fontSize: '9px', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}
-                      >
-                        구독취소
-                      </button>
-                    )}
-                  </>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
