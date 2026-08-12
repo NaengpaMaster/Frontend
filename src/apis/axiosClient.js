@@ -83,7 +83,9 @@ axiosClient.interceptors.response.use(
     }
 
     const message = fallbackMessage || error.response?.data?.message || error.message;
-    return Promise.reject(new Error(message));
+    const wrappedError = new Error(message);
+    wrappedError.status = error.response?.status;
+    return Promise.reject(wrappedError);
   }
 );
 

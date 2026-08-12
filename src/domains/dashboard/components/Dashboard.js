@@ -14,7 +14,8 @@ import {InquiryChatModal} from '@/domains/inquiry/components/InquiryChatModal';
 const SCORE_REASON_META = {
     EXPIRED_PRODUCT: {icon: null, meta: '냉장고 만료 재료 1일 방치 페널티'},
     NO_EXPIRED_4DAYS: {icon: '✅', meta: '4일 연속 냉장고 방어 보너스'},
-    RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'}
+    RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'},
+    QUIZ_CORRECT: {icon: '💡', meta: '오늘의 퀴즈 정답 보상'}
 };
 
 const SCORE_ANALYSIS_REASON_LABELS = {
@@ -44,6 +45,7 @@ function SkeletonBlock({width = '100%', height = '12px', style = {}}) {
 function highlightKeywords(text, keywordColors = {
     '레시피': {bg: '#FDECEA', color: '#E4572E'},
     '냉장고': {bg: '#D6F5E3', color: '#0E8478'},
+    '퀴즈': {bg: C.warnLight, color: C.warn},
 }) {
     if (!text) return text;
     const keywords = Object.keys(keywordColors);
@@ -260,6 +262,7 @@ function ScoreAnalysisTab({cardStyle}) {
                         {sortedByReason.map((item, idx) => {
                             const width = (Math.abs(item.totalDelta) / maxAbsDelta) * 50;
                             const isPositive = item.totalDelta >= 0;
+                            const scoreColor = item.totalDelta > 0 ? C.primary : item.totalDelta < 0 ? C.accent : C.fg;
                             return (
                                 <div key={item.scoreReason}
                                      style={{marginBottom: idx < sortedByReason.length - 1 ? '14px' : 0}}>
@@ -273,7 +276,7 @@ function ScoreAnalysisTab({cardStyle}) {
                                             {SCORE_ANALYSIS_REASON_LABELS[item.scoreReason] ?? item.scoreReason}
                                         </span>
                                         <span style={{fontSize: '11px', fontWeight: 600, color: C.fgMuted}}>
-                                            {item.count}건 · {formatSignedScore(item.totalDelta)}
+                                            {item.count}건 · <span style={{color: scoreColor, fontWeight: 700}}>{formatSignedScore(item.totalDelta)}</span>
                                         </span>
                                     </div>
                                     <div style={{
@@ -402,7 +405,10 @@ function ScoreDetailModal({
                         CATEGORY_NAMES[item.productCategoryId] || '기타']
                         : reasonMeta.icon;
                     const title = item.scoreReason === 'NO_EXPIRED_4DAYS'
-                        ? '만료 방어 성공' : item.targetName;
+                        ? '만료 방어 성공'
+                        : item.scoreReason === 'QUIZ_CORRECT'
+                            ? '오늘의 퀴즈 정답'
+                            : item.targetName;
 
                     return {
                         id: idx,
