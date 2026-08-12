@@ -1154,6 +1154,7 @@ export function Dashboard({
         <div style={{padding: '0 0 24px', background: C.bg}}>
             {/* Header */}
             <div
+                className="home-hero-header"
                 style={{
                     padding: '20px 20px 16px',
                     background: C.card,
@@ -1163,8 +1164,9 @@ export function Dashboard({
                     alignItems: 'flex-start',
                 }}
             >
-                <div style={{display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0}}>
+                <div className="home-hero-profile" style={{display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0}}>
                     <div
+                        className="home-hero-avatar"
                         style={{
                             width: '96px',
                             height: '96px',
@@ -1179,6 +1181,7 @@ export function Dashboard({
                         }}
                     >
                         <img
+                            className="home-hero-avatar-img"
                             src={gradeEntry.characterImage}
                             alt={`${grade} 캐릭터`}
                             style={{
@@ -1189,8 +1192,8 @@ export function Dashboard({
                             }}
                         />
                     </div>
-                    <div style={{minWidth: 0}}>
-                        <div style={{
+                    <div className="home-hero-copy" style={{minWidth: 0}}>
+                        <div className="home-hero-greeting" style={{
                             fontSize: '20px',
                             fontWeight: 900,
                             color: C.fg,
@@ -1225,7 +1228,7 @@ export function Dashboard({
                         </div>
                     </div>
                 </div>
-                <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                <div className="home-hero-actions" style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
                     <button
                         onClick={() => setShowScoreDetail(true)}
                         style={{

@@ -414,6 +414,59 @@
   }
 }
 
+@media (max-width: 520px) {
+  .home-hero-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .home-hero-profile {
+    flex: 1 1 100%;
+    gap: 12px !important;
+  }
+
+  .home-hero-avatar {
+    width: 84px !important;
+    height: 84px !important;
+    border-radius: 22px !important;
+  }
+
+  .home-hero-avatar-img {
+    width: 96px !important;
+    height: 96px !important;
+  }
+
+  .home-hero-copy {
+    flex: 1;
+  }
+
+  .home-hero-greeting {
+    font-size: 18px !important;
+    line-height: 1.18 !important;
+  }
+
+  .home-hero-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-hero-avatar {
+    width: 76px !important;
+    height: 76px !important;
+  }
+
+  .home-hero-avatar-img {
+    width: 88px !important;
+    height: 88px !important;
+  }
+
+  .home-hero-greeting {
+    font-size: 17px !important;
+  }
+}
+
 @media (min-width: 1024px) {
   .app-sidebar {
     display: flex;

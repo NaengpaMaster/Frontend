@@ -265,6 +265,15 @@ export default function App() {
   }, [currentUser, selectedFridgeId, fetchIngredients, fetchShoppingItems, setShoppingSelectedFridgeId]);
 
   useEffect(() => {
+    if (!currentUser || currentUser.role === 'admin' || activeTab !== 'fridge') return;
+
+    const myFridgeId = accessibleFridges.find((fridge) => fridge.mine)?.fridgeId;
+    if (myFridgeId && selectedFridgeId !== myFridgeId) {
+      setSelectedFridgeId(myFridgeId);
+    }
+  }, [activeTab, accessibleFridges, currentUser, selectedFridgeId, setSelectedFridgeId]);
+
+  useEffect(() => {
     let mounted = true;
 
     async function fetchNotifications() {
@@ -656,6 +665,8 @@ export default function App() {
                 onTransfer={handleTransferIngredient}
                 onRequest={handleRequestIngredient}
                 onReceiptRegistered={() => fetchIngredients(selectedFridgeId)}
+                subscriptionStatus={subscriptionStatus}
+                onOpenSubscription={() => setShowSubscriptionPage(true)}
               />
             )}
             {activeTab === 'recipe' && (

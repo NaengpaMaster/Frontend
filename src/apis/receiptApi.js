@@ -1,19 +1,7 @@
 import axiosClient from './axiosClient';
+import { fileToBase64 } from './imageFileUtils';
 
 const unwrap = (response) => response.data?.data ?? response.data;
-const AGENT_BASE_URL = process.env.NEXT_PUBLIC_AGENT_BASE_URL || 'http://localhost:8000';
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      resolve(result.includes(',') ? result.split(',')[1] : result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export const receiptApi = {
   uploadImage: (file) => {
@@ -27,7 +15,7 @@ export const receiptApi = {
 
   analyzeWithAgent: async (receiptAnalysisId, file) => {
     const imageBase64 = await fileToBase64(file);
-    const response = await fetch(`${AGENT_BASE_URL}/agent/v1/receipts/analyze`, {
+    const response = await fetch('/agent/v1/receipts/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

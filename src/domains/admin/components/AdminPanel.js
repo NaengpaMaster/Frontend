@@ -283,7 +283,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
               tabIndex={card.tab ? 0 : undefined}
               onClick={() => card.tab && onNavigate(card.tab)}
               onKeyDown={(event) => { if (card.tab && event.key === 'Enter') onNavigate(card.tab); }}
-              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', background: C.card, border: `1px solid ${card.urgent ? `${card.color}55` : C.border}`, borderTop: `3px solid ${card.color}`, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
+              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', background: C.card, borderWidth: '1px', borderStyle: 'solid', borderTopWidth: '3px', borderTopColor: card.color, borderRightColor: card.urgent ? `${card.color}55` : C.border, borderBottomColor: card.urgent ? `${card.color}55` : C.border, borderLeftColor: card.urgent ? `${card.color}55` : C.border, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
             >
               <div style={{ minHeight: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -1676,7 +1676,7 @@ function StatsTab() {
           { label: '기간 내 등록 재료', value: loading ? '…' : `${summary?.registeredIngredientCount ?? 0}건`, detail: `${startDate} ~ ${endDate}`, icon: Package, color: '#3974C6', bg: '#EAF2FF' },
           { label: '기간 내 만료 재료', value: loading ? '…' : `${summary?.expiredIngredientCount ?? 0}건`, detail: expiredIngredientChangeRate == null ? '이전 기간 데이터 없음' : `이전 동일 기간 대비 ${expiredIngredientChangeRate > 0 ? '↑ ' : expiredIngredientChangeRate < 0 ? '↓ ' : ''}${Math.abs(expiredIngredientChangeRate).toFixed(1)}%`, icon: CalendarDays, color: C.danger, bg: C.dangerLight },
         ].map(({ label, value, detail, icon: Icon, color, bg }) => (
-          <div key={label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ minHeight: '140px', padding: '17px 18px', border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: '12px', background: C.card, boxShadow: '0 1px 4px rgba(17,32,29,0.06)' }}>
+          <div key={label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ minHeight: '140px', padding: '17px 18px', borderWidth: '1px', borderStyle: 'solid', borderTopWidth: '3px', borderTopColor: color, borderRightColor: C.border, borderBottomColor: C.border, borderLeftColor: C.border, borderRadius: '12px', background: C.card, boxShadow: '0 1px 4px rgba(17,32,29,0.06)' }}>
             <div style={{ minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ width: '32px', height: '32px', borderRadius: '8px', background: bg, color, border: `1px solid ${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} /></span><span style={{ fontSize: '13px', fontWeight: 800, color: C.fgMuted }}>{label}</span></div>
               <span style={{ padding: '4px 7px', borderRadius: '999px', background: C.surface, fontSize: '9px', fontWeight: 800, color: C.primary }}>선택 기간</span>
@@ -2081,6 +2081,12 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
 function LlmUsageLogsTab() {
   const PAGE_SIZE = 10;
   const FALLBACK_USD_TO_KRW_RATE = 1460;
+  const FEATURE_TYPE_LABELS = {
+    SHOPPING_RECOMMENDATION: '장보기 추천',
+    INQUIRY_QNA: '문의 Q&A',
+    RECEIPT_OCR: '영수증 OCR',
+    FRIDGE_PHOTO_ANALYSIS: '냉장고 사진',
+  };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -2189,9 +2195,9 @@ function LlmUsageLogsTab() {
         {[
           ['ALL', '전체'],
           ['SHOPPING_RECOMMENDATION', '장보기 추천'],
-          ['FRIDGE_PHOTO_ANALYSIS', '냉장고 사진 분석'],
-          ['RECEIPT_OCR', '영수증 OCR'],
           ['INQUIRY_QNA', '문의 Q&A'],
+          ['RECEIPT_OCR', '영수증 OCR'],
+          ['FRIDGE_PHOTO_ANALYSIS', '냉장고 사진 분석'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -2250,12 +2256,7 @@ function LlmUsageLogsTab() {
                         <div style={{ fontSize: '10px', color: C.fgMuted, marginTop: '3px' }}>{log.email || `memberId ${log.memberId}`}</div>
                       </td>
                       <td style={{ padding: '12px', color: C.fg, fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                        {{
-                          SHOPPING_RECOMMENDATION: '장보기 추천',
-                          FRIDGE_PHOTO_ANALYSIS: '냉장고 사진 분석',
-                          RECEIPT_OCR: '영수증 OCR',
-                          INQUIRY_QNA: '문의 Q&A',
-                        }[log.featureType] ?? log.featureType}
+                        {FEATURE_TYPE_LABELS[log.featureType] || log.featureType}
                       </td>
                       <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 700 }}>{log.modelName}</td>
                       <td style={{ padding: '12px' }}>

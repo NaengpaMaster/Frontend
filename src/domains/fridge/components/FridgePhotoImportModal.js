@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { Camera, Check, FileText, Image, Loader2, Pencil, Trash2, X } from 'lucide-react';
-import { receiptApi } from '@/apis/receiptApi';
+import { Camera, Check, Image, Loader2, Pencil, Trash2, X } from 'lucide-react';
+import { fridgePhotoApi } from '@/apis/fridgePhotoApi';
 import { C } from '@/shared/data/mockData';
 import { IngredientSearchField } from './IngredientSearchField';
 
@@ -10,9 +10,9 @@ const STATUS_LABELS = {
   REJECTED: '제외',
 };
 
-export function ReceiptImportModal({ onClose, onRegistered }) {
+export function FridgePhotoImportModal({ onClose, onRegistered }) {
   const [file, setFile] = useState(null);
-  const [receiptAnalysisId, setReceiptAnalysisId] = useState(null);
+  const [fridgePhotoAnalysisId, setFridgePhotoAnalysisId] = useState(null);
   const [items, setItems] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ productId: null, name: '', quantity: '' });
@@ -36,34 +36,35 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
     boxSizing: 'border-box',
   };
 
-  const refreshItems = async (id = receiptAnalysisId) => {
+  const refreshItems = async (id = fridgePhotoAnalysisId) => {
     if (!id) return;
-    const nextItems = await receiptApi.getItems(id);
+    const nextItems = await fridgePhotoApi.getItems(id);
     setItems(nextItems || []);
   };
 
   const handleAnalyze = async () => {
     if (!file) {
-      setError('영수증 이미지를 선택해주세요.');
+      setError('냉장고 사진을 선택해주세요.');
       return;
     }
 
     setLoading(true);
     setError('');
-    setMessage('영수증 이미지를 업로드하고 있어요.');
+    setMessage('냉장고 사진을 업로드하고 있어요.');
 
     try {
-      const upload = await receiptApi.uploadImage(file);
-      setReceiptAnalysisId(upload.receiptAnalysisId);
+      const imageFile = await fridgePhotoApi.prepareImage(file);
+      const upload = await fridgePhotoApi.uploadImage(imageFile);
+      setFridgePhotoAnalysisId(upload.fridgePhotoAnalysisId);
 
-      setMessage('OCR로 영수증을 읽는 중이에요.');
-      const ocrResult = await receiptApi.analyzeWithAgent(upload.receiptAnalysisId, file);
+      setMessage('AI가 냉장고 사진 속 재료를 분석하는 중이에요.');
+      const analysisResult = await fridgePhotoApi.analyzeWithAgent(upload.fridgePhotoAnalysisId, imageFile);
 
-      setMessage('인식된 상품을 사전 재료와 매칭하는 중이에요.');
-      const matchedItems = await receiptApi.saveOcrResult(upload.receiptAnalysisId, {
-        rawText: ocrResult.rawText,
-        items: ocrResult.items || [],
-        usage: ocrResult.usage,
+      setMessage('인식된 재료를 사전 재료와 매칭하는 중이에요.');
+      const matchedItems = await fridgePhotoApi.saveAnalysisResult(upload.fridgePhotoAnalysisId, {
+        rawText: analysisResult.rawText,
+        items: analysisResult.items || [],
+        usage: analysisResult.usage,
       });
 
       setItems(matchedItems || []);
@@ -71,7 +72,7 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
         ? '냉장고에 등록할 후보를 확인해주세요.'
         : '사전 재료와 매칭된 후보가 없습니다.');
     } catch (err) {
-      setError(err.message || '영수증 분석에 실패했습니다.');
+      setError(err.message || '냉장고 사진 분석에 실패했습니다.');
       setMessage('');
     } finally {
       setLoading(false);
@@ -79,7 +80,7 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
   };
 
   const startEdit = (item) => {
-    setEditingId(item.receiptAnalysisItemId);
+    setEditingId(item.fridgePhotoItemId);
     setEditForm({
       productId: item.productId,
       name: item.matchedProductName || item.normalizedName || item.extractedName,
@@ -96,7 +97,7 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
     setLoading(true);
     setError('');
     try {
-      await receiptApi.updateItem(editingId, {
+      await fridgePhotoApi.updateItem(editingId, {
         productId: editForm.productId,
         quantity: editForm.quantity.trim(),
       });
@@ -113,7 +114,7 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
     setLoading(true);
     setError('');
     try {
-      await receiptApi.rejectItem(itemId);
+      await fridgePhotoApi.rejectItem(itemId);
       await refreshItems();
     } catch (err) {
       setError(err.message || '후보 제외에 실패했습니다.');
@@ -122,13 +123,13 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
     }
   };
 
-  const registerItems = async (receiptItemIds) => {
-    if (!receiptAnalysisId || receiptItemIds.length === 0) return;
+  const registerItems = async (fridgePhotoItemIds) => {
+    if (!fridgePhotoAnalysisId || fridgePhotoItemIds.length === 0) return;
 
     setLoading(true);
     setError('');
     try {
-      await receiptApi.registerToFridge(receiptAnalysisId, receiptItemIds);
+      await fridgePhotoApi.registerToFridge(fridgePhotoAnalysisId, fridgePhotoItemIds);
       await refreshItems();
       await onRegistered?.();
       setMessage('선택한 후보를 냉장고에 등록했습니다.');
@@ -164,8 +165,8 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
       >
         <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.12em', fontWeight: 800 }}>RECEIPT OCR</div>
-            <div style={{ color: C.fg, fontSize: '18px', fontWeight: 900, marginTop: '3px' }}>영수증 등록</div>
+            <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.12em', fontWeight: 800 }}>FRIDGE PHOTO</div>
+            <div style={{ color: C.fg, fontSize: '18px', fontWeight: 900, marginTop: '3px' }}>냉장고 사진 등록</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.fgMuted, cursor: 'pointer' }}>
             <X size={20} />
@@ -175,7 +176,7 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
         <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ padding: '12px', borderRadius: '16px', background: C.card, border: `1px solid ${C.border}` }}>
             <div style={{ color: C.fgMuted, fontSize: '12px', fontWeight: 800, marginBottom: '9px' }}>
-              {file ? file.name : '영수증 사진을 선택해주세요.'}
+              {file ? file.name : '냉장고 사진을 선택해주세요.'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
@@ -224,12 +225,12 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
                 cursor: file && !loading ? 'pointer' : 'not-allowed',
               }}
             >
-              {loading ? '처리 중' : '영수증 분석'}
+              {loading ? '처리 중' : '냉장고 사진 분석'}
             </button>
           </div>
 
           {(message || error) && (
-            <div style={{ padding: '10px 12px', borderRadius: '12px', background: error ? C.dangerLight : C.primaryLight, color: error ? C.danger : C.primary, fontSize: '12px', fontWeight: 800 }}>
+            <div style={{ padding: '10px 12px', borderRadius: '12px', background: error ? C.dangerLight : C.primaryLight, color: error ? C.danger : C.primary, fontSize: '12px', fontWeight: 800, lineHeight: 1.45 }}>
               {loading && <Loader2 size={13} style={{ verticalAlign: 'middle', marginRight: '6px' }} />}
               {error || message}
             </div>
@@ -240,7 +241,7 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ color: C.fg, fontSize: '13px', fontWeight: 900 }}>등록 후보 {pendingItems.length}개</div>
                 <button
-                  onClick={() => registerItems(pendingItems.map((item) => item.receiptAnalysisItemId))}
+                  onClick={() => registerItems(pendingItems.map((item) => item.fridgePhotoItemId))}
                   disabled={pendingItems.length === 0 || loading}
                   style={{
                     border: 'none',
@@ -259,10 +260,10 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
 
               {items.map((item) => {
                 const pending = item.status === 'PENDING';
-                const editing = editingId === item.receiptAnalysisItemId;
+                const editing = editingId === item.fridgePhotoItemId;
 
                 return (
-                  <div key={item.receiptAnalysisItemId} style={{ padding: '12px', borderRadius: '14px', background: C.card, border: `1px solid ${C.border}` }}>
+                  <div key={item.fridgePhotoItemId} style={{ padding: '12px', borderRadius: '14px', background: C.card, border: `1px solid ${C.border}` }}>
                     {editing ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <IngredientSearchField
@@ -298,24 +299,24 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
                               <span style={{ color: C.fgMuted, fontSize: '11px', marginLeft: '6px' }}>{item.quantity}</span>
                             </div>
                             <div style={{ color: C.fgSubtle, fontSize: '11px', marginTop: '3px' }}>
-                              OCR: {item.extractedName} · {STATUS_LABELS[item.status] || item.status}
+                              AI: {item.extractedName} · {STATUS_LABELS[item.status] || item.status}
                             </div>
                             <div style={{ color: C.fgSubtle, fontSize: '11px', marginTop: '2px' }}>
                               유통기한 {item.expiryDate || '기한없음'}
                             </div>
                           </div>
-                          <FileText size={18} color={pending ? C.primary : C.fgMuted} />
+                          <Camera size={18} color={pending ? C.primary : C.fgMuted} />
                         </div>
 
                         {pending && (
                           <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                            <button onClick={() => registerItems([item.receiptAnalysisItemId])} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flex: 1, border: 'none', borderRadius: '10px', background: C.primaryLight, color: C.primary, padding: '8px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>
+                            <button onClick={() => registerItems([item.fridgePhotoItemId])} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flex: 1, border: 'none', borderRadius: '10px', background: C.primaryLight, color: C.primary, padding: '8px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>
                               <Check size={13} /> 등록
                             </button>
                             <button onClick={() => startEdit(item)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flex: 1, border: `1px solid ${C.border}`, borderRadius: '10px', background: C.surface, color: C.fgMuted, padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
                               <Pencil size={13} /> 수정
                             </button>
-                            <button onClick={() => rejectItem(item.receiptAnalysisItemId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flex: 1, border: 'none', borderRadius: '10px', background: C.dangerLight, color: C.danger, padding: '8px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>
+                            <button onClick={() => rejectItem(item.fridgePhotoItemId)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flex: 1, border: 'none', borderRadius: '10px', background: C.dangerLight, color: C.danger, padding: '8px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>
                               <Trash2 size={13} /> 제외
                             </button>
                           </div>

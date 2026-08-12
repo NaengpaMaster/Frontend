@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { CheckCircle, Edit2, FileText, HandHeart, Plus, Search, Send, X, Trash2 } from 'lucide-react';
+import { Camera, CheckCircle, Edit2, FileText, HandHeart, Plus, Search, Send, X, Trash2 } from 'lucide-react';
 import {
   getDaysUntilExpiry, getExpiryStatus, getDayLabel, STATUS_COLORS,
   CATEGORIES, CATEGORY_EMOJIS, TODAY, C,
 } from '@/shared/data/mockData';
 import { IngredientSearchField } from './IngredientSearchField';
 import { ReceiptImportModal } from './ReceiptImportModal';
+import { FridgePhotoImportModal } from './FridgePhotoImportModal';
 
 function addDays(days) {
   const date = new Date();
@@ -334,6 +335,8 @@ function TransferModal({
   onClose,
   onTransfer,
   onRequest,
+  subscriptionStatus = null,
+  onOpenSubscription,
 }) {
   const targetFridges = accessibleFridges.filter((fridge) => fridge.fridgeId !== currentFridgeId);
   const [targetFridgeId, setTargetFridgeId] = useState(targetFridges[0]?.fridgeId ?? '');
@@ -458,6 +461,8 @@ export function FridgeManager({
   onTransfer,
   onRequest,
   onReceiptRegistered,
+  subscriptionStatus = null,
+  onOpenSubscription,
 }) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('전체');
@@ -468,7 +473,11 @@ export function FridgeManager({
   const [transferring, setTransferring] = useState(null);
   const [requesting, setRequesting] = useState(null);
   const [showReceiptImport, setShowReceiptImport] = useState(false);
+  const [showFridgePhotoImport, setShowFridgePhotoImport] = useState(false);
   const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
+  const isPremium = Boolean(subscriptionStatus?.premium);
+  const canUseReceiptRegistration = Boolean(isPremium);
+  const canUseFridgePhotoRegistration = Boolean(currentFridge?.mine && isPremium);
 
   const filtered = ingredients
     .filter((i) => {
@@ -481,6 +490,22 @@ export function FridgeManager({
     });
 
   const urgentCount = ingredients.filter((i) => { const d = getDaysUntilExpiry(i.expiryDate); return d >= 0 && d <= 3; }).length;
+
+  const handlePhotoAddClick = () => {
+    if (!canUseFridgePhotoRegistration) {
+      onOpenSubscription?.();
+      return;
+    }
+    setShowFridgePhotoImport(true);
+  };
+
+  const handleReceiptImportClick = () => {
+    if (!canUseReceiptRegistration) {
+      onOpenSubscription?.();
+      return;
+    }
+    setShowReceiptImport(true);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
@@ -532,7 +557,7 @@ export function FridgeManager({
         )}
 
         <button
-          onClick={() => setShowReceiptImport(true)}
+          onClick={handleReceiptImportClick}
           style={{
             width: '100%',
             marginBottom: '12px',
@@ -541,17 +566,41 @@ export function FridgeManager({
             justifyContent: 'center',
             gap: '7px',
             padding: '10px',
-            background: C.primaryLight,
-            color: C.primary,
-            border: `1px solid ${C.primaryMid}`,
+            background: canUseReceiptRegistration ? C.primaryLight : C.surface,
+            color: canUseReceiptRegistration ? C.primary : C.fgMuted,
+            border: `1px solid ${canUseReceiptRegistration ? C.primaryMid : C.border}`,
             borderRadius: '14px',
             fontSize: '13px',
             fontWeight: 900,
             cursor: 'pointer',
           }}
         >
-          <FileText size={15} /> 영수증으로 재료 등록
+          <FileText size={15} /> 영수증 등록
         </button>
+
+        {currentFridge?.mine && (
+          <button
+            onClick={handlePhotoAddClick}
+            style={{
+              width: '100%',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '7px',
+              padding: '10px',
+              background: canUseFridgePhotoRegistration ? C.primaryLight : C.surface,
+              color: canUseFridgePhotoRegistration ? C.primary : C.fgMuted,
+              border: `1px solid ${canUseFridgePhotoRegistration ? C.primaryMid : C.border}`,
+              borderRadius: '14px',
+              fontSize: '13px',
+              fontWeight: 900,
+              cursor: 'pointer',
+            }}
+          >
+            <Camera size={15} /> 냉장고 사진 등록
+          </button>
+        )}
 
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
@@ -697,6 +746,12 @@ export function FridgeManager({
         <Plus size={24} strokeWidth={2.5} />
       </button>
 
+      {showFridgePhotoImport && (
+        <FridgePhotoImportModal
+          onClose={() => setShowFridgePhotoImport(false)}
+          onRegistered={() => onReceiptRegistered?.()}
+        />
+      )}
       {showAdd && <IngredientModal title="재료 추가" presetIngredients={presetIngredients} onClose={() => setShowAdd(false)} onSave={onAdd} />}
       {editing && (
         <IngredientModal
