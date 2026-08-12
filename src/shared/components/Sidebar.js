@@ -1,4 +1,4 @@
-import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb, User as UserIcon, Shield } from 'lucide-react';
+import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb, User as UserIcon, Shield, Crown } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
 import { Logo } from './Logo';
 
@@ -11,7 +11,7 @@ const tabs = [
   { id: 'inquiry',  label: '문의',   Icon: MessageSquare  },
 ];
 
-export function Sidebar({ active, onChange, currentUser, onOpenMyPage, onOpenAdmin }) {
+export function Sidebar({ active, onChange, currentUser, onOpenMyPage, onOpenAdmin, onOpenSubscription }) {
   return (
     <aside
       className="app-sidebar"
@@ -62,6 +62,28 @@ export function Sidebar({ active, onChange, currentUser, onOpenMyPage, onOpenAdm
             </button>
           );
         })}
+        <button
+          onClick={onOpenSubscription}
+          className="sidebar-nav-item"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '11px 12px',
+            background: undefined,
+            border: 'none',
+            borderRadius: '16px',
+            color: C.fgMuted,
+            fontWeight: 500,
+            fontSize: '14px',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+        >
+          <Crown size={18} strokeWidth={1.75} />
+          구독 관리
+        </button>
       </nav>
 
       {currentUser.role === 'admin' && (
