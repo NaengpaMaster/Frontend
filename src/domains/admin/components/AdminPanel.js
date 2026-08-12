@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight, Mail } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight, Mail, ChevronDown } from 'lucide-react';
 import {
   C,
   CATEGORY_EMOJIS,
@@ -12,6 +12,7 @@ import { RecipeFormModal } from '@/domains/recipes/components/RecipeFormModal';
 import { recipesApi, adminRecipesApi } from '@/apis/recipesApi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {scoreApi} from '@/apis/scoreApi';
+import {quizApi} from '@/apis/quizApi';
 
 const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
 const GRANULARITY_LABELS = { DAY: '일별', WEEK: '주별', MONTH: '월별' };
@@ -177,6 +178,53 @@ function DatePartsSelect({ label, value, onChange, invalid = false }) {
         <DatePartDropdown label={`${label} 일`} value={day} options={days} suffix="일" invalid={invalid} onChange={(nextDay) => changePart(year, month, nextDay)} />
       </span>
     </label>
+  );
+}
+
+function SchedulerRunDropdown({ options, runningKey, onRun }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const isRunning = runningKey != null;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutsideClick = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [open]);
+
+  const runningLabel = options.find((option) => option.key === runningKey)?.label;
+
+  return (
+    <span ref={rootRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        disabled={isRunning}
+        style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: isRunning ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}
+      >
+        <Clock size={14} /> {isRunning ? `${runningLabel} 실행 중...` : '스케줄러 실행'}
+        <ChevronDown size={13} style={{ transform: `rotate(${open ? 180 : 0}deg)`, transition: 'transform 0.15s' }} />
+      </button>
+      {open && (
+        <span style={{ position: 'absolute', top: 'calc(100% + 5px)', right: 0, zIndex: 100, minWidth: '170px', padding: '5px', border: `1px solid ${C.borderStrong}`, borderRadius: '11px', background: C.card, boxShadow: '0 10px 26px rgba(17,32,29,0.18)' }}>
+          {options.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => { setOpen(false); onRun(option.key); }}
+              style={{ display: 'block', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '7px', background: 'transparent', color: C.fg, fontSize: '12px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', cursor: 'pointer' }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -2474,7 +2522,7 @@ export function AdminPanel({
   onAnswerInquiry, onDeleteInquiry, onDeleteAnswer, onUpdatePresetIngredients,
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [schedulerRunning, setSchedulerRunning] = useState(false);
+  const [runningScheduler, setRunningScheduler] = useState(null);
   const [weeklyReportSending, setWeeklyReportSending] = useState(false);
 
   useEffect(() => {
@@ -2486,13 +2534,20 @@ export function AdminPanel({
     setActiveTab(initialTab);
   }, [initialTab]);
 
-  const handleRunScheduler = async () => {
-    if (schedulerRunning) return;
-    setSchedulerRunning(true);
+  const SCHEDULER_OPTIONS = [
+    { key: 'score', label: '점수 스케줄러 실행', run: () => scoreApi.postScheduler() },
+    { key: 'quiz', label: '퀴즈 스케줄러 실행', run: () => quizApi.postScheduler() },
+  ];
+
+  const handleRunScheduler = async (key) => {
+    if (runningScheduler) return;
+    const option = SCHEDULER_OPTIONS.find((item) => item.key === key);
+    if (!option) return;
+    setRunningScheduler(key);
     try {
-      await scoreApi.postScheduler();
+      await option.run();
     } finally {
-      setSchedulerRunning(false);
+      setRunningScheduler(null);
     }
   };
 
@@ -2527,13 +2582,7 @@ export function AdminPanel({
           <div style={{ fontSize: '20px', fontWeight: 700, color: C.fg, letterSpacing: '-0.02em', lineHeight: 1.1 }}>관리자 대시보드</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={handleRunScheduler}
-            disabled={schedulerRunning}
-            style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: schedulerRunning ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' }}
-          >
-            <Clock size={14} /> {schedulerRunning ? '실행 중...' : '스케줄러 실행'}
-          </button>
+          <SchedulerRunDropdown options={SCHEDULER_OPTIONS} runningKey={runningScheduler} onRun={handleRunScheduler} />
           <button
             onClick={handleSendWeeklyFridgeReports}
             disabled={weeklyReportSending}

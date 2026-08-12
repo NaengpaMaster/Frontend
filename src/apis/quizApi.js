@@ -8,4 +8,7 @@ export const quizApi = {
 
   submitTodayQuiz: (quizId, submittedAnswer) =>
     axiosClient.post('/api/v1/quizzes/today/submit', { quizId, submittedAnswer }).then(unwrap),
+
+  postScheduler: () =>
+    axiosClient.post('/api/v1/admin/quizzes/run-scheduler').then(unwrap),
 };
