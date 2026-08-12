@@ -1263,8 +1263,15 @@ function RecipesTab({ recipes, onFetchRecipes, adminPage, adminTotalPages, admin
 }
 
 // ─── Preset Ingredients ───────────────────────────────────────────────────────
-function IngredientsTab({ items, onUpdate }) {
+function IngredientsTab({ onUpdate }) {
+  const PAGE_SIZE = 10;
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [products, setProducts] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalProductCount, setTotalProductCount] = useState(0);
+  const [activeProductCount, setActiveProductCount] = useState(0);
   const [addName, setAddName] = useState('');
   const [addCategory, setAddCategory] = useState('채소/과일');
   const [addDefaultExpiryDays, setAddDefaultExpiryDays] = useState('');
@@ -1280,24 +1287,42 @@ function IngredientsTab({ items, onUpdate }) {
     padding: '9px 12px', color: C.fg, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
   };
 
-  const refreshProducts = async () => {
-    const products = await adminApi.getProducts();
-    onUpdate(products.map(toAdminIngredient));
+  const refreshProducts = async (targetPage = page) => {
+    const result = await adminApi.getProducts({ search: debouncedSearch, page: targetPage, size: PAGE_SIZE });
+    setProducts(result.content.map(toAdminIngredient));
+    setTotalPages(result.totalPages);
+    setTotalProductCount(result.totalProductCount);
+    setActiveProductCount(result.activeProductCount);
   };
 
   useEffect(() => {
-    refreshProducts().catch((err) => setError(err.message || '사전 재료 목록을 불러오지 못했습니다.'));
-  }, []);
+    const timer = setTimeout(() => {
+      setPage(0);
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    refreshProducts(page).catch((err) => setError(err.message || '사전 재료 목록을 불러오지 못했습니다.'));
+  }, [page, debouncedSearch]);
+
+  const syncPresetIngredient = (product) => {
+    const updated = toAdminIngredient(product);
+    onUpdate((current) => current.some((item) => item.productId === updated.productId)
+      ? current.map((item) => item.productId === updated.productId ? updated : item)
+      : [...current, updated]);
+  };
 
   const handleAdd = () => {
     if (!addName.trim()) return;
-    if (items.some((i) => i.name === addName.trim())) { setAddDupError(true); return; }
+    if (products.some((i) => i.name === addName.trim())) { setAddDupError(true); return; }
     adminApi.createProduct({
       productCategoryId: CATEGORY_IDS[addCategory],
       name: addName.trim(),
       defaultExpiryDays: addDefaultExpiryDays ? Number(addDefaultExpiryDays) : null,
     })
-      .then(refreshProducts)
+      .then((product) => { syncPresetIngredient(product); return refreshProducts(page); })
       .then(() => {
         setAddName('');
         setAddDefaultExpiryDays('');
@@ -1307,32 +1332,29 @@ function IngredientsTab({ items, onUpdate }) {
   };
 
   const handleToggle = (idx) => {
-    const item = items[idx];
+    const item = products[idx];
     adminApi.setProductActive(item.productId, !item.active)
-      .then(refreshProducts)
+      .then((product) => { syncPresetIngredient(product); return refreshProducts(page); })
       .catch((err) => setError(err.message || '사전 재료 상태 변경에 실패했습니다.'));
   };
 
   const handleEditSave = (idx) => {
     if (!editName.trim()) return;
-    if (items.some((item, i) => i !== idx && item.name === editName.trim())) return;
-    adminApi.updateProduct(items[idx].productId, {
+    if (products.some((item, i) => i !== idx && item.name === editName.trim())) return;
+    adminApi.updateProduct(products[idx].productId, {
       productCategoryId: CATEGORY_IDS[editCategory],
       name: editName.trim(),
       defaultExpiryDays: editDefaultExpiryDays ? Number(editDefaultExpiryDays) : null,
     })
-      .then(refreshProducts)
+      .then((product) => { syncPresetIngredient(product); return refreshProducts(page); })
       .then(() => setEditIdx(null))
       .catch((err) => setError(err.message || '사전 재료 수정에 실패했습니다.'));
   };
 
-  const activeCount = items.filter((i) => i.active).length;
-  const filtered = search.trim() ? items.filter((i) => i.name.includes(search.trim()) || i.category.includes(search.trim())) : items;
-
   return (
     <div>
       <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>사전 재료 관리</div>
-      <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>총 {items.length}개 · 활성 {activeCount}개 · 냉장고 재료 검색에 노출됩니다</div>
+      <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>총 {totalProductCount}개 · 활성 {activeProductCount}개 · 냉장고 재료 검색에 노출됩니다</div>
 
       {error && (
         <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '10px', padding: '10px 12px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
@@ -1392,14 +1414,13 @@ function IngredientsTab({ items, onUpdate }) {
 
       {/* List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        {filtered.length === 0 && (
+        {products.length === 0 && (
           <div style={{ textAlign: 'center', padding: '36px 0', color: C.fgMuted, fontSize: '13px' }}>검색 결과가 없어요</div>
         )}
-        {filtered.map((item) => {
-          const idx = items.indexOf(item);
+        {products.map((item, idx) => {
           return (
             <div
-              key={idx}
+              key={item.productId}
               style={{
                 background: C.card,
                 borderRadius: '14px',
@@ -1421,7 +1442,7 @@ function IngredientsTab({ items, onUpdate }) {
                         flex: 1,
                         fontSize: '13px',
                         minWidth: 0,
-                        ...(items.some((it, i) => i !== idx && it.name === editName.trim()) && editName.trim()
+                        ...(products.some((it, i) => i !== idx && it.name === editName.trim()) && editName.trim()
                           ? { border: `1px solid ${C.danger}`, background: C.dangerLight }
                           : {}),
                       }}
@@ -1475,6 +1496,7 @@ function IngredientsTab({ items, onUpdate }) {
           );
         })}
       </div>
+      <PageControls page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }
@@ -2057,6 +2079,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
 }
 
 function LlmUsageLogsTab() {
+  const PAGE_SIZE = 10;
   const FALLBACK_USD_TO_KRW_RATE = 1460;
   const FEATURE_TYPE_LABELS = {
     SHOPPING_RECOMMENDATION: '장보기 추천',
@@ -2070,13 +2093,18 @@ function LlmUsageLogsTab() {
   const [exchangeRate, setExchangeRate] = useState(FALLBACK_USD_TO_KRW_RATE);
   const [exchangeRateSource, setExchangeRateSource] = useState('기본 환율');
   const [featureType, setFeatureType] = useState('ALL');
+  const [page, setPage] = useState(0);
+  const [summary, setSummary] = useState({ totalElements: 0, successCount: 0, failedCount: 0, totalTokens: 0, totalEstimatedCost: 0 });
+  const [totalPages, setTotalPages] = useState(0);
 
   const loadLogs = async () => {
     setLoading(true);
     setError('');
     try {
-      const result = await adminApi.getLlmUsageLogs();
-      setLogs(result);
+      const result = await adminApi.getLlmUsageLogs({ featureType, page, size: PAGE_SIZE });
+      setLogs(result.content);
+      setTotalPages(result.totalPages);
+      setSummary(result);
     } catch (err) {
       setError(err.message || 'LLM 사용량 로그를 불러오지 못했습니다.');
     } finally {
@@ -2103,9 +2131,12 @@ function LlmUsageLogsTab() {
   };
 
   useEffect(() => {
-    loadLogs();
     loadExchangeRate();
   }, []);
+
+  useEffect(() => {
+    loadLogs();
+  }, [featureType, page]);
 
   const formatDateTime = (value) => {
     if (!value) return '-';
@@ -2127,20 +2158,12 @@ function LlmUsageLogsTab() {
     return `약 ₩${Math.round(krw).toLocaleString()}`;
   };
 
-  const filteredLogs = featureType === 'ALL'
-    ? logs
-    : logs.filter((log) => log.featureType === featureType);
-  const successCount = filteredLogs.filter((log) => log.status === 'SUCCESS').length;
-  const failedCount = filteredLogs.filter((log) => log.status === 'FAILED').length;
-  const totalTokens = filteredLogs.reduce((sum, log) => sum + Number(log.totalTokens ?? 0), 0);
-  const totalCost = filteredLogs.reduce((sum, log) => sum + Number(log.estimatedCost ?? 0), 0);
-
   const summaryCards = [
-    { label: '전체 호출', value: `${filteredLogs.length}건`, icon: Activity, color: C.primary, bg: C.primaryLight },
-    { label: '성공', value: `${successCount}건`, icon: CheckCircle, color: C.primary, bg: C.primaryLight },
-    { label: '실패', value: `${failedCount}건`, icon: AlertTriangle, color: C.danger, bg: C.dangerLight },
-    { label: '총 토큰', value: totalTokens.toLocaleString(), icon: Database, color: '#3974C6', bg: '#EAF2FF' },
-    { label: '예상 비용', value: formatCost(totalCost), icon: TrendingUp, color: C.accent, bg: C.accentLight },
+    { label: '전체 호출', value: `${summary.totalElements}건`, icon: Activity, color: C.primary, bg: C.primaryLight },
+    { label: '성공', value: `${summary.successCount}건`, icon: CheckCircle, color: C.primary, bg: C.primaryLight },
+    { label: '실패', value: `${summary.failedCount}건`, icon: AlertTriangle, color: C.danger, bg: C.dangerLight },
+    { label: '총 토큰', value: Number(summary.totalTokens).toLocaleString(), icon: Database, color: '#3974C6', bg: '#EAF2FF' },
+    { label: '예상 비용', value: formatCost(summary.totalEstimatedCost), icon: TrendingUp, color: C.accent, bg: C.accentLight },
   ];
 
   return (
@@ -2174,13 +2197,13 @@ function LlmUsageLogsTab() {
           ['SHOPPING_RECOMMENDATION', '장보기 추천'],
           ['INQUIRY_QNA', '문의 Q&A'],
           ['RECEIPT_OCR', '영수증 OCR'],
-          ['FRIDGE_PHOTO_ANALYSIS', '냉장고 사진'],
+          ['FRIDGE_PHOTO_ANALYSIS', '냉장고 사진 분석'],
         ].map(([value, label]) => (
           <button
             key={value}
             type="button"
             className={`admin-shadcn-tab${featureType === value ? ' is-active' : ''}`}
-            onClick={() => setFeatureType(value)}
+            onClick={() => { setFeatureType(value); setPage(0); }}
             style={{
               padding: '7px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 800,
               border: 'none', background: featureType === value ? C.card : 'transparent',
@@ -2211,7 +2234,7 @@ function LlmUsageLogsTab() {
       <div className="admin-shadcn-card admin-shadcn-panel admin-shadcn-table-wrap" style={{ overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>LLM 사용량 로그를 불러오는 중입니다.</div>
-        ) : filteredLogs.length === 0 ? (
+        ) : logs.length === 0 ? (
           <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>LLM 사용량 로그가 없습니다.</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -2224,7 +2247,7 @@ function LlmUsageLogsTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLogs.map((log) => {
+                {logs.map((log) => {
                   const failed = log.status === 'FAILED';
                   return (
                     <tr key={log.llmUsageLogId} style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -2257,6 +2280,7 @@ function LlmUsageLogsTab() {
           </div>
         )}
       </div>
+      <PageControls page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }
@@ -2586,7 +2610,7 @@ export function AdminPanel({
           {activeTab === 'home'        && <AdminHomeTab currentUser={currentUser} pendingCount={pendingInquiriesCount} onNavigate={setActiveTab} onRefreshInquiryCounts={onFetchInquiryCounts} />}
         {activeTab === 'members'     && <MembersTab currentUser={currentUser} />}
         {activeTab === 'recipes'     && <RecipesTab recipes={recipes} onFetchRecipes={onFetchRecipes} adminPage={adminPage} adminTotalPages={adminTotalPages} adminTotalElements={adminTotalElements} adminSize={adminSize} onUpdateRecipe={onAdminUpdateRecipe} onDeleteRecipe={onAdminDeleteRecipe} />}
-        {activeTab === 'ingredients' && <IngredientsTab items={presetIngredients} onUpdate={onUpdatePresetIngredients} />}
+        {activeTab === 'ingredients' && <IngredientsTab onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'aiUsage'     && <LlmUsageLogsTab />}
         {activeTab === 'fridges'     && <FamilyFridgesTab />}
