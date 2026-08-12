@@ -349,10 +349,9 @@ export function AuthScreen({ onLogin }) {
       }}
     >
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <div style={{ margin: '0 auto 12px', width: '64px', height: '64px' }}>
-          <Logo size={64} />
+        <div style={{ margin: '0 auto 12px', display: 'flex', justifyContent: 'center' }}>
+          <Logo width={230} src="/brand/naengpa-master-logo-vertical.png" />
         </div>
-        <div style={{ fontSize: '24px', fontWeight: 700, color: C.fg }}>냉파 마스터</div>
         <div style={{ fontSize: '13px', color: C.fgMuted, marginTop: '4px' }}>
           냉장고 식재료 관리와 레시피 추천
         </div>
