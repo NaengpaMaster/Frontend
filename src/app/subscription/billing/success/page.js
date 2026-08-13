@@ -29,6 +29,10 @@ export default function BillingSuccessPage() {
           setMessage('구독 결제를 승인하고 있습니다.');
           await subscriptionApi.approveSubscriptionPayment(planType);
           setMessage('구독 결제가 완료되었습니다.');
+        } else if (mode === 'trial') {
+          setMessage('무료체험을 시작하고 있습니다.');
+          await subscriptionApi.startTrial();
+          setMessage('무료체험이 시작되었습니다.');
         } else {
           setMessage('카드 등록이 완료되었습니다.');
         }
