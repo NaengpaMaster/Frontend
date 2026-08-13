@@ -515,6 +515,7 @@ export function FridgeManager({
           <div>
             <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '2px' }}>FRIDGE</div>
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: C.fg, letterSpacing: '-0.02em', lineHeight: 1, margin: 0 }}>냉장고 관리</h1>
+            <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>보관 중인 재료를 등록하고 소비기한을 관리해요.</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '28px', fontWeight: 900, color: C.fg, lineHeight: 1 }}>{ingredients.length}</div>

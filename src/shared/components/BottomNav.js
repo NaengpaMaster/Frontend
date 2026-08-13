@@ -1,4 +1,4 @@
-import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb } from 'lucide-react';
+import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb, HandHeart } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
 
 const tabs = [
@@ -6,6 +6,7 @@ const tabs = [
   { id: 'fridge',   label: '냉장고', Icon: Refrigerator   },
   { id: 'recipe',   label: '레시피', Icon: ChefHat        },
   { id: 'shopping', label: '장보기', Icon: ShoppingCart   },
+  { id: 'share',    label: '나눔',  Icon: HandHeart      },
   { id: 'quiz',     label: '퀴즈',   Icon: Lightbulb      },
   { id: 'inquiry',  label: '문의',   Icon: MessageSquare  },
 ];
@@ -22,7 +23,7 @@ export function BottomNav({ active, onChange }) {
         background: C.card,
         borderTop: `1px solid ${C.border}`,
         display: 'grid',
-        gridTemplateColumns: 'repeat(6, 1fr)',
+        gridTemplateColumns: 'repeat(7, 1fr)',
         boxShadow: '0 -4px 20px rgba(17,32,29,0.05)',
         zIndex: 10,
       }}

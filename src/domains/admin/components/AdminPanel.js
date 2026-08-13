@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight, Mail, ChevronDown } from 'lucide-react';
+import { X, Users, ChefHat, BarChart3, MessageSquare, Trash2, Edit2, CheckCircle, Clock, Search, Package, Plus, ToggleLeft, ToggleRight, Star, CalendarDays, Info, TrendingUp, TrendingDown, Minus, Heart, House, UserPlus, UserMinus, AlertTriangle, Database, ArrowRight, RefreshCw, Refrigerator, ShoppingBasket, BookOpen, Activity, ChevronRight, Mail, ChevronDown, HandHeart } from 'lucide-react';
 import {
   C,
   CATEGORY_EMOJIS,
@@ -84,6 +84,7 @@ const TAB_ICONS = {
   aiUsage:     { icon: Activity,      label: 'AI사용량' },
   inquiries:   { icon: MessageSquare, label: '문의' },
   fridges:     { icon: Refrigerator, label: '가족공유' },
+  shares:      { icon: HandHeart, label: '나눔' },
 };
 
 const CATEGORY_IDS = {
@@ -1108,7 +1109,7 @@ function RecipesTab({ recipes, onFetchRecipes, adminPage, adminTotalPages, admin
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg }}>레시피 관리</div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg }}>레시피 관리</div>
           <div style={{ fontSize: '12px', color: C.fgMuted }}>총 {adminTotalElements}개 · 기존 레시피 수정/삭제</div>
         </div>
       </div>
@@ -1401,7 +1402,7 @@ function IngredientsTab({ onUpdate }) {
 
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>사전 재료 관리</div>
+      <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>사전 재료 관리</div>
       <div style={{ fontSize: '12px', color: C.fgMuted, marginBottom: '12px' }}>총 {totalProductCount}개 · 활성 {activeProductCount}개 · 냉장고 재료 검색에 노출됩니다</div>
 
       {error && (
@@ -1975,7 +1976,7 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
   return (
     <div>
       <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontWeight: 700, fontSize: '16px', color: C.fg, marginBottom: '2px' }}>문의 관리</div>
+        <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '2px' }}>문의 관리</div>
         <div style={{ fontSize: '12px', color: C.fgMuted }}>전체 {pendingCount + answeredCount}건</div>
       </div>
 
@@ -2334,6 +2335,134 @@ function LlmUsageLogsTab() {
 }
 
 
+
+function CommunitySharesTab() {
+  const PAGE_SIZE = 10;
+  const [summary, setSummary] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [status, setStatus] = useState('ALL');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
+
+  const statusLabel = { ALL: '전체', OPEN: '모집중', CLOSED: '마감', CANCELLED: '취소' };
+  const managementStatusLabel = { CLOSED: '모집완료', CANCELLED: '취소완료' };
+
+  const load = async (nextPage = page, nextStatus = status) => {
+    setLoading(true);
+    setError('');
+    try {
+      const [summaryData, pageData] = await Promise.all([
+        adminApi.getCommunityShareSummary(),
+        adminApi.getCommunitySharePosts({ status: nextStatus, page: nextPage, size: PAGE_SIZE }),
+      ]);
+      setSummary(summaryData);
+      setPosts(pageData.content);
+      setPage(nextPage);
+      setTotalPages(pageData.totalPages || 1);
+      setTotalElements(pageData.totalElements || 0);
+    } catch (err) {
+      setError(err.message || '나눔 관리 데이터를 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(0, status); }, [status]);
+
+  const cancelPost = async (post) => {
+    if (!window.confirm(`"${post.title}" 나눔 글을 취소 처리하시겠습니까?`)) return;
+    setBusyId(post.communitySharePostId);
+    setError('');
+    try {
+      await adminApi.cancelCommunitySharePost(post.communitySharePostId);
+      await load(page, status);
+    } catch (err) {
+      setError(err.message || '나눔 글 취소 중 오류가 발생했습니다.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const metricCards = [
+    { label: '전체 게시글', value: summary?.totalPostCount ?? 0, color: C.primary },
+    { label: '모집중', value: summary?.openPostCount ?? 0, color: C.accent },
+    { label: '마감', value: summary?.closedPostCount ?? 0, color: C.fgMuted },
+    { label: '참여 기록', value: summary?.participantCount ?? 0, color: C.warn },
+  ];
+
+  return (
+    <div className="admin-shadcn-page admin-community-shares-page">
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>재료 함께 나눔 관리</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>사용량과 게시글 상태를 확인하고 부적절한 게시글을 취소 처리합니다.</div>
+        </div>
+        <button
+          onClick={() => load(page, status)}
+          disabled={loading}
+          style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '8px 14px', cursor: loading ? 'wait' : 'pointer', color: C.fgMuted, fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', lineHeight: 1 }}
+        >
+          <RefreshCw size={14} className={loading ? 'admin-home-refreshing' : ''} /> 새로고침
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px', marginBottom: '18px' }}>
+        {metricCards.map((card) => (
+          <div key={card.label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ minHeight: '118px', padding: '16px 17px', borderTopWidth: '3px', borderTopStyle: 'solid', borderTopColor: card.color, borderRightColor: C.border, borderBottomColor: C.border, borderLeftColor: C.border }}>
+            <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 700 }}>{card.label}</div>
+            <div style={{ fontSize: '28px', fontWeight: 900, color: C.fg, marginTop: '10px' }}>{Number(card.value).toLocaleString('ko-KR')}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="admin-shadcn-card admin-shadcn-panel" style={{ background: C.card, borderRadius: '16px', padding: '14px 16px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {Object.entries(statusLabel).map(([key, label]) => (
+              <button key={key} onClick={() => setStatus(key)} style={{ border: 'none', borderRadius: '999px', padding: '8px 13px', background: status === key ? C.primary : C.surface, color: status === key ? '#fff' : C.fgMuted, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>{label}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 700 }}>총 {totalElements.toLocaleString('ko-KR')}개</div>
+        </div>
+      </div>
+
+      {error && <div style={{ marginBottom: '12px', padding: '12px', borderRadius: '14px', background: C.dangerLight, color: C.danger, fontSize: '12px', fontWeight: 800 }}>{error}</div>}
+
+      <div className="admin-shadcn-card admin-shadcn-table-wrap" style={{ overflowX: 'auto', borderRadius: '16px', background: C.card }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '960px' }}>
+          <thead>
+            <tr style={{ background: C.surface, color: C.fgMuted, fontSize: '11px', textAlign: 'left' }}>
+              {['상태', '재료/제목', '작성자', '금액', '참여', '위치', '등록일', '관리'].map((head) => <th key={head} style={{ padding: '11px 12px', fontWeight: 900, borderBottom: `1px solid ${C.border}` }}>{head}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {posts.map((post) => (
+              <tr key={post.communitySharePostId} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <td style={{ padding: '12px' }}><span style={{ padding: '5px 9px', borderRadius: '999px', background: post.status === 'OPEN' ? C.primaryLight : C.surface, color: post.status === 'OPEN' ? C.primary : C.fgMuted, fontSize: '11px', fontWeight: 900 }}>{statusLabel[post.status] || post.status}</span></td>
+                <td style={{ padding: '12px' }}><div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>{post.ingredientName}</div><div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '3px', maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.title}</div></td>
+                <td style={{ padding: '12px', fontSize: '12px', color: C.fg }}><div style={{ fontWeight: 800 }}>{post.ownerNickname}</div><div style={{ color: C.fgMuted, marginTop: '2px' }}>{post.ownerEmail || '-'}</div></td>
+                <td style={{ padding: '12px', fontSize: '12px', color: C.fg }}>{Number(post.totalPrice || 0).toLocaleString('ko-KR')}원</td>
+                <td style={{ padding: '12px', fontSize: '12px', color: C.fg }}>{post.joinedCount}/{post.participantLimit}명</td>
+                <td style={{ padding: '12px', fontSize: '12px', color: C.fgMuted, maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.address || '-'}</td>
+                <td style={{ padding: '12px', fontSize: '12px', color: C.fgMuted }}>{post.createdAt?.slice(0, 10) || '-'}</td>
+                <td style={{ padding: '12px' }}>{post.status === 'OPEN' ? <button onClick={() => cancelPost(post)} disabled={busyId === post.communitySharePostId} style={{ border: 'none', borderRadius: '10px', padding: '7px 10px', background: C.dangerLight, color: C.danger, fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>취소처리</button> : <span style={{ fontSize: '12px', color: C.fgMuted, fontWeight: 800 }}>{managementStatusLabel[post.status] || '-'}</span>}</td>
+              </tr>
+            ))}
+            {!loading && posts.length === 0 && <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px' }}>표시할 나눔 게시글이 없습니다.</td></tr>}
+          </tbody>
+        </table>
+        {loading && <div style={{ padding: '24px', textAlign: 'center', color: C.fgMuted, fontSize: '13px' }}>나눔 게시글을 불러오는 중...</div>}
+      </div>
+
+      {posts.length > 0 && <PageControls page={page} totalPages={totalPages} onChange={(nextPage) => load(nextPage, status)} />}
+    </div>
+  );
+}
+
 function FamilyFridgesTab() {
   const [fridges, setFridges] = useState([]);
   const [selectedFridge, setSelectedFridge] = useState(null);
@@ -2411,10 +2540,10 @@ function FamilyFridgesTab() {
 
   return (
     <div className="admin-shadcn-page admin-fridges-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-end', marginBottom: '18px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '24px', fontWeight: 900, color: C.fg, letterSpacing: '-0.03em' }}>가족공유 관리</div>
-          <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>가족공유 냉장고 현황을 확인하고 구독 냉장고의 구성원만 운영 조치할 수 있습니다.</div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>가족공유 관리</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>가족공유 냉장고 현황을 확인하고 구독 냉장고의 구성원만 운영 조치할 수 있습니다.</div>
         </div>
         <button onClick={loadFridges} disabled={loading} style={{ border: `1px solid ${C.border}`, borderRadius: '12px', background: C.card, color: C.fg, padding: '9px 13px', fontSize: '12px', fontWeight: 900, cursor: loading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <RefreshCw size={14} /> 새로고침
@@ -2663,6 +2792,7 @@ export function AdminPanel({
         {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'aiUsage'     && <LlmUsageLogsTab />}
         {activeTab === 'fridges'     && <FamilyFridgesTab />}
+        {activeTab === 'shares'      && <CommunitySharesTab />}
         {activeTab === 'inquiries'   && (
           <InquiriesTab
             inquiries={inquiries}

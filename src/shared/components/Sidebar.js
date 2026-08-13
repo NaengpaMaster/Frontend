@@ -1,4 +1,4 @@
-import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb, User as UserIcon, Shield, Crown } from 'lucide-react';
+import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb, HandHeart, User as UserIcon, Shield, Crown } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
 import { Logo } from './Logo';
 
@@ -7,6 +7,7 @@ const tabs = [
   { id: 'fridge',   label: '냉장고', Icon: Refrigerator   },
   { id: 'recipe',   label: '레시피', Icon: ChefHat        },
   { id: 'shopping', label: '장보기', Icon: ShoppingCart   },
+  { id: 'share',    label: '나눔',   Icon: HandHeart      },
   { id: 'quiz',     label: '퀴즈',   Icon: Lightbulb      },
   { id: 'inquiry',  label: '문의',   Icon: MessageSquare  },
 ];

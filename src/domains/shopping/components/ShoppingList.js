@@ -86,7 +86,8 @@ export function ShoppingList({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '14px' }}>
           <div>
             <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '2px' }}>SHOPPING</div>
-            <h1 style={{ fontSize: '22px', fontWeight: 900, color: C.fg, margin: 0, letterSpacing: '-0.02em' }}>장보기 목록</h1>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: C.fg, margin: 0, letterSpacing: '-0.02em' }}>장보기 목록</h1>
+            <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>필요한 재료를 담고 구매 여부를 체크해요.</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1 }}>

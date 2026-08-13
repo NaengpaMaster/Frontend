@@ -540,6 +540,7 @@ export function RecipeView({
           <div>
             <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '2px' }}>RECIPES</div>
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: C.fg, margin: 0, letterSpacing: '-0.02em' }}>레시피 추천</h1>
+            <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>냉장고 속 재료로 만들 수 있는 레시피를 찾아요.</div>
           </div>
           <button
             onClick={() => setShowForm(true)}

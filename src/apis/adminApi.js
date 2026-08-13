@@ -86,6 +86,25 @@ export const adminApi = {
     return unwrap(await axiosClient.get('/api/v1/admin/fridges')) || [];
   },
 
+  async getCommunityShareSummary() {
+    return unwrap(await axiosClient.get('/api/v1/admin/community-shares/summary'));
+  },
+
+  async getCommunitySharePosts({ status, page = 0, size = 10 } = {}) {
+    const data = unwrap(await axiosClient.get('/api/v1/admin/community-shares', {
+      params: { status: status === 'ALL' ? undefined : status, page, size },
+    }));
+    return {
+      content: data?.content ?? [],
+      totalPages: data?.totalPages ?? 0,
+      totalElements: data?.totalElements ?? 0,
+    };
+  },
+
+  async cancelCommunitySharePost(communitySharePostId) {
+    return unwrap(await axiosClient.patch(`/api/v1/admin/community-shares/${communitySharePostId}/cancel`));
+  },
+
   async getFridge(fridgeId) {
     return unwrap(await axiosClient.get(`/api/v1/admin/fridges/${fridgeId}`));
   },
