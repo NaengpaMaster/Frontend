@@ -14,6 +14,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import {scoreApi} from '@/apis/scoreApi';
 import {quizApi} from '@/apis/quizApi';
 
+
 const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
 const GRANULARITY_LABELS = { DAY: '일별', WEEK: '주별', MONTH: '월별' };
 
