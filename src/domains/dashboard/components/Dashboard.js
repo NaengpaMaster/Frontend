@@ -15,7 +15,8 @@ const SCORE_REASON_META = {
     EXPIRED_PRODUCT: {icon: null, meta: '냉장고 만료 재료 1일 방치 페널티'},
     NO_EXPIRED_4DAYS: {icon: '✅', meta: '4일 연속 냉장고 방어 보너스'},
     RECIPE_CREATED: {icon: '📒', meta: '냉파 레시피 1건 등록 보상'},
-    QUIZ_CORRECT: {icon: '💡', meta: '오늘의 퀴즈 정답 보상'}
+    QUIZ_CORRECT: {icon: '💡', meta: '오늘의 퀴즈 정답 보상'},
+    SIGNUP_BONUS: {icon: '🎉', meta: '회원 가입 축하 보너스'}
 };
 
 const SCORE_ANALYSIS_REASON_LABELS = {
@@ -23,9 +24,36 @@ const SCORE_ANALYSIS_REASON_LABELS = {
     NO_EXPIRED_4DAYS: '만료 방어 성공',
     RECIPE_CREATED: '냉파 레시피 등록',
     QUIZ_CORRECT: '오늘의 퀴즈 정답',
+    SIGNUP_BONUS: '회원 가입 보너스',
+};
+
+const SCORE_ANALYSIS_REASON_ICONS = {
+    EXPIRED_PRODUCT: '📉',
+    NO_EXPIRED_4DAYS: '✅',
+    RECIPE_CREATED: '📒',
+    QUIZ_CORRECT: '💡',
+    SIGNUP_BONUS: '🎉',
 };
 
 const SCORE_ANALYSIS_REASON_ORDER = Object.keys(SCORE_ANALYSIS_REASON_LABELS);
+
+function ReasonIconBadge({icon, size = 22, bg = C.surface}) {
+    return (
+        <span style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            borderRadius: '50%',
+            background: bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${Math.round(size * 0.55)}px`,
+            flexShrink: 0,
+        }}>
+            {icon ?? '•'}
+        </span>
+    );
+}
 
 function formatSignedScore(n) {
     if (n > 0) return `+${n}점`;
@@ -215,26 +243,37 @@ function ScoreAnalysisTab({cardStyle}) {
             </div>
 
             <div style={{
-                background: C.primaryLight,
+                background: `linear-gradient(135deg, ${C.primaryLight} 0%, #F6FBFA 100%)`,
                 border: `1px solid ${C.primaryMid}`,
                 borderRadius: '16px',
                 padding: '14px 16px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
+                gap: '12px',
                 marginBottom: '14px',
             }}>
-                <span style={{fontSize: '18px', flexShrink: 0}}>🏆</span>
+                <ReasonIconBadge
+                    icon={highlight.status === 'ready' ? (SCORE_ANALYSIS_REASON_ICONS[highlight.data.scoreReason] ?? '🏆') : '🏆'}
+                    size={34}
+                    bg="#FFFFFF"
+                />
                 <div style={{minWidth: 0, flex: 1}}>
-                    <div style={{fontSize: '11px', fontWeight: 700, color: C.primary, marginBottom: '2px'}}>
+                    <div style={{fontSize: '11px', fontWeight: 700, color: C.primary, marginBottom: '3px'}}>
                         이번 달 최대 영향 사유
                     </div>
                     {highlight.status === 'loading' ? (
                         <SkeletonBlock width="150px" height="15px"/>
                     ) : highlight.status === 'ready' ? (
-                        <div style={{fontSize: '13px', fontWeight: 700, color: C.fg}}>
-                            {SCORE_ANALYSIS_REASON_LABELS[highlight.data.scoreReason] ?? highlight.data.scoreReason}
-                            {' · '}{highlight.data.count}건{' · '}{formatSignedScore(highlight.data.totalDelta)}
+                        <div style={{display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap'}}>
+                            <span style={{fontSize: '14px', fontWeight: 800, color: C.fg}}>
+                                {SCORE_ANALYSIS_REASON_LABELS[highlight.data.scoreReason] ?? highlight.data.scoreReason}
+                            </span>
+                            <span style={{fontSize: '11px', fontWeight: 600, color: C.fgMuted}}>
+                                {highlight.data.count}건 · <span style={{
+                                color: highlight.data.totalDelta > 0 ? C.primary : highlight.data.totalDelta < 0 ? C.accent : C.fg,
+                                fontWeight: 700,
+                            }}>{formatSignedScore(highlight.data.totalDelta)}</span>
+                            </span>
                         </div>
                     ) : (
                         <div style={{fontSize: '13px', fontWeight: 600, color: C.fgMuted}}>
@@ -265,17 +304,33 @@ function ScoreAnalysisTab({cardStyle}) {
                             const scoreColor = item.totalDelta > 0 ? C.primary : item.totalDelta < 0 ? C.accent : C.fg;
                             return (
                                 <div key={item.scoreReason}
-                                     style={{marginBottom: idx < sortedByReason.length - 1 ? '14px' : 0}}>
+                                     style={{marginBottom: idx < sortedByReason.length - 1 ? '16px' : 0}}>
                                     <div style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
-                                        alignItems: 'baseline',
-                                        marginBottom: '6px',
+                                        alignItems: 'center',
+                                        marginBottom: '7px',
+                                        gap: '8px',
                                     }}>
-                                        <span style={{fontSize: '12px', fontWeight: 700, color: C.fg}}>
-                                            {SCORE_ANALYSIS_REASON_LABELS[item.scoreReason] ?? item.scoreReason}
+                                        <span style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            minWidth: 0,
+                                        }}>
+                                            <ReasonIconBadge icon={SCORE_ANALYSIS_REASON_ICONS[item.scoreReason]}/>
+                                            <span style={{
+                                                fontSize: '12px',
+                                                fontWeight: 700,
+                                                color: C.fg,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}>
+                                                {SCORE_ANALYSIS_REASON_LABELS[item.scoreReason] ?? item.scoreReason}
+                                            </span>
                                         </span>
-                                        <span style={{fontSize: '11px', fontWeight: 600, color: C.fgMuted}}>
+                                        <span style={{fontSize: '11px', fontWeight: 600, color: C.fgMuted, flexShrink: 0}}>
                                             {item.count}건 · <span style={{color: scoreColor, fontWeight: 700}}>{formatSignedScore(item.totalDelta)}</span>
                                         </span>
                                     </div>
@@ -348,15 +403,28 @@ function ScoreAnalysisTab({cardStyle}) {
                         gap: '8px',
                     }}>
                         {[
-                            {label: '총 획득', value: `+${summary.data.totalGained}점`, color: C.primary, bg: '#F3FBFA'},
+                            {
+                                label: '총 획득',
+                                icon: '⬆️',
+                                value: `+${summary.data.totalGained}점`,
+                                color: C.primary,
+                                bg: '#F3FBFA',
+                            },
                             {
                                 label: '총 감점',
+                                icon: '⬇️',
                                 value: `${summary.data.totalLost > 0 ? '-' : ''}${summary.data.totalLost}점`,
                                 color: C.accent,
-                                bg: '#FDF4F3'
+                                bg: '#FDF4F3',
                             },
-                            {label: '순변동', value: formatSignedScore(summary.data.netChange), color: C.fg, bg: C.surface},
-                        ].map(({label, value, color, bg}) => (
+                            {
+                                label: '순변동',
+                                icon: summary.data.netChange > 0 ? '📈' : summary.data.netChange < 0 ? '📉' : '➖',
+                                value: formatSignedScore(summary.data.netChange),
+                                color: C.fg,
+                                bg: C.surface,
+                            },
+                        ].map(({label, icon, value, color, bg}) => (
                             <div key={label} style={{
                                 background: bg,
                                 border: `1px solid ${C.border}`,
@@ -368,7 +436,16 @@ function ScoreAnalysisTab({cardStyle}) {
                                 gap: '6px',
                                 textAlign: 'center',
                             }}>
-                                <div style={{fontSize: '11px', fontWeight: 700, color: C.fgMuted}}>{label}</div>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    color: C.fgMuted,
+                                }}>
+                                    <span style={{fontSize: '10px'}}>{icon}</span>{label}
+                                </div>
                                 <div style={{fontSize: '18px', fontWeight: 900, color}}>{value}</div>
                             </div>
                         ))}
@@ -408,7 +485,9 @@ function ScoreDetailModal({
                         ? '만료 방어 성공'
                         : item.scoreReason === 'QUIZ_CORRECT'
                             ? '오늘의 퀴즈 정답'
-                            : item.targetName;
+                            : item.scoreReason === 'SIGNUP_BONUS'
+                                ? '회원 가입 보너스'
+                                : item.targetName;
 
                     return {
                         id: idx,
@@ -443,24 +522,36 @@ function ScoreDetailModal({
             subtitle: '냉장고 속 재료가 만료된 후 하루가 지날 때마다',
             point: '-2점',
             isPlus: false,
+            icon: SCORE_ANALYSIS_REASON_ICONS.EXPIRED_PRODUCT,
         },
         {
             label: '만료 방어 성공',
             subtitle: '만료 재료 없이 4일 연속 냉장고 유지 시',
             point: '+5점',
             isPlus: true,
+            icon: SCORE_ANALYSIS_REASON_ICONS.NO_EXPIRED_4DAYS,
         },
         {
             label: '냉파 레시피 등록',
             subtitle: '나만의 레시피를 등록할 때마다 즉시',
             point: '+3점',
             isPlus: true,
+            icon: SCORE_ANALYSIS_REASON_ICONS.RECIPE_CREATED,
         },
         {
             label: '오늘의 퀴즈 정답',
             subtitle: '매일 제공되는 냉파 퀴즈를 맞히면 즉시',
             point: '+2점',
             isPlus: true,
+            icon: SCORE_ANALYSIS_REASON_ICONS.QUIZ_CORRECT,
+        },
+        {
+            label: '회원 가입 보너스',
+            subtitle: '최초 회원가입 시 1회',
+            point: '+10점',
+            isPlus: true,
+            icon: SCORE_ANALYSIS_REASON_ICONS.SIGNUP_BONUS,
+            full: true,
         },
     ];
 
@@ -642,6 +733,8 @@ function ScoreDetailModal({
                                                 fontSize: '10px',
                                                 fontWeight: 700,
                                                 color: isCurrent ? C.primary : C.fg,
+                                                background: isCurrent ? '#E6F7F5' : 'transparent',
+                                                borderRadius: isCurrent ? '10px 10px 0 0' : 0,
                                                 borderBottom: `2px solid ${isCurrent ? C.primary : C.border}`,
                                                 whiteSpace: 'nowrap'
                                             }}>
@@ -668,10 +761,12 @@ function ScoreDetailModal({
                                         const isCurrent = label === grade;
                                         return (
                                             <td key={range} style={{
-                                                padding: '6px 4px',
+                                                padding: '6px 4px 8px',
                                                 textAlign: 'center',
                                                 fontSize: '9px',
                                                 color: isCurrent ? C.primary : C.fgMuted,
+                                                background: isCurrent ? '#E6F7F5' : 'transparent',
+                                                borderRadius: isCurrent ? '0 0 10px 10px' : 0,
                                                 fontWeight: isCurrent ? 700 : 500,
                                                 whiteSpace: 'nowrap'
                                             }}>
@@ -709,44 +804,43 @@ function ScoreDetailModal({
                             gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                             gap: '8px',
                         }}>
-                            {policyItems.map(({label, subtitle, point, isPlus}) => (
+                            {policyItems.map(({label, subtitle, point, isPlus, icon, full}) => (
                                 <div key={label} style={{
+                                    gridColumn: full ? '1 / -1' : undefined,
                                     background: isPlus ? '#F3FBFA' : '#FDF4F3',
-                                    border: `1px solid ${C.border}`,
+                                    border: `1px solid ${isPlus ? C.primaryMid : '#F5CFC7'}`,
                                     borderRadius: '14px',
-                                    padding: '10px 6px',
+                                    padding: full ? '10px 14px' : '12px 8px',
                                     display: 'flex',
-                                    flexDirection: 'column',
+                                    flexDirection: full ? 'row' : 'column',
                                     alignItems: 'center',
-                                    textAlign: 'center',
-                                    gap: '5px',
+                                    textAlign: full ? 'left' : 'center',
+                                    gap: full ? '10px' : '6px',
                                 }}>
-                                    <div style={{
-                                        width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-                                        background: isPlus ? '#E6F7F5' : '#FDECEA',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '13px', fontWeight: 900, color: isPlus ? C.primary : C.accent,
-                                    }}>
-                                        {isPlus ? '+' : '−'}
+                                    <ReasonIconBadge icon={icon} size={28} bg={isPlus ? '#E6F7F5' : '#FDECEA'}/>
+                                    <div style={{flex: full ? 1 : undefined, minWidth: 0}}>
+                                        <div style={{
+                                            fontSize: '12px',
+                                            fontWeight: 700,
+                                            color: C.fg,
+                                            lineHeight: 1.25,
+                                        }}>{label}</div>
+                                        <div style={{
+                                            fontSize: '10px',
+                                            color: C.fgMuted,
+                                            lineHeight: 1.35,
+                                            wordBreak: 'keep-all',
+                                            overflowWrap: 'break-word',
+                                            marginTop: full ? '1px' : 0,
+                                        }}>{subtitle}</div>
                                     </div>
-                                    <div style={{
-                                        fontSize: '12px',
-                                        fontWeight: 700,
-                                        color: C.fg,
-                                        lineHeight: 1.25,
-                                    }}>{label}</div>
-                                    <div style={{
-                                        fontSize: '10px',
-                                        color: C.fgMuted,
-                                        lineHeight: 1.35,
-                                        wordBreak: 'keep-all',
-                                        overflowWrap: 'break-word'
-                                    }}>{highlightKeywords(subtitle)}</div>
                                     <div style={{
                                         fontSize: '13px',
                                         fontWeight: 900,
                                         color: isPlus ? C.primary : C.accent,
-                                        marginTop: '2px',
+                                        marginTop: full ? 0 : '2px',
+                                        flexShrink: 0,
+                                        whiteSpace: 'nowrap',
                                     }}>{point}</div>
                                 </div>
                             ))}
@@ -755,7 +849,7 @@ function ScoreDetailModal({
                         </div>
                         <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 레시피 등록 점수와 퀴즈 정답 점수는 즉시 반영됩니다.
                         </div>
-                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 회원 가입 시 초기 점수 10점이 지급 됩니다.
+                        <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '4px'}}>ⓘ 회원 가입 시 초기 점수 10점이 지급됩니다.
                         </div>
                     </div>
 
@@ -771,38 +865,54 @@ function ScoreDetailModal({
                             }}>
                                 최근 점수 산정 내역이 없습니다.
                             </div>
-                        ) : scoreHistory.map((item) => (
-                            <div key={item.id} style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                gap: '12px',
-                                padding: '10px 0',
-                                borderBottom: `1px solid ${C.border}`
-                            }}>
-                                <div style={{display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0}}>
-                                    <span style={{
-                                        width: '28px',
-                                        fontSize: '18px',
-                                        textAlign: 'center'
-                                    }}>{item.icon}</span>
-                                    <div style={{minWidth: 0}}>
-                                        <div style={{fontSize: '13px', fontWeight: 700, color: C.fg}}>{item.title}</div>
-                                        {(item.meta || item.date) && (
-                                            <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '2px'}}>
-                                                {highlightKeywords(item.meta)}{item.meta && item.date && ' · '}{item.date}
-                                            </div>
-                                        )}
+                        ) : scoreHistory.map((item, idx) => {
+                            const isGain = item.score >= 0;
+                            return (
+                                <div key={item.id} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '10px 4px',
+                                    marginBottom: idx < scoreHistory.length - 1 ? '6px' : 0,
+                                    borderRadius: '12px',
+                                    background: idx % 2 === 0 ? C.surface : 'transparent',
+                                }}>
+                                    <div style={{display: 'flex', gap: '10px', alignItems: 'center', minWidth: 0}}>
+                                        <ReasonIconBadge
+                                            icon={item.icon}
+                                            size={30}
+                                            bg={isGain ? '#E6F7F5' : '#FDECEA'}
+                                        />
+                                        <div style={{minWidth: 0}}>
+                                            <div style={{
+                                                fontSize: '13px',
+                                                fontWeight: 700,
+                                                color: C.fg,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}>{item.title}</div>
+                                            {(item.meta || item.date) && (
+                                                <div style={{fontSize: '11px', color: C.fgMuted, marginTop: '2px'}}>
+                                                    {highlightKeywords(item.meta)}{item.meta && item.date && ' · '}{item.date}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    <span style={{
+                                        fontSize: '12px',
+                                        color: isGain ? C.primary : C.accent,
+                                        background: isGain ? '#E6F7F5' : '#FDECEA',
+                                        fontWeight: 800,
+                                        whiteSpace: 'nowrap',
+                                        padding: '4px 10px',
+                                        borderRadius: '999px',
+                                        flexShrink: 0,
+                                    }}>{item.score > 0 ? '+' : ''}{item.score}점</span>
                                 </div>
-                                <span style={{
-                                    fontSize: '13px',
-                                    color: item.score < 0 ? C.accent : C.primary,
-                                    fontWeight: 700,
-                                    whiteSpace: 'nowrap'
-                                }}>{item.score > 0 ? '+' : ''}{item.score}점</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                     </>
                     )}

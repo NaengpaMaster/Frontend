@@ -126,7 +126,7 @@ export function QuizPage() {
                   marginBottom: '12px',
                 }}
               >
-                🥬 {quiz.sourceProductName}과 관련된 퀴즈예요!
+                🥬 '{quiz.sourceProductName}' 재료 관련 퀴즈예요!
               </div>
             )}
 
