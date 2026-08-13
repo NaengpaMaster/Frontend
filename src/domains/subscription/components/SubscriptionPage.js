@@ -19,6 +19,24 @@ const TOSS_SDK_URL = 'https://js.tosspayments.com/v2/standard';
 
 const formatWon = (value) => `${value.toLocaleString('ko-KR')}원`;
 const planTypeFromCode = (code) => code === 'YEARLY_PREMIUM' ? 'YEARLY' : 'MONTHLY';
+const formatDateTime = (value) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getSubscriptionLabel = (status, cancelReserved) => {
+  if (cancelReserved) return '해지 예약됨';
+  if (status === 'TRIALING') return '무료체험 중';
+  if (status === 'ACTIVE') return '구독 중';
+  if (status === 'EXPIRED') return '만료';
+  return '미구독';
+};
 
 const SUBSCRIPTION_PLANS = [
   {
@@ -59,7 +77,7 @@ function PlanMark({ enabled }) {
   );
 }
 
-export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement }) {
+export function SubscriptionPage({ subscriptionStatus, onSubscriptionChanged, onOpenFamilyManagement }) {
   const isPremium = subscriptionStatus?.premium;
   const [selectedPlanCode, setSelectedPlanCode] = useState('MONTHLY_PREMIUM');
   const [billingLoading, setBillingLoading] = useState(false);
@@ -68,6 +86,9 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
   const [managementLoading, setManagementLoading] = useState(false);
   const [managementError, setManagementError] = useState('');
   const selectedPlan = SUBSCRIPTION_PLANS.find((plan) => plan.code === selectedPlanCode) ?? SUBSCRIPTION_PLANS[0];
+  const statusLabel = getSubscriptionLabel(subscriptionStatus?.status, subscriptionStatus?.cancelReserved);
+  const availableUntil = subscriptionStatus?.availableUntil || subscriptionStatus?.currentPeriodEndAt || subscriptionStatus?.trialEndsAt;
+  const latestFailedPayment = payments.find((payment) => ['FAILED', 'RETRYING'].includes(payment.status));
 
   useEffect(() => {
     loadSubscriptionManagement();
@@ -79,6 +100,10 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
 
   const handlePayment = () => {
     requestBillingAuth('payment');
+  };
+
+  const handleRegisterCard = () => {
+    requestBillingAuth('card');
   };
 
   const requestBillingAuth = async (mode) => {
@@ -138,9 +163,29 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
       setManagementError('');
       await subscriptionApi.cancelSubscription();
       alert('구독 해지가 예약되었습니다. 현재 이용 기간까지 프리미엄을 사용할 수 있어요.');
+      await onSubscriptionChanged?.();
       await loadSubscriptionManagement();
     } catch (error) {
       setManagementError(error?.message || '구독 해지 예약에 실패했습니다.');
+    } finally {
+      setManagementLoading(false);
+    }
+  };
+
+  const handleRevokeCancelSubscription = async () => {
+    if (!confirm('구독 해지 예약을 취소하고 다음 자동결제를 다시 활성화할까요?')) {
+      return;
+    }
+
+    try {
+      setManagementLoading(true);
+      setManagementError('');
+      await subscriptionApi.revokeCancelSubscription();
+      alert('구독 해지 예약이 취소되었습니다.');
+      await onSubscriptionChanged?.();
+      await loadSubscriptionManagement();
+    } catch (error) {
+      setManagementError(error?.message || '해지 예약 취소에 실패했습니다.');
     } finally {
       setManagementLoading(false);
     }
@@ -161,6 +206,18 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
                 <div style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.1em', color: '#DDF8F4' }}>REFRIDGE PREMIUM</div>
                 <div style={{ fontSize: '24px', fontWeight: 950, marginTop: '8px', lineHeight: 1.2 }}>7일 무료체험으로<br />구독 시작하기</div>
                 <div style={{ fontSize: '13px', lineHeight: 1.5, color: '#EAFBF8', marginTop: '10px' }}>AI 추천, 영수증 등록, 공유 냉장고 보기 기능을 먼저 사용해보세요.</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '12px' }}>
+                  <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(255,255,255,0.18)', color: '#FFFFFF', fontSize: '11px', fontWeight: 950 }}>{statusLabel}</span>
+                  {subscriptionStatus?.trialEndsAt && (
+                    <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(255,255,255,0.14)', color: '#EAFBF8', fontSize: '11px', fontWeight: 800 }}>체험 종료 {formatDateTime(subscriptionStatus.trialEndsAt)}</span>
+                  )}
+                  {subscriptionStatus?.nextBillingAt && (
+                    <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(255,255,255,0.14)', color: '#EAFBF8', fontSize: '11px', fontWeight: 800 }}>다음 결제 {formatDateTime(subscriptionStatus.nextBillingAt)}</span>
+                  )}
+                  {subscriptionStatus?.cancelReserved && availableUntil && (
+                    <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(255,255,255,0.14)', color: '#EAFBF8', fontSize: '11px', fontWeight: 800 }}>{formatDateTime(availableUntil)}까지 이용 가능</span>
+                  )}
+                </div>
               </div>
               <div style={{ width: '54px', height: '54px', borderRadius: '20px', background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <Crown size={28} />
@@ -183,13 +240,24 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
               </button>
             </div>
             {isPremium && (
-              <button
-                onClick={handleCancelSubscription}
-                disabled={managementLoading || subscriptionStatus?.cancelReserved}
-                style={{ display: 'block', margin: '10px auto 0', padding: '4px 6px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.58)', fontSize: '10px', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}
-              >
-                {subscriptionStatus?.cancelReserved ? '해지 예약됨' : '구독취소'}
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '10px' }}>
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={managementLoading || subscriptionStatus?.cancelReserved}
+                  style={{ padding: '4px 6px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.58)', fontSize: '10px', fontWeight: 700, textDecoration: 'underline', cursor: managementLoading || subscriptionStatus?.cancelReserved ? 'default' : 'pointer' }}
+                >
+                  {subscriptionStatus?.cancelReserved ? '해지 예약됨' : '구독취소'}
+                </button>
+                {subscriptionStatus?.cancelReserved && (
+                  <button
+                    onClick={handleRevokeCancelSubscription}
+                    disabled={managementLoading}
+                    style={{ padding: '4px 6px', border: 'none', background: 'transparent', color: '#FFFFFF', fontSize: '10px', fontWeight: 800, textDecoration: 'underline', cursor: managementLoading ? 'wait' : 'pointer' }}
+                  >
+                    해지 취소
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -213,9 +281,37 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
               <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '14px', padding: '11px', fontSize: '12px', fontWeight: 800, marginBottom: '10px' }}>{managementError}</div>
             )}
 
+            {latestFailedPayment && (
+              <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '14px', padding: '12px', marginBottom: '10px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 950 }}>최근 결제 실패</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, lineHeight: 1.5, marginTop: '5px' }}>
+                  {latestFailedPayment.failedReason || '결제 승인에 실패했습니다.'}
+                  {latestFailedPayment.nextRetryAt && <> 다음 재시도: {formatDateTime(latestFailedPayment.nextRetryAt)}</>}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRegisterCard}
+                  disabled={billingLoading}
+                  style={{ marginTop: '9px', padding: '9px 11px', border: 'none', borderRadius: '12px', background: C.danger, color: '#FFFFFF', fontSize: '11px', fontWeight: 950, cursor: billingLoading ? 'wait' : 'pointer' }}
+                >
+                  카드 다시 등록
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gap: '10px' }}>
               <div style={{ border: `1px solid ${C.border}`, borderRadius: '16px', padding: '13px', background: C.surface }}>
-                <div style={{ fontSize: '12px', fontWeight: 900, color: C.primary, marginBottom: '8px' }}>등록 카드</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 900, color: C.primary }}>등록 카드</div>
+                  <button
+                    type="button"
+                    onClick={handleRegisterCard}
+                    disabled={billingLoading}
+                    style={{ padding: '7px 9px', border: `1px solid ${C.border}`, borderRadius: '11px', background: C.card, color: C.fgMuted, fontSize: '10px', fontWeight: 900, cursor: billingLoading ? 'wait' : 'pointer' }}
+                  >
+                    {billingKey ? '카드 변경' : '카드 등록'}
+                  </button>
+                </div>
                 {billingKey ? (
                   <div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>
                     {billingKey.cardCompany || '카드'} · {billingKey.cardNumberMasked || '마스킹 번호 없음'}
@@ -236,11 +332,14 @@ export function SubscriptionPage({ subscriptionStatus, onOpenFamilyManagement })
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div style={{ fontSize: '13px', fontWeight: 950, color: C.fg }}>{formatWon(payment.amount || 0)}</div>
-                        <div style={{ fontSize: '10px', fontWeight: 900, color: payment.status === 'SUCCESS' ? C.primary : C.fgMuted, marginTop: '3px' }}>{payment.status}</div>
+                        <div style={{ fontSize: '10px', fontWeight: 900, color: payment.status === 'SUCCESS' ? C.primary : ['FAILED', 'RETRYING'].includes(payment.status) ? C.danger : C.fgMuted, marginTop: '3px' }}>{payment.status}</div>
                       </div>
                     </div>
                     {payment.failedReason && (
                       <div style={{ fontSize: '11px', color: C.danger, marginTop: '6px', fontWeight: 700 }}>{payment.failedReason}</div>
+                    )}
+                    {payment.nextRetryAt && (
+                      <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '4px', fontWeight: 700 }}>다음 재시도: {formatDateTime(payment.nextRetryAt)}</div>
                     )}
                   </div>
                 )) : (

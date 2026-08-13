@@ -256,6 +256,12 @@ export default function App() {
     };
   }, [currentUser, fetchAccessibleFridges, fetchIngredients, fetchShoppingItems, fetchHomeRecipes, fetchUrgentHomeRecipes]);
 
+  const refreshSubscriptionStatus = async () => {
+    const status = await subscriptionApi.getMySubscription();
+    setSubscriptionStatus(status);
+    return status;
+  };
+
   useEffect(() => {
     if (!currentUser || currentUser.role === 'admin' || !selectedFridgeId) return;
     setShoppingSelectedFridgeId(selectedFridgeId);
@@ -722,6 +728,7 @@ export default function App() {
             {activeTab === 'subscription' && (
               <SubscriptionPage
                 subscriptionStatus={subscriptionStatus}
+                onSubscriptionChanged={refreshSubscriptionStatus}
                 onOpenFamilyManagement={handleOpenFamilyManagement}
               />
             )}

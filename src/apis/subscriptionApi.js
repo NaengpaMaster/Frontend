@@ -18,6 +18,12 @@ export const subscriptionApi = {
   getMyPayments: () =>
     axiosClient.get('/api/v1/subscriptions/payments').then(unwrap),
 
+  startTrial: () =>
+    axiosClient.post('/api/v1/subscriptions/trial').then(unwrap),
+
   cancelSubscription: () =>
     axiosClient.patch('/api/v1/subscriptions/cancel').then(unwrap),
+
+  revokeCancelSubscription: () =>
+    axiosClient.patch('/api/v1/subscriptions/cancel/revoke').then(unwrap),
 };
