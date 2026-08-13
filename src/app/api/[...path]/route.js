@@ -7,6 +7,7 @@ async function proxy(request, { params }) {
   const backendUrl = new URL(`/api/${path.join('/')}`, BACKEND_URL);
   backendUrl.search = request.nextUrl.search;
 
+
   const headers = new Headers(request.headers);
   headers.delete('host');
   headers.delete('content-length');
