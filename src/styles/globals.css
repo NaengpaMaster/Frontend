@@ -55,7 +55,7 @@
 }
 
 .admin-shadcn-card {
-  background: #ffffff !important;
+  background: var(--admin-card-background, #ffffff) !important;
   border: 1px solid var(--admin-shadcn-border) !important;
   border-radius: 12px !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;

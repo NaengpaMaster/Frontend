@@ -335,7 +335,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
               tabIndex={card.tab ? 0 : undefined}
               onClick={() => card.tab && onNavigate(card.tab)}
               onKeyDown={(event) => { if (card.tab && event.key === 'Enter') onNavigate(card.tab); }}
-              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', background: card.cardBackground ?? C.card, borderWidth: '1px', borderStyle: 'solid', borderTopWidth: '3px', borderTopColor: card.color, borderRightColor: card.urgent ? `${card.color}55` : C.border, borderBottomColor: card.urgent ? `${card.color}55` : C.border, borderLeftColor: card.urgent ? `${card.color}55` : C.border, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
+              style={{ '--admin-card-background': card.cardBackground ?? C.card, display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', borderWidth: '1px', borderStyle: 'solid', borderTopWidth: '3px', borderTopColor: card.color, borderRightColor: card.urgent ? `${card.color}55` : C.border, borderBottomColor: card.urgent ? `${card.color}55` : C.border, borderLeftColor: card.urgent ? `${card.color}55` : C.border, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
             >
               <div style={{ minHeight: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
