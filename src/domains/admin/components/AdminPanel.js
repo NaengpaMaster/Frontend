@@ -2147,6 +2147,7 @@ function LlmUsageLogsTab() {
     INQUIRY_QNA: '문의 Q&A',
     RECEIPT_OCR: '영수증 OCR',
     FRIDGE_PHOTO_ANALYSIS: '냉장고 사진',
+    QUIZ_GENERATION: '오늘의 퀴즈 생성',
   };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -2259,6 +2260,7 @@ function LlmUsageLogsTab() {
           ['INQUIRY_QNA', '문의 Q&A'],
           ['RECEIPT_OCR', '영수증 OCR'],
           ['FRIDGE_PHOTO_ANALYSIS', '냉장고 사진 분석'],
+          ['QUIZ_GENERATION', '오늘의 퀴즈 생성'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -2310,11 +2312,14 @@ function LlmUsageLogsTab() {
               <tbody>
                 {logs.map((log) => {
                   const failed = log.status === 'FAILED';
+                  const isAutoScheduled = log.featureType === 'QUIZ_GENERATION' && log.memberId == null;
+                  const displayNickname = isAutoScheduled ? '자동 스케줄러' : (log.nickname || '알 수 없음');
+                  const displayEmail = isAutoScheduled ? '-' : (log.email || `memberId ${log.memberId}`);
                   return (
                     <tr key={log.llmUsageLogId} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '12px', verticalAlign: 'top' }}>
-                        <div style={{ fontSize: '12px', color: C.fg, fontWeight: 900 }}>{log.nickname || '알 수 없음'}</div>
-                        <div style={{ fontSize: '10px', color: C.fgMuted, marginTop: '3px' }}>{log.email || `memberId ${log.memberId}`}</div>
+                        <div style={{ fontSize: '12px', color: C.fg, fontWeight: 900 }}>{displayNickname}</div>
+                        <div style={{ fontSize: '10px', color: C.fgMuted, marginTop: '3px' }}>{displayEmail}</div>
                       </td>
                       <td style={{ padding: '12px', color: C.fg, fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                         {FEATURE_TYPE_LABELS[log.featureType] || log.featureType}

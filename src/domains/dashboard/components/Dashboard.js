@@ -1,5 +1,5 @@
 import {useState, useEffect} from 'react';
-import {BarChart3, Bot, ChevronRight, Zap, TrendingDown, User, Users, X} from 'lucide-react';
+import {BarChart3, Bot, ChevronRight, Zap, TrendingDown, User, Users, X, Lightbulb} from 'lucide-react';
 import {
     getDaysUntilExpiry, getExpiryStatus, getDayLabel,
     STATUS_COLORS, C,
@@ -1684,6 +1684,36 @@ export function Dashboard({
                                 <span style={{display: 'block', marginTop: '3px', fontSize: '12px', color: C.fgMuted}}>문의 AI 챗봇에게 바로 물어보세요.</span>
                             </span>
                             <ChevronRight size={17} color={C.primary}/>
+                        </button>
+                    </div>
+
+                    <div style={{padding: '0 20px 20px'}}>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('quiz')}
+                            className="card-hover"
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '14px 16px',
+                                border: `1px solid ${C.warn}40`,
+                                borderRadius: '16px',
+                                background: C.warnLight,
+                                color: C.fg,
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                            }}
+                        >
+                            <span style={{width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '12px', background: C.card, color: C.warn}}>
+                                <Lightbulb size={20}/>
+                            </span>
+                            <span style={{flex: 1}}>
+                                <span style={{display: 'block', fontSize: '14px', fontWeight: 800}}>오늘의 퀴즈가 도착했어요!</span>
+                                <span style={{display: 'block', marginTop: '3px', fontSize: '12px', color: C.fgMuted}}>퀴즈를 풀고 냉파 점수를 올려보세요.</span>
+                            </span>
+                            <ChevronRight size={17} color={C.warn}/>
                         </button>
                     </div>
 
