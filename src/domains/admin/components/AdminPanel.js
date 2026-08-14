@@ -25,6 +25,7 @@ function formatStatisticsDate(date, granularity) {
   return date.slice(5);
 }
 
+
 function InfoTooltip({ text }) {
   const [show, setShow] = useState(false);
   return (
