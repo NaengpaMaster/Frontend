@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, Crown, Refrigerator, Link2, Unlink } from 'lucide-react';
+import { X, Plus, LogOut, Shield, ChevronRight, User as UserIcon, Crown, Refrigerator, Link2, Unlink, HandHeart, Lightbulb, MessageSquare, Pencil } from 'lucide-react';
 import { authApi } from '@/apis/authApi';
 import { getAccessToken } from '@/apis/axiosClient';
 import { fridgeApi } from '@/apis/fridgeApi';
@@ -96,6 +96,7 @@ export function MyPage({
   user,
   onClose,
   onLogout,
+  onWithdraw,
   onUpdate,
   onOpenAdmin,
   fridgeInfo,
@@ -103,6 +104,9 @@ export function MyPage({
   subscriptionLoading = false,
   onOpenSubscription,
   onOpenFamilyManagement,
+  onNavigate,
+  embedded = false,
+  editOnly = false,
 }) {
   const [form, setForm] = useState({
     ...user,
@@ -117,6 +121,7 @@ export function MyPage({
   const [socialAccounts, setSocialAccounts] = useState([]);
   const [socialLoading, setSocialLoading] = useState(false);
   const [socialError, setSocialError] = useState('');
+  const [editMode, setEditMode] = useState(editOnly);
 
   useEffect(() => {
     setForm({
@@ -124,6 +129,10 @@ export function MyPage({
       preferences: normalizePreferences(user),
     });
   }, [user]);
+
+  useEffect(() => {
+    setEditMode(editOnly);
+  }, [editOnly]);
 
   useEffect(() => {
     let alive = true;
@@ -274,32 +283,71 @@ export function MyPage({
     : '무료 이용 중';
   const premiumTitle = isFamilyPremiumMember ? '가족 프리미엄 이용 중' : subscriptionLabel;
   const premiumBadge = isFamilyPremiumMember ? '가족 구성원' : '구독 중';
+  const myPageMenus = [
+    { id: 'share', label: '재료 함께 나눔', description: '주변 이웃과 재료 나눔', Icon: HandHeart, color: C.primary, background: C.primaryLight },
+    { id: 'quiz', label: '퀴즈', description: '냉파 퀴즈 참여', Icon: Lightbulb, color: C.warn, background: C.warnLight },
+    { id: 'inquiry', label: '문의', description: '문의 작성·확인', Icon: MessageSquare, color: '#3974C6', background: '#EAF2FF' },
+    { id: 'subscription', label: '구독 관리', description: '구독 상태·결제 관리', Icon: Crown, color: C.primary, background: C.primaryLight },
+  ];
+
+  const handleOpenMenu = (menuId) => {
+    if (menuId === 'subscription') {
+      onOpenSubscription?.();
+    } else {
+      onNavigate?.(menuId);
+    }
+    if (!embedded) {
+      onClose?.();
+    }
+  };
+
+
+  const handleWithdrawClick = async () => {
+    if (subscriptionStatus?.premium && !subscriptionStatus?.cancelReserved) {
+      alert('현재 구독 중이라 회원탈퇴가 불가합니다. 구독 취소 후 다시 시도해주세요.');
+      return;
+    }
+
+    if (!window.confirm('정말 회원을 탈퇴하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await onWithdraw?.();
+    } catch (error) {
+      alert(error?.response?.data?.message || error?.message || '회원탈퇴에 실패했습니다.');
+    }
+  };
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: C.bg, zIndex: 200, display: 'flex', justifyContent: 'center' }}
+      style={embedded
+        ? { minHeight: '100%', background: C.bg, display: 'flex', justifyContent: 'center' }
+        : { position: 'fixed', inset: 0, background: C.bg, zIndex: 200, display: 'flex', justifyContent: 'center' }}
     >
       <div
         style={{
           background: C.bg,
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: embedded ? '960px' : '560px',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          overflow: embedded ? 'visible' : 'hidden',
         }}
       >
-        {/* Header */}
-        <div
-          style={{
-            padding: '20px 20px 16px',
-            borderBottom: `1px solid ${C.border}`,
-            background: C.card,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '14px',
-          }}
-        >
+        {!editOnly && (
+          <>
+            {/* Header */}
+            <div
+              style={{
+                padding: '20px 20px 16px',
+                borderBottom: `1px solid ${C.border}`,
+                background: C.card,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}
+            >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
               <div
@@ -321,9 +369,11 @@ export function MyPage({
                 <div style={{ fontSize: '12px', color: C.fgMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted, flexShrink: 0 }}>
-              <X size={20} />
-            </button>
+            {!embedded && (
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fgMuted, flexShrink: 0 }}>
+                <X size={20} />
+              </button>
+            )}
           </div>
           <div
             style={{
@@ -395,12 +445,21 @@ export function MyPage({
               </div>
             </div>
           </div>
-        </div>
+            </div>
+          </>
+        )}
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: editOnly ? '16px 20px 24px' : '20px',
+            background: 'transparent',
+          }}
+        >
           {/* Admin shortcut */}
-          {user.role === 'admin' && (
+          {!editOnly && user.role === 'admin' && (
             <button
               onClick={() => { onOpenAdmin(); onClose(); }}
               style={{
@@ -427,9 +486,128 @@ export function MyPage({
             </button>
           )}
 
-          {/* Profile info */}
-          <div style={{ marginBottom: '20px' }}>
-            <div style={sectionTitle}>기본 정보</div>
+          {!editOnly && (
+            <div style={{ marginBottom: '20px' }}>
+              <div style={sectionTitle}>서비스 메뉴</div>
+            <div className="mypage-service-menu" style={{ display: 'grid', gridTemplateColumns: embedded ? 'repeat(5, minmax(0, 1fr))' : 'repeat(4, 1fr)', gap: '12px' }}>
+              {myPageMenus.map(({ id, label, description, Icon, color, background }) => (
+                <button
+                  key={id}
+                  className="mypage-service-card"
+                  onClick={() => handleOpenMenu(id)}
+                  style={{
+                    minHeight: embedded ? '118px' : '92px',
+                    padding: embedded ? '18px 12px' : '12px 8px',
+                    background: C.card,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: '18px',
+                    color: C.fg,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '7px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ width: embedded ? '44px' : '34px', height: embedded ? '44px' : '34px', borderRadius: '14px', background, color, display: 'grid', placeItems: 'center' }}>
+                    <Icon size={embedded ? 22 : 18} strokeWidth={2.2} />
+                  </span>
+                  <span style={{ fontSize: embedded ? '14px' : '12px', fontWeight: 900, lineHeight: 1.2 }}>{label}</span>
+                  <span style={{ fontSize: embedded ? '12px' : '10px', color: C.fgMuted, lineHeight: 1.25 }}>{description}</span>
+                </button>
+              ))}
+              {!editMode && (
+                <button
+                  className="mypage-service-card"
+                  onClick={() => onNavigate?.('mypage-edit')}
+                  style={{
+                    minHeight: embedded ? '118px' : '92px',
+                    padding: embedded ? '18px 12px' : '12px 8px',
+                    background: C.card,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: '18px',
+                    color: C.fg,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '7px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ width: embedded ? '44px' : '34px', height: embedded ? '44px' : '34px', borderRadius: '14px', background: C.primaryLight, color: C.primary, display: 'grid', placeItems: 'center' }}>
+                    <Pencil size={embedded ? 21 : 17} />
+                  </span>
+                  <span style={{ fontSize: embedded ? '14px' : '12px', fontWeight: 900, lineHeight: 1.2 }}>마이페이지 수정</span>
+                  <span style={{ fontSize: embedded ? '12px' : '10px', color: C.fgMuted, lineHeight: 1.25 }}>내 정보 수정</span>
+                </button>
+              )}
+              </div>
+            </div>
+          )}
+
+          {!editMode && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  onClick={handleWithdrawClick}
+                  style={{
+                    width: '100%', padding: '12px', background: C.dangerLight, border: `1px solid ${C.danger}`,
+                    borderRadius: '16px', color: C.danger, fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  }}
+                >
+                  회원탈퇴
+                </button>
+                <button
+                  onClick={onLogout}
+                  style={{
+                    width: '100%', padding: '12px', background: 'none', border: `1px solid ${C.border}`,
+                    borderRadius: '16px', color: C.fgMuted, fontWeight: 600, fontSize: '14px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  }}
+                >
+                  <LogOut size={15} />
+                  로그아웃
+                </button>
+              </div>
+
+              <div style={{ fontSize: '11px', color: C.fgSubtle, textAlign: 'center', marginTop: '8px' }}>
+                가입일 {user.joinDate} · {user.role === 'admin' ? '관리자' : '일반 회원'}
+              </div>
+            </>
+          )}
+
+          {editMode && (
+            <>
+              {editOnly ? (
+                <div style={{ padding: '20px', background: C.card, borderBottom: `1px solid ${C.border}`, margin: '-16px -20px 16px' }}>
+                  <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '2px' }}>
+                    MY PAGE
+                  </div>
+                  <h1 style={{ fontSize: '22px', fontWeight: 700, color: C.fg, margin: 0, letterSpacing: '-0.02em' }}>
+                    마이페이지 수정
+                  </h1>
+                  <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>
+                    닉네임, 선호 음식, 못 먹는 재료와 소셜 계정 연동을 관리합니다.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={sectionTitle}>마이페이지 수정</div>
+                  <button onClick={() => setEditMode(false)} style={{ background: 'none', border: 'none', color: C.fgMuted, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
+                    닫기
+                  </button>
+                </div>
+              )}
+
+              <div style={editOnly ? { background: C.card, border: `1px solid ${C.border}`, borderRadius: '22px', padding: '18px', marginBottom: '16px' } : undefined}>
+              {/* Profile info */}
+              <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>기본 정보</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div>
                 <div style={{ fontSize: '11px', color: C.fgMuted, marginBottom: '5px' }}>이름</div>
@@ -444,7 +622,7 @@ export function MyPage({
                 <input style={{ ...inputStyle, color: C.fgMuted, cursor: 'not-allowed' }} value={form.email} readOnly />
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: C.fgMuted, marginBottom: '8px' }}>가구 유형</div>
+                <div style={{ fontSize: '13px', color: C.fg, fontWeight: 900, marginBottom: '8px' }}>가구 유형</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                   {HOUSEHOLD_TYPES.map((ht) => (
                     <button
@@ -471,7 +649,7 @@ export function MyPage({
 
           {/* Social accounts */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={sectionTitle}>소셜 로그인 연동</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>소셜 로그인 연동</div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: '16px', background: C.card, overflow: 'hidden' }}>
               {socialLoading ? (
                 <div style={{ padding: '14px', color: C.fgMuted, fontSize: '12px' }}>연동 정보를 확인 중입니다.</div>
@@ -545,7 +723,7 @@ export function MyPage({
 
           {/* Favorite foods */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={sectionTitle}>선호 음식</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>선호 음식</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {FAVORITE_FOODS_LIST.map((food) => {
                 const isOn = form.preferences.favoriteFoods.includes(food);
@@ -574,7 +752,7 @@ export function MyPage({
 
           {/* Avoid ingredients */}
           <div style={{ marginBottom: '24px' }}>
-            <div style={sectionTitle}>못 먹는 재료</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: C.fg, marginBottom: '12px' }}>못 먹는 재료</div>
             <div style={{ position: 'relative', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
@@ -733,6 +911,9 @@ export function MyPage({
           <div style={{ fontSize: '11px', color: C.fgSubtle, textAlign: 'center', marginTop: '8px' }}>
             가입일 {user.joinDate} · {user.role === 'admin' ? '관리자' : '일반 회원'}
           </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

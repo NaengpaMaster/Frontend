@@ -38,6 +38,29 @@ function getNotificationKey(notifications) {
     .join(',');
 }
 
+const MY_NAENGPA_TABS = [
+  { id: 'mypage', label: '나의 냉파' },
+  { id: 'share', label: '재료 함께 나눔' },
+  { id: 'quiz', label: '퀴즈' },
+  { id: 'inquiry', label: '문의' },
+  { id: 'subscription', label: '구독 관리' },
+  { id: 'mypage-edit', label: '마이페이지 수정' },
+];
+
+function MyNaengpaBackBar({ active, onBack }) {
+  const currentLabel = MY_NAENGPA_TABS.find((tab) => tab.id === active)?.label;
+  if (!currentLabel || active === 'mypage') return null;
+
+  return (
+    <div className="my-naengpa-back-bar">
+      <button type="button" className="my-naengpa-back-button" onClick={onBack}>
+        <span aria-hidden="true">‹</span>
+        나의 냉파
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   /* MARKER-MAKE-KIT-INVOKED */
   const [showExpiryPopup, setShowExpiryPopup] = useState(false);
@@ -57,11 +80,9 @@ export default function App() {
   const {
     currentUser,
     authLoading,
-    showMyPage,
     showAdmin,
     setCurrentUser,
     setAuthLoading,
-    setShowMyPage,
     setShowAdmin,
     resetAuth,
   } = useAuthStore();
@@ -343,7 +364,7 @@ export default function App() {
     let mounted = true;
 
     async function refreshProfile() {
-      if (!showMyPage) return;
+      if (activeTab !== 'mypage' && activeTab !== 'mypage-edit') return;
 
       try {
         const profile = await authApi.getProfile();
@@ -352,7 +373,7 @@ export default function App() {
         }
       } catch {
         if (mounted) {
-          setShowMyPage(false);
+          setActiveTab('home');
         }
       }
     }
@@ -362,7 +383,7 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [showMyPage, setCurrentUser, setShowMyPage]);
+  }, [activeTab, setActiveTab, setCurrentUser]);
 
   useEffect(() => {
     let mounted = true;
@@ -420,6 +441,11 @@ export default function App() {
     setCurrentUser(saved);
     setUsers(users.map((u) => u.id === saved.id ? saved : u));
     return saved;
+  };
+
+  const handleWithdraw = async () => {
+    await authApi.withdraw();
+    resetAuth();
   };
 
   const handleOpenFamilyManagement = () => {
@@ -613,22 +639,23 @@ export default function App() {
     );
   }
 
+  const isMyNaengpaSection = MY_NAENGPA_TABS.some((tab) => tab.id === activeTab);
+
   return (
     <div style={{ width: '100%', height: '100%', background: '#F2F4F5' }}>
       <Sidebar
         active={activeTab}
         onChange={setActiveTab}
         currentUser={currentUser}
-        onOpenMyPage={() => setShowMyPage(true)}
+        onOpenMyPage={() => setActiveTab('mypage')}
         onOpenAdmin={() => setShowAdmin(true)}
-        onOpenSubscription={() => setActiveTab('subscription')}
       />
       <div className="app-main" style={{ display: 'flex', justifyContent: 'center', height: '100%', overflow: 'hidden' }}>
         <div
           className="app-content-frame"
           style={{
             width: '100%',
-            maxWidth: '560px',
+            maxWidth: activeTab === 'mypage' || activeTab === 'mypage-edit' ? '960px' : '560px',
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
@@ -639,6 +666,7 @@ export default function App() {
         >
           {/* Scrollable content */}
           <div className="app-scroll-pad" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+            {isMyNaengpaSection && <MyNaengpaBackBar active={activeTab} onBack={() => setActiveTab('mypage')} />}
             {activeTab === 'home' && (
               <Dashboard
                 ingredients={homeIngredients}
@@ -651,7 +679,7 @@ export default function App() {
                 familyInvites={receivedFamilyInvites}
                 loading={homeLoading}
                 onNavigate={setActiveTab}
-                onOpenMyPage={() => setShowMyPage(true)}
+                onOpenMyPage={() => setActiveTab('mypage')}
                 onOpenFamilyManagement={handleOpenFamilyManagement}
                 onAcceptFamilyInvite={handleAcceptFamilyInvite}
                 onRejectFamilyInvite={handleRejectFamilyInvite}
@@ -734,25 +762,28 @@ export default function App() {
                 onOpenFamilyManagement={handleOpenFamilyManagement}
               />
             )}
+            {(activeTab === 'mypage' || activeTab === 'mypage-edit') && (
+              <MyPage
+                user={currentUser}
+                onClose={() => setActiveTab('home')}
+                onLogout={handleLogout}
+                onWithdraw={handleWithdraw}
+                onUpdate={handleUpdateUser}
+                onOpenAdmin={() => setShowAdmin(true)}
+                fridgeInfo={fridgeInfo}
+                subscriptionStatus={subscriptionStatus}
+                subscriptionLoading={subscriptionLoading}
+                onOpenSubscription={() => setActiveTab('subscription')}
+                onOpenFamilyManagement={handleOpenFamilyManagement}
+                onNavigate={setActiveTab}
+                embedded
+                editOnly={activeTab === 'mypage-edit'}
+              />
+            )}
           </div>
 
           <BottomNav active={activeTab} onChange={setActiveTab} />
 
-          {/* My Page overlay */}
-          {showMyPage && (
-            <MyPage
-              user={currentUser}
-              onClose={() => setShowMyPage(false)}
-              onLogout={handleLogout}
-              onUpdate={handleUpdateUser}
-              onOpenAdmin={() => setShowAdmin(true)}
-              fridgeInfo={fridgeInfo}
-              subscriptionStatus={subscriptionStatus}
-              subscriptionLoading={subscriptionLoading}
-              onOpenSubscription={() => setActiveTab('subscription')}
-              onOpenFamilyManagement={handleOpenFamilyManagement}
-            />
-          )}
 
           {showFamilyFridgeModal && (
             <FamilyFridgeModal

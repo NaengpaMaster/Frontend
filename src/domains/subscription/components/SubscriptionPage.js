@@ -193,10 +193,10 @@ export function SubscriptionPage({ subscriptionStatus, onSubscriptionChanged, on
 
   return (
     <div style={{ minHeight: '100%', background: '#F2F4F5' }}>
-      <div style={{ padding: '24px 20px 12px' }}>
-        <div style={{ fontSize: '12px', fontWeight: 950, letterSpacing: '0.1em', color: C.primary, marginBottom: '6px' }}>PREMIUM</div>
-        <div style={{ fontSize: '30px', fontWeight: 950, color: C.fg, lineHeight: 1.15 }}>구독 관리</div>
-        <div style={{ fontSize: '13px', color: C.fgMuted, marginTop: '8px' }}>등록 카드, 결제 내역, 가족 냉장고를 한 곳에서 관리해요.</div>
+      <div style={{ padding: '20px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: '10px', color: C.fgMuted, letterSpacing: '0.1em', fontWeight: 700, marginBottom: '2px' }}>PREMIUM</div>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: C.fg, margin: 0, letterSpacing: '-0.02em' }}>구독 관리</h1>
+        <div style={{ fontSize: '12px', color: C.fgMuted, marginTop: '5px' }}>등록 카드, 결제 내역, 가족 냉장고를 한 곳에서 관리해요.</div>
       </div>
 
       <div style={{ padding: '18px' }}>

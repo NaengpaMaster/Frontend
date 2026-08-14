@@ -1,18 +1,16 @@
-import { LayoutDashboard, Refrigerator, ChefHat, MessageSquare, ShoppingCart, Lightbulb, HandHeart, User as UserIcon, Shield, Crown } from 'lucide-react';
+import { LayoutDashboard, Refrigerator, ChefHat, ShoppingCart, User as UserIcon, Shield } from 'lucide-react';
 import { C } from '@/shared/data/mockData';
 import { Logo } from './Logo';
 
 const tabs = [
-  { id: 'home',     label: '홈',     Icon: LayoutDashboard },
-  { id: 'fridge',   label: '냉장고', Icon: Refrigerator   },
-  { id: 'recipe',   label: '레시피', Icon: ChefHat        },
-  { id: 'shopping', label: '장보기', Icon: ShoppingCart   },
-  { id: 'share',    label: '나눔',   Icon: HandHeart      },
-  { id: 'quiz',     label: '퀴즈',   Icon: Lightbulb      },
-  { id: 'inquiry',  label: '문의',   Icon: MessageSquare  },
+  { id: 'home',     label: '홈',       Icon: LayoutDashboard },
+  { id: 'fridge',   label: '냉장고',   Icon: Refrigerator   },
+  { id: 'recipe',   label: '레시피',   Icon: ChefHat        },
+  { id: 'shopping', label: '장보기',   Icon: ShoppingCart   },
+  { id: 'mypage',   label: '나의 냉파', Icon: UserIcon       },
 ];
 
-export function Sidebar({ active, onChange, currentUser, onOpenMyPage, onOpenAdmin, onOpenSubscription }) {
+export function Sidebar({ active, onChange, currentUser, onOpenMyPage, onOpenAdmin }) {
   return (
     <aside
       className="app-sidebar"
@@ -63,28 +61,6 @@ export function Sidebar({ active, onChange, currentUser, onOpenMyPage, onOpenAdm
             </button>
           );
         })}
-        <button
-          onClick={onOpenSubscription}
-          className="sidebar-nav-item"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '11px 12px',
-            background: undefined,
-            border: 'none',
-            borderRadius: '16px',
-            color: C.fgMuted,
-            fontWeight: 500,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'background 0.15s, color 0.15s',
-          }}
-        >
-          <Crown size={18} strokeWidth={1.75} />
-          구독 관리
-        </button>
       </nav>
 
       {currentUser.role === 'admin' && (

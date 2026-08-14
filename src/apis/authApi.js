@@ -191,4 +191,10 @@ export const authApi = {
     }, { skipUnauthorizedRedirect: true }));
     return toFrontendUser(member);
   },
+
+  async withdraw() {
+    const result = unwrap(await axiosClient.delete('/api/v1/members/me', { skipUnauthorizedRedirect: true }));
+    clearAccessToken();
+    return result;
+  },
 };
