@@ -16,6 +16,9 @@ export const communityShareApi = {
   getMine: (page = 0) =>
     axiosClient.get('/api/v1/community-shares/me', { params: { page } }).then(unwrap),
 
+  getJoined: (page = 0) =>
+    axiosClient.get('/api/v1/community-shares/me/joined', { params: { page } }).then(unwrap),
+
   create: (data) =>
     axiosClient.post('/api/v1/community-shares', data).then(unwrap),
 

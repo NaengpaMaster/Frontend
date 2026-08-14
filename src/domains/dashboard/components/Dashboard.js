@@ -1388,24 +1388,6 @@ export function Dashboard({
                         <BarChart3 size={18} strokeWidth={2.5}/>
                         <div style={{fontSize: '10px', fontWeight: 700}}>통계</div>
                     </button>
-                    <button
-                        onClick={onOpenMyPage}
-                        style={{
-                            width: '42px',
-                            height: '42px',
-                            background: C.surface,
-                            border: `1px solid ${C.border}`,
-                            borderRadius: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            color: C.fgMuted,
-                            flexShrink: 0,
-                        }}
-                    >
-                        <User size={18}/>
-                    </button>
                     {isPremium && (
                         <button
                             onClick={onOpenFamilyManagement}

@@ -113,7 +113,7 @@ function CreateShareModal({ location, onClose, onCreated }) {
             <label style={labelStyle}><span style={{ color: C.danger }}>*</span> 나눌 수량</label>
             <input style={inputStyle} placeholder="1통, 1/2개" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
             <div>
               <label style={labelStyle}><span style={{ color: C.danger }}>*</span> 총 구매 금액</label>
               <input type="number" min="0" style={inputStyle} placeholder="20000" value={form.totalPrice} onChange={(e) => setForm({ ...form, totalPrice: e.target.value })} />
@@ -499,8 +499,10 @@ function ShareDetailModal({ post, onClose, onJoin, onCancelJoin, onClosePost, on
 export function CommunitySharePage() {
   const [posts, setPosts] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
+  const [joinedPosts, setJoinedPosts] = useState([]);
   const [nearbyPage, setNearbyPage] = useState({ page: 0, last: true, totalElements: 0, totalPages: 1 });
   const [myPage, setMyPage] = useState({ page: 0, last: true, totalElements: 0, totalPages: 1 });
+  const [joinedPage, setJoinedPage] = useState({ page: 0, last: true, totalElements: 0, totalPages: 1 });
   const [tab, setTab] = useState('nearby');
   const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [locationLabel, setLocationLabel] = useState('현재 위치 확인 중');
@@ -535,6 +537,11 @@ export function CommunitySharePage() {
     applyPage(minePageResponse, setMyPosts, setMyPage, append);
   };
 
+  const loadJoinedPosts = async (page = 0, append = false) => {
+    const joinedPageResponse = await communityShareApi.getJoined(page);
+    applyPage(joinedPageResponse, setJoinedPosts, setJoinedPage, append);
+  };
+
   const loadPosts = async (nextLocation = location) => {
     setLoading(true);
     setError('');
@@ -542,6 +549,7 @@ export function CommunitySharePage() {
       await Promise.all([
         loadNearbyPosts(nextLocation, 0, false),
         loadMyPosts(0, false),
+        loadJoinedPosts(0, false),
       ]);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -599,8 +607,10 @@ export function CommunitySharePage() {
     try {
       if (tab === 'nearby') {
         await loadNearbyPosts(location, nextPage, false);
-      } else {
+      } else if (tab === 'mine') {
         await loadMyPosts(nextPage, false);
+      } else {
+        await loadJoinedPosts(nextPage, false);
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -617,6 +627,7 @@ export function CommunitySharePage() {
 
     setPosts(replacePost);
     setMyPosts(replacePost);
+    setJoinedPosts(replacePost);
     setDetailPost((current) => (
       current?.communitySharePostId === updatedPost.communitySharePostId ? { ...current, ...updatedPost } : current
     ));
@@ -634,6 +645,7 @@ export function CommunitySharePage() {
       await Promise.all([
         loadNearbyPosts(location, nearbyPage.page, false),
         loadMyPosts(myPage.page, false),
+        loadJoinedPosts(joinedPage.page, false),
       ]);
       patchPostState(updatedPost);
     } catch (err) {
@@ -643,8 +655,8 @@ export function CommunitySharePage() {
     }
   };
 
-  const visiblePosts = tab === 'nearby' ? posts : myPosts;
-  const currentPageInfo = tab === 'nearby' ? nearbyPage : myPage;
+  const visiblePosts = tab === 'nearby' ? posts : tab === 'mine' ? myPosts : joinedPosts;
+  const currentPageInfo = tab === 'nearby' ? nearbyPage : tab === 'mine' ? myPage : joinedPage;
   const selectedPost = visiblePosts.find((post) => post.communitySharePostId === selectedPostId);
 
   const openDetail = (post) => {
@@ -675,40 +687,42 @@ export function CommunitySharePage() {
 
       <div style={{ padding: '18px 20px 96px' }}>
 
-      {tab === 'nearby' && (
-        <CommunityShareMap
-          posts={posts}
-          location={location}
-          radiusKm={radiusKm}
-          selectedPostId={selectedPostId}
-          onSelectPost={handleSelectPost}
-          onSelectGroup={setGroupPreviewPosts}
-        />
-      )}
-
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '12px', marginBottom: '14px', display: 'grid', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}><MapPin size={15} /> {locationLabel} 기준</div>
-          <button onClick={() => requestCurrentLocation(true)} style={{ border: 'none', background: C.surface, color: C.fgMuted, borderRadius: '12px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><RefreshCw size={14} /> 현재위치</button>
-        </div>
-        {locationError && <div style={{ padding: '9px 10px', borderRadius: '12px', background: C.warnLight, color: C.warn, fontSize: '11px', fontWeight: 800, lineHeight: 1.4 }}>{locationError}</div>}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>반경</span>
-          {[
-            { value: 0.5, label: '500m' },
-            { value: 1, label: '1km' },
-            { value: 2, label: '2km' },
-          ].map((item) => (
-            <button key={item.value} onClick={() => setRadiusKm(item.value)} style={{ border: `1px solid ${radiusKm === item.value ? C.primaryMid : C.border}`, background: radiusKm === item.value ? C.primaryLight : C.surface, color: radiusKm === item.value ? C.primary : C.fgMuted, borderRadius: '999px', padding: '7px 10px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>{item.label}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-        {[{ id: 'nearby', label: '주변 나눔' }, { id: 'mine', label: '내 나눔' }].map((item) => (
-          <button key={item.id} onClick={() => setTab(item.id)} style={{ border: 'none', borderRadius: '14px', padding: '12px', background: tab === item.id ? C.primary : C.card, color: tab === item.id ? '#fff' : C.fgMuted, fontSize: '13px', fontWeight: 900, cursor: 'pointer' }}>{item.label}</button>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginBottom: '14px' }}>
+        {[{ id: 'nearby', label: '주변 나눔' }, { id: 'mine', label: '내 나눔' }, { id: 'joined', label: '나눔 참여' }].map((item) => (
+          <button key={item.id} onClick={() => setTab(item.id)} style={{ border: 'none', borderRadius: '14px', padding: '12px 6px', background: tab === item.id ? C.primary : C.card, color: tab === item.id ? '#fff' : C.fgMuted, fontSize: '13px', fontWeight: 900, cursor: 'pointer' }}>{item.label}</button>
         ))}
       </div>
+
+      {tab === 'nearby' && (
+        <>
+          <CommunityShareMap
+            posts={posts}
+            location={location}
+            radiusKm={radiusKm}
+            selectedPostId={selectedPostId}
+            onSelectPost={handleSelectPost}
+            onSelectGroup={setGroupPreviewPosts}
+          />
+
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '12px', marginBottom: '14px', display: 'grid', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}><MapPin size={15} /> {locationLabel} 기준</div>
+              <button onClick={() => requestCurrentLocation(true)} style={{ border: 'none', background: C.surface, color: C.fgMuted, borderRadius: '12px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}><RefreshCw size={14} /> 현재위치</button>
+            </div>
+            {locationError && <div style={{ padding: '9px 10px', borderRadius: '12px', background: C.warnLight, color: C.warn, fontSize: '11px', fontWeight: 800, lineHeight: 1.4 }}>{locationError}</div>}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>반경</span>
+              {[
+                { value: 0.5, label: '500m' },
+                { value: 1, label: '1km' },
+                { value: 2, label: '2km' },
+              ].map((item) => (
+                <button key={item.value} onClick={() => setRadiusKm(item.value)} style={{ border: `1px solid ${radiusKm === item.value ? C.primaryMid : C.border}`, background: radiusKm === item.value ? C.primaryLight : C.surface, color: radiusKm === item.value ? C.primary : C.fgMuted, borderRadius: '999px', padding: '7px 10px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}>{item.label}</button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {selectedPost && tab === 'nearby' && (
         <div style={{ marginBottom: '12px', padding: '12px 14px', borderRadius: '16px', background: C.primaryLight, color: C.primary, fontSize: '12px', fontWeight: 900 }}>
@@ -720,8 +734,8 @@ export function CommunitySharePage() {
       {!loading && visiblePosts.length === 0 && (
         <div style={{ background: C.card, border: `1px dashed ${C.borderStrong}`, borderRadius: '22px', padding: '28px 18px', textAlign: 'center', color: C.fgMuted }}>
           <Users size={26} />
-          <div style={{ marginTop: '10px', fontSize: '14px', fontWeight: 900 }}>{tab === 'nearby' ? '주변 모집글이 없습니다.' : '아직 등록한 나눔이 없습니다.'}</div>
-          <div style={{ marginTop: '5px', fontSize: '12px' }}>큰 재료가 남을 때 첫 나눔을 등록해보세요.</div>
+          <div style={{ marginTop: '10px', fontSize: '14px', fontWeight: 900 }}>{tab === 'nearby' ? '주변 모집글이 없습니다.' : tab === 'mine' ? '아직 등록한 나눔이 없습니다.' : '참여한 나눔이 없습니다.'}</div>
+          <div style={{ marginTop: '5px', fontSize: '12px' }}>{tab === 'joined' ? '주변 나눔에서 필요한 재료에 참여해보세요.' : '큰 재료가 남을 때 첫 나눔을 등록해보세요.'}</div>
         </div>
       )}
       <div style={{ display: 'grid', gap: '12px' }}>
