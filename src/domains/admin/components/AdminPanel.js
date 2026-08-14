@@ -284,6 +284,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
     {
       label: '24시간 초과 미답변', value: summary?.overduePendingInquiryCount, suffix: '건', icon: AlertTriangle,
       color: C.danger, bg: C.dangerLight,
+      cardBackground: (summary?.overduePendingInquiryCount ?? 0) > 0 ? C.dangerLight : C.card,
       urgent: (summary?.overduePendingInquiryCount ?? 0) > 0,
       statusLabel: (summary?.overduePendingInquiryCount ?? 0) > 0 ? '위험' : '정상',
       statusColor: (summary?.overduePendingInquiryCount ?? 0) > 0 ? C.danger : C.primary,
@@ -334,7 +335,7 @@ function AdminHomeTab({ currentUser, pendingCount, onNavigate, onRefreshInquiryC
               tabIndex={card.tab ? 0 : undefined}
               onClick={() => card.tab && onNavigate(card.tab)}
               onKeyDown={(event) => { if (card.tab && event.key === 'Enter') onNavigate(card.tab); }}
-              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', background: C.card, borderWidth: '1px', borderStyle: 'solid', borderTopWidth: '3px', borderTopColor: card.color, borderRightColor: card.urgent ? `${card.color}55` : C.border, borderBottomColor: card.urgent ? `${card.color}55` : C.border, borderLeftColor: card.urgent ? `${card.color}55` : C.border, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
+              style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: '148px', padding: '17px 18px', textAlign: 'left', background: card.cardBackground ?? C.card, borderWidth: '1px', borderStyle: 'solid', borderTopWidth: '3px', borderTopColor: card.color, borderRightColor: card.urgent ? `${card.color}55` : C.border, borderBottomColor: card.urgent ? `${card.color}55` : C.border, borderLeftColor: card.urgent ? `${card.color}55` : C.border, borderRadius: '12px', boxShadow: '0 1px 4px rgba(17,32,29,0.06)', cursor: card.tab ? 'pointer' : 'default' }}
             >
               <div style={{ minHeight: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -1849,6 +1850,10 @@ function StatsTab() {
 
 // ─── Inquiries ────────────────────────────────────────────────────────────────
 const INQUIRY_PAGE_SIZE = 10;
+const isOverdueInquiry = (createdAt) => {
+  const createdTime = new Date(createdAt).getTime();
+  return Number.isFinite(createdTime) && Date.now() - createdTime >= 24 * 60 * 60 * 1000;
+};
 
 function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFetchInquiryCounts, pendingCount, answeredCount, onAnswer, onDeleteInquiry, onDeleteAnswer }) {
   const [activeTab, setActiveTab] = useState('pending');
@@ -2023,8 +2028,8 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
             <div
               key={inq.id}
               style={{
-                background: C.card,
-                border: `1px solid ${activeTab === 'pending' ? C.accent + '50' : C.border}`,
+                background: activeTab === 'pending' && isOverdueInquiry(inq.createdAt) ? C.dangerLight : C.card,
+                border: `1px solid ${activeTab === 'pending' && isOverdueInquiry(inq.createdAt) ? C.danger + '70' : activeTab === 'pending' ? C.accent + '50' : C.border}`,
                 borderRadius: '16px',
                 overflow: 'hidden',
               }}
@@ -2036,7 +2041,12 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '14px', color: C.fg, marginBottom: '2px' }}>{inq.subject}</div>
-                    <div style={{ fontSize: '11px', color: C.fgMuted }}>{inq.userName} · {inq.createdAt}{detailLoadingId === inq.id ? ' · 불러오는 중...' : ''}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '11px', color: C.fgMuted }}>
+                      <span>{inq.userName} · {inq.createdAt?.split('T')[0]}{detailLoadingId === inq.id ? ' · 불러오는 중...' : ''}</span>
+                      {activeTab === 'pending' && isOverdueInquiry(inq.createdAt) && (
+                        <span style={{ padding: '2px 6px', borderRadius: '999px', background: '#FFF', color: C.danger, fontWeight: 800 }}>24시간 경과</span>
+                      )}
+                    </div>
                   </div>
                 </button>
                 {deleteConfirmId === inq.id ? (

@@ -20,7 +20,7 @@ const toAdminViewInquiry = (inq) => ({
   content: inq.content,
   status: inq.isAnswered ? 'answered' : 'pending',
   answer: inq.answerContent ?? undefined,
-  createdAt: inq.createdAt ? inq.createdAt.split('T')[0] : '',
+  createdAt: inq.createdAt ?? '',
 });
 
 const useInquiryStore = create((set, get) => ({
