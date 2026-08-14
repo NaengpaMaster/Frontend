@@ -38,3 +38,4 @@ export {
   proxy as PATCH,
   proxy as DELETE,
 };
+
