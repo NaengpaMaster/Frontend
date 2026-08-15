@@ -655,7 +655,7 @@ export default function App() {
           className="app-content-frame"
           style={{
             width: '100%',
-            maxWidth: activeTab === 'mypage' || activeTab === 'mypage-edit' ? '960px' : '560px',
+            maxWidth: '560px',
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
