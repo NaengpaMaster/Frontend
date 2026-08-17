@@ -133,6 +133,31 @@ export const adminApi = {
     };
   },
 
+  async getSettlements({ status, settlementMonth } = {}) {
+    return unwrap(await axiosClient.get('/api/v1/admin/settlements', {
+      params: {
+        status: status === 'ALL' ? undefined : status,
+        settlementMonth: settlementMonth || undefined,
+      },
+    })) || [];
+  },
+
+  async getSettlementDetail(settlementId) {
+    return unwrap(await axiosClient.get(`/api/v1/admin/settlements/${settlementId}`));
+  },
+
+  async confirmSettlement(settlementId) {
+    return unwrap(await axiosClient.patch(`/api/v1/admin/settlements/${settlementId}/confirm`));
+  },
+
+  async markSettlementPaid(settlementId) {
+    return unwrap(await axiosClient.patch(`/api/v1/admin/settlements/${settlementId}/paid`));
+  },
+
+  async cancelSettlement(settlementId) {
+    return unwrap(await axiosClient.patch(`/api/v1/admin/settlements/${settlementId}/cancel`));
+  },
+
   async sendWeeklyFridgeReports({ force = false } = {}) {
     return unwrap(await axiosClient.post('/api/v1/admin/weekly-fridge-reports/send', null, {
       params: { force },

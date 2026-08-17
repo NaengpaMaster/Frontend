@@ -84,6 +84,7 @@ const TAB_ICONS = {
   ingredients: { icon: Package,       label: '사전재료' },
   stats:       { icon: BarChart3,     label: '통계' },
   aiUsage:     { icon: Activity,      label: 'AI사용량' },
+  settlements: { icon: Database,      label: '정산' },
   inquiries:   { icon: MessageSquare, label: '문의' },
   fridges:     { icon: Refrigerator, label: '가족공유' },
   shares:      { icon: HandHeart, label: '나눔' },
@@ -2139,6 +2140,298 @@ function InquiriesTab({ inquiries, onFetchInquiries, onFetchInquiryDetail, onFet
   );
 }
 
+function SettlementsTab() {
+  const STATUS_LABELS = {
+    PENDING: '대기',
+    CONFIRMED: '확정',
+    PAID: '지급완료',
+    CANCELED: '취소',
+  };
+  const STATUS_COLORS = {
+    PENDING: { color: C.accent, bg: C.accentLight },
+    CONFIRMED: { color: '#3974C6', bg: '#EAF2FF' },
+    PAID: { color: C.primary, bg: C.primaryLight },
+    CANCELED: { color: C.danger, bg: C.dangerLight },
+  };
+
+  const [settlements, setSettlements] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [status, setStatus] = useState('ALL');
+  const [settlementMonth, setSettlementMonth] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [actionId, setActionId] = useState(null);
+  const [error, setError] = useState('');
+
+  const formatMoney = (value) => `${Number(value ?? 0).toLocaleString()}원`;
+  const formatDateTime = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : '-';
+  const statusStyle = (value) => STATUS_COLORS[value] || { color: C.fgMuted, bg: C.surface };
+
+  const loadSettlements = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await adminApi.getSettlements({ status, settlementMonth });
+      setSettlements(result);
+      setSelectedId((current) => {
+        if (current && result.some((item) => item.monthlySettlementId === current)) return current;
+        return result[0]?.monthlySettlementId ?? null;
+      });
+    } catch (err) {
+      setError(err.message || '정산 목록을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDetail = async (settlementId) => {
+    if (!settlementId) {
+      setDetail(null);
+      return;
+    }
+    setDetailLoading(true);
+    setError('');
+    try {
+      setDetail(await adminApi.getSettlementDetail(settlementId));
+    } catch (err) {
+      setDetail(null);
+      setError(err.message || '정산 상세 내역을 불러오지 못했습니다.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSettlements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, settlementMonth]);
+
+  useEffect(() => {
+    loadDetail(selectedId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  const changeStatus = async (type, settlement) => {
+    const messages = {
+      confirm: '이 정산을 확정할까요?',
+      paid: '이 정산을 지급 완료 처리할까요?',
+      cancel: '이 정산을 취소할까요?',
+    };
+    if (!window.confirm(messages[type])) return;
+
+    setActionId(settlement.monthlySettlementId);
+    setError('');
+    try {
+      if (type === 'confirm') await adminApi.confirmSettlement(settlement.monthlySettlementId);
+      if (type === 'paid') await adminApi.markSettlementPaid(settlement.monthlySettlementId);
+      if (type === 'cancel') await adminApi.cancelSettlement(settlement.monthlySettlementId);
+      await loadSettlements();
+      await loadDetail(settlement.monthlySettlementId);
+    } catch (err) {
+      setError(err.message || '정산 상태 변경에 실패했습니다.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const summary = settlements.reduce((acc, item) => ({
+    grossAmount: acc.grossAmount + (item.grossAmount || 0),
+    tossFeeAmount: acc.tossFeeAmount + (item.tossFeeAmount || 0),
+    llmCostAmount: acc.llmCostAmount + (item.llmCostAmount || 0),
+    netAmount: acc.netAmount + (item.netAmount || 0),
+    subscriberCount: acc.subscriberCount + (item.subscriberCount || 0),
+  }), { grossAmount: 0, tossFeeAmount: 0, llmCostAmount: 0, netAmount: 0, subscriberCount: 0 });
+
+  const summaryCards = [
+    { label: '총매출', value: formatMoney(summary.grossAmount), icon: TrendingUp, color: C.primary, bg: C.primaryLight },
+    { label: 'Toss 수수료', value: formatMoney(summary.tossFeeAmount), icon: Minus, color: C.accent, bg: C.accentLight },
+    { label: 'LLM 비용', value: formatMoney(summary.llmCostAmount), icon: Activity, color: '#3974C6', bg: '#EAF2FF' },
+    { label: '순매출', value: formatMoney(summary.netAmount), icon: CheckCircle, color: C.primary, bg: C.primaryLight },
+    { label: '구독자 수', value: `${summary.subscriberCount.toLocaleString()}명`, icon: Users, color: C.fgMuted, bg: C.surface },
+  ];
+
+  return (
+    <div className="admin-shadcn-page admin-settlements-page">
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: '16px', color: C.fg, marginBottom: '4px' }}>정산 관리</div>
+          <div style={{ fontSize: '12px', color: C.fgMuted }}>월별 구독 매출과 수수료, 정산 상태를 확인하고 운영 상태를 변경합니다.</div>
+        </div>
+        <button
+          className="admin-shadcn-button admin-shadcn-button-outline"
+          onClick={loadSettlements}
+          disabled={loading}
+          style={{ padding: '8px 11px', cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <RefreshCw size={14} className={loading ? 'admin-home-refreshing' : ''} /> 새로고침
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ background: C.dangerLight, color: C.danger, borderRadius: '12px', padding: '11px 13px', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
+        <select
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          style={{ minHeight: '38px', border: `1px solid ${C.border}`, borderRadius: '10px', background: C.card, color: C.fg, padding: '0 10px', fontSize: '12px', fontWeight: 800 }}
+        >
+          <option value="ALL">전체 상태</option>
+          <option value="PENDING">PENDING</option>
+          <option value="CONFIRMED">CONFIRMED</option>
+          <option value="PAID">PAID</option>
+          <option value="CANCELED">CANCELED</option>
+        </select>
+        <input
+          type="month"
+          value={settlementMonth}
+          onChange={(event) => setSettlementMonth(event.target.value)}
+          style={{ minHeight: '38px', border: `1px solid ${C.border}`, borderRadius: '10px', background: C.card, color: C.fg, padding: '0 10px', fontSize: '12px', fontWeight: 800 }}
+        />
+        {settlementMonth && (
+          <button type="button" onClick={() => setSettlementMonth('')} style={{ minHeight: '38px', border: `1px solid ${C.border}`, borderRadius: '10px', background: C.surface, color: C.fgMuted, padding: '0 10px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
+            월 필터 해제
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className="admin-shadcn-card admin-shadcn-metric-card" style={{ minHeight: '118px', padding: '16px 17px', borderTop: `3px solid ${card.color}`, borderRadius: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: card.bg, color: card.color, border: `1px solid ${card.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={16} />
+                </span>
+                <span style={{ color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>{card.label}</span>
+              </div>
+              <div style={{ color: C.fg, fontSize: '23px', lineHeight: 1, letterSpacing: '-0.03em', fontWeight: 900, marginTop: '17px' }}>{card.value}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(560px, 1.15fr) minmax(360px, 0.85fr)', gap: '14px', alignItems: 'start' }}>
+        <div className="admin-shadcn-card admin-shadcn-panel admin-shadcn-table-wrap" style={{ overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>정산 내역을 불러오는 중입니다.</div>
+          ) : settlements.length === 0 ? (
+            <div style={{ padding: '28px', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>정산 내역이 없습니다.</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
+                <thead>
+                  <tr style={{ background: C.surface, color: C.fgMuted, fontSize: '11px', textAlign: 'left' }}>
+                    {['정산 월', '상태', '총매출', '수수료', 'LLM', '순매출', '구독자', '작업'].map((header) => (
+                      <th key={header} style={{ padding: '11px 12px', fontWeight: 900, borderBottom: `1px solid ${C.border}` }}>{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {settlements.map((item) => {
+                    const active = selectedId === item.monthlySettlementId;
+                    const badgeStyle = statusStyle(item.status);
+                    return (
+                      <tr key={item.monthlySettlementId} onClick={() => setSelectedId(item.monthlySettlementId)} style={{ borderBottom: `1px solid ${C.border}`, background: active ? C.primaryLight : C.card, cursor: 'pointer' }}>
+                        <td style={{ padding: '12px', color: C.fg, fontSize: '12px', fontWeight: 900 }}>{item.settlementMonth}</td>
+                        <td style={{ padding: '12px' }}>
+                          <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: '999px', background: badgeStyle.bg, color: badgeStyle.color, fontSize: '10px', fontWeight: 900 }}>
+                            {STATUS_LABELS[item.status] || item.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', color: C.fg, fontSize: '12px', fontWeight: 800 }}>{formatMoney(item.grossAmount)}</td>
+                        <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>{formatMoney(item.tossFeeAmount)}</td>
+                        <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>{formatMoney(item.llmCostAmount)}</td>
+                        <td style={{ padding: '12px', color: C.primary, fontSize: '12px', fontWeight: 900 }}>{formatMoney(item.netAmount)}</td>
+                        <td style={{ padding: '12px', color: C.fgMuted, fontSize: '12px', fontWeight: 800 }}>{item.subscriberCount ?? 0}명</td>
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }} onClick={(event) => event.stopPropagation()}>
+                            {item.status === 'PENDING' && (
+                              <button disabled={actionId === item.monthlySettlementId} onClick={() => changeStatus('confirm', item)} style={{ border: 'none', borderRadius: '8px', background: C.primaryLight, color: C.primary, padding: '6px 8px', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}>확정</button>
+                            )}
+                            {item.status === 'CONFIRMED' && (
+                              <button disabled={actionId === item.monthlySettlementId} onClick={() => changeStatus('paid', item)} style={{ border: 'none', borderRadius: '8px', background: C.primaryLight, color: C.primary, padding: '6px 8px', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}>지급완료</button>
+                            )}
+                            {['PENDING', 'CONFIRMED'].includes(item.status) && (
+                              <button disabled={actionId === item.monthlySettlementId} onClick={() => changeStatus('cancel', item)} style={{ border: 'none', borderRadius: '8px', background: C.dangerLight, color: C.danger, padding: '6px 8px', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}>취소</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="admin-shadcn-card admin-shadcn-panel" style={{ background: C.card, borderRadius: '16px', padding: '16px', boxShadow: '0 2px 10px rgba(17,32,29,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 900, color: C.fg }}>정산 상세</div>
+              <div style={{ fontSize: '11px', color: C.fgMuted, marginTop: '3px' }}>포함 결제 내역을 확인합니다.</div>
+            </div>
+            {detail?.settlement?.status && (
+              <span style={{ borderRadius: '999px', padding: '5px 8px', background: statusStyle(detail.settlement.status).bg, color: statusStyle(detail.settlement.status).color, fontSize: '10px', fontWeight: 900 }}>
+                {STATUS_LABELS[detail.settlement.status] || detail.settlement.status}
+              </span>
+            )}
+          </div>
+
+          {detailLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>상세 내역을 불러오는 중입니다.</div>
+          ) : !detail ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: C.fgMuted, fontSize: '13px', fontWeight: 700 }}>정산을 선택해주세요.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
+                {[
+                  ['정산 월', detail.settlement.settlementMonth],
+                  ['결제 건수', `${detail.settlement.paymentCount ?? 0}건`],
+                  ['확정 시각', formatDateTime(detail.settlement.confirmedAt)],
+                  ['지급 시각', formatDateTime(detail.settlement.paidAt)],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ background: C.surface, borderRadius: '10px', padding: '10px' }}>
+                    <div style={{ color: C.fgSubtle, fontSize: '10px', fontWeight: 800 }}>{label}</div>
+                    <div style={{ color: C.fg, fontSize: '12px', fontWeight: 900, marginTop: '4px' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '11px 12px', borderBottom: `1px solid ${C.border}`, color: C.fg, fontSize: '12px', fontWeight: 900 }}>상세 결제 내역</div>
+                {(detail.paymentDetails || []).length === 0 ? (
+                  <div style={{ padding: '18px', color: C.fgMuted, fontSize: '12px' }}>상세 결제 내역이 없습니다.</div>
+                ) : (
+                  <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                    {(detail.paymentDetails || []).map((payment) => (
+                      <div key={payment.settlementPaymentDetailId} style={{ padding: '11px 12px', borderBottom: `1px solid ${C.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ color: C.fg, fontSize: '12px', fontWeight: 900 }}>결제 #{payment.paymentId}</div>
+                          <div style={{ color: C.primary, fontSize: '12px', fontWeight: 900 }}>{formatMoney(payment.netAmount)}</div>
+                        </div>
+                        <div style={{ marginTop: '5px', color: C.fgMuted, fontSize: '11px' }}>
+                          결제 {formatMoney(payment.amount)} · 수수료 {formatMoney(payment.tossFeeAmount)} · LLM {formatMoney(payment.llmCostAmount)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LlmUsageLogsTab() {
   const PAGE_SIZE = 10;
   const FALLBACK_USD_TO_KRW_RATE = 1460;
@@ -2808,6 +3101,7 @@ export function AdminPanel({
         {activeTab === 'ingredients' && <IngredientsTab onUpdate={onUpdatePresetIngredients} />}
         {activeTab === 'stats'       && <StatsTab />}
         {activeTab === 'aiUsage'     && <LlmUsageLogsTab />}
+        {activeTab === 'settlements' && <SettlementsTab />}
         {activeTab === 'fridges'     && <FamilyFridgesTab />}
         {activeTab === 'shares'      && <CommunitySharesTab />}
         {activeTab === 'inquiries'   && (

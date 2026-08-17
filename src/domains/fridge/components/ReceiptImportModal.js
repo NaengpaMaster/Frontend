@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Check, FileText, Image, Loader2, Pencil, Trash2, X } from 'lucide-react';
 import { receiptApi } from '@/apis/receiptApi';
+import { compressImageFile } from '@/apis/imageFileUtils';
 import { C } from '@/shared/data/mockData';
 import { IngredientSearchField } from './IngredientSearchField';
 
@@ -53,11 +54,14 @@ export function ReceiptImportModal({ onClose, onRegistered }) {
     setMessage('영수증 이미지를 업로드하고 있어요.');
 
     try {
-      const upload = await receiptApi.uploadImage(file);
+      // 모바일 촬영 원본은 용량이 커질 수 있어 업로드/OCR 전에 한 번 압축한다.
+      const analysisFile = await compressImageFile(file);
+
+      const upload = await receiptApi.uploadImage(analysisFile);
       setReceiptAnalysisId(upload.receiptAnalysisId);
 
       setMessage('OCR로 영수증을 읽는 중이에요.');
-      const ocrResult = await receiptApi.analyzeWithAgent(upload.receiptAnalysisId, file);
+      const ocrResult = await receiptApi.analyzeWithAgent(upload.receiptAnalysisId, analysisFile);
 
       setMessage('인식된 상품을 사전 재료와 매칭하는 중이에요.');
       const matchedItems = await receiptApi.saveOcrResult(upload.receiptAnalysisId, {
