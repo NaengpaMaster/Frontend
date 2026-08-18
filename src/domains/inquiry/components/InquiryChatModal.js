@@ -9,10 +9,11 @@ export function InquiryChatModal({ onClose, onOpenInquiry }) {
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const messagesEndRef = useRef(null);
+  const messagesListRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+    const list = messagesListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [messages, sending]);
 
   const sendMessage = async () => {
@@ -64,7 +65,7 @@ export function InquiryChatModal({ onClose, onOpenInquiry }) {
           <button type="button" aria-label="챗봇 닫기" onClick={onClose} style={{ padding: '5px', border: 'none', background: 'transparent', color: C.fgMuted, cursor: 'pointer' }}><X size={18} /></button>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', background: C.bg }}>
+        <div ref={messagesListRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', background: C.bg }}>
           {messages.length === 0 && (
             <div style={{ alignSelf: 'flex-start', maxWidth: '82%', padding: '11px 13px', borderRadius: '4px 14px 14px', background: C.card, color: C.fg, fontSize: '13px', lineHeight: 1.55, boxShadow: '0 1px 4px rgba(17,32,29,0.07)' }}>
               안녕하세요. 냉장고, 재료, 레시피, 장보기 등 서비스 이용 방법을 안내해 드릴게요.
@@ -82,7 +83,6 @@ export function InquiryChatModal({ onClose, onOpenInquiry }) {
           ))}
           {sending && <div style={{ alignSelf: 'flex-start', padding: '10px 12px', borderRadius: '4px 14px 14px', background: C.card, color: C.fgMuted, fontSize: '12px' }}>답변을 확인하고 있어요…</div>}
           {error && <div style={{ padding: '9px 11px', borderRadius: '10px', background: C.dangerLight, color: C.danger, fontSize: '11px', fontWeight: 700 }}>{error}</div>}
-          <div ref={messagesEndRef} />
         </div>
 
         <div style={{ display: 'flex', gap: '8px', padding: '12px', borderTop: `1px solid ${C.border}`, background: C.card }}>
