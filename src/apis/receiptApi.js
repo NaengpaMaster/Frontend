@@ -15,7 +15,7 @@ export const receiptApi = {
 
   analyzeWithAgent: async (receiptAnalysisId, file) => {
     const imageBase64 = await fileToBase64(file);
-    const response = await fetch('/agent/v1/receipts/analyze', {
+    const response = await fetch('https://api.naengoa.com/agent/v1/receipts/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
