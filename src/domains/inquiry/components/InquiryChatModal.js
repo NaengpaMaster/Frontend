@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bot, Send, X } from 'lucide-react';
 import { inquiryChatApi } from '@/apis/inquiriesApi';
 import { C } from '@/shared/data/mockData';
@@ -9,6 +9,11 @@ export function InquiryChatModal({ onClose, onOpenInquiry }) {
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages, sending]);
 
   const sendMessage = async () => {
     const question = input.trim();
@@ -77,6 +82,7 @@ export function InquiryChatModal({ onClose, onOpenInquiry }) {
           ))}
           {sending && <div style={{ alignSelf: 'flex-start', padding: '10px 12px', borderRadius: '4px 14px 14px', background: C.card, color: C.fgMuted, fontSize: '12px' }}>답변을 확인하고 있어요…</div>}
           {error && <div style={{ padding: '9px 11px', borderRadius: '10px', background: C.dangerLight, color: C.danger, fontSize: '11px', fontWeight: 700 }}>{error}</div>}
+          <div ref={messagesEndRef} />
         </div>
 
         <div style={{ display: 'flex', gap: '8px', padding: '12px', borderTop: `1px solid ${C.border}`, background: C.card }}>
