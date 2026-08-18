@@ -17,7 +17,7 @@ export const fridgePhotoApi = {
 
   analyzeWithAgent: async (fridgePhotoAnalysisId, file) => {
     const imageBase64 = await fileToBase64(file);
-    const response = await fetch('/agent/v1/fridge-photos/analyze', {
+    const response = await fetch('https://api.naengpa.com/agent/v1/fridge-photos/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
