@@ -30,6 +30,8 @@ export function FamilyFridgeModal({ onClose, subscriptionStatus, currentUser }) 
   const reservedMemberCount = Math.min(MAX_FAMILY_MEMBERS, activeMemberCount + pendingInviteCount);
   const remainingInviteCount = Math.max(0, MAX_FAMILY_MEMBERS - reservedMemberCount);
   const isFamilyFull = reservedMemberCount >= MAX_FAMILY_MEMBERS;
+  const inviteEmail = email.trim();
+  const canInvite = Boolean(inviteEmail) && !saving && !isFamilyFull;
   const capacityMessage = isFamilyFull
     ? '최대 인원에 도달했어요.'
     : `${remainingInviteCount}명까지 추가로 초대할 수 있어요.`;
@@ -164,7 +166,7 @@ export function FamilyFridgeModal({ onClose, subscriptionStatus, currentUser }) 
                   <input
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    onKeyDown={(event) => event.key === 'Enter' && !isFamilyFull && handleInvite()}
+                    onKeyDown={(event) => event.key === 'Enter' && canInvite && handleInvite()}
                     disabled={isFamilyFull}
                     placeholder={isFamilyFull ? '최대 인원에 도달했어요' : '가족 이메일 입력'}
                     style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px 11px 34px', border: `1px solid ${C.border}`, borderRadius: '14px', background: C.surface, color: C.fg, outline: 'none', fontSize: '13px' }}
@@ -172,8 +174,9 @@ export function FamilyFridgeModal({ onClose, subscriptionStatus, currentUser }) 
                 </div>
                 <button
                   onClick={handleInvite}
-                  disabled={saving || isFamilyFull}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', border: 'none', borderRadius: '14px', background: saving || isFamilyFull ? C.surface : C.primary, color: saving || isFamilyFull ? C.fgMuted : '#FFFFFF', fontSize: '13px', fontWeight: 900, cursor: saving ? 'wait' : isFamilyFull ? 'not-allowed' : 'pointer' }}
+                  type="button"
+                  disabled={!canInvite}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', border: 'none', borderRadius: '14px', background: canInvite ? C.primary : C.surface, color: canInvite ? '#FFFFFF' : C.fgMuted, fontSize: '13px', fontWeight: 900, cursor: saving ? 'wait' : !canInvite ? 'not-allowed' : 'pointer' }}
                 >
                   <UserPlus size={15} />
                   신청

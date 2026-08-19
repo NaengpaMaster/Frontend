@@ -474,7 +474,7 @@ export function FridgeManager({
   const [requesting, setRequesting] = useState(null);
   const [showReceiptImport, setShowReceiptImport] = useState(false);
   const [showFridgePhotoImport, setShowFridgePhotoImport] = useState(false);
-  const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
+  const currentFridge = accessibleFridges.find((fridge) => Number(fridge.fridgeId) === Number(selectedFridgeId));
   const isPremium = Boolean(subscriptionStatus?.premium);
   const canUseReceiptRegistration = Boolean(isPremium);
   const canUseFridgePhotoRegistration = Boolean(currentFridge?.mine && isPremium);
@@ -530,7 +530,7 @@ export function FridgeManager({
         {accessibleFridges.length > 0 && (
           <div style={{ display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '12px' }}>
             {accessibleFridges.map((fridge) => {
-              const selected = fridge.fridgeId === selectedFridgeId;
+              const selected = Number(fridge.fridgeId) === Number(selectedFridgeId);
               const label = fridge.mine ? '내 냉장고' : `${fridge.ownerNickname || fridge.ownerEmail}님의 냉장고`;
               return (
                 <button

@@ -295,10 +295,10 @@ export default function App() {
     if (!currentUser || currentUser.role === 'admin' || activeTab !== 'fridge') return;
 
     const myFridgeId = accessibleFridges.find((fridge) => fridge.mine)?.fridgeId;
-    if (myFridgeId && selectedFridgeId !== myFridgeId) {
+    if (myFridgeId) {
       setSelectedFridgeId(myFridgeId);
     }
-  }, [activeTab, accessibleFridges, currentUser, selectedFridgeId, setSelectedFridgeId]);
+  }, [activeTab, accessibleFridges, currentUser, setSelectedFridgeId]);
 
   useEffect(() => {
     let mounted = true;
@@ -449,6 +449,10 @@ export default function App() {
   };
 
   const handleOpenFamilyManagement = () => {
+    if (!subscriptionStatus?.premium) {
+      setActiveTab('subscription');
+      return;
+    }
     setShowFamilyFridgeModal(true);
   };
 

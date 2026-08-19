@@ -171,10 +171,6 @@ export function AuthScreen({ onLogin }) {
       setError('이메일과 비밀번호를 입력해주세요.');
       return;
     }
-    if (!emailVerified) {
-      setError('이메일 인증을 먼저 완료해주세요.');
-      return;
-    }
     if (signupPw !== signupPwConfirm) {
       setError('비밀번호가 일치하지 않습니다.');
       return;
