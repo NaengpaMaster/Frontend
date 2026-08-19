@@ -477,7 +477,7 @@ export function FridgeManager({
   const currentFridge = accessibleFridges.find((fridge) => Number(fridge.fridgeId) === Number(selectedFridgeId));
   const isPremium = Boolean(subscriptionStatus?.premium);
   const canUseReceiptRegistration = Boolean(isPremium);
-  const canUseFridgePhotoRegistration = Boolean(currentFridge?.mine && isPremium);
+  const canUseFridgePhotoRegistration = Boolean(isPremium);
 
   const filtered = ingredients
     .filter((i) => {
@@ -557,51 +557,53 @@ export function FridgeManager({
           </div>
         )}
 
-        <button
-          onClick={handleReceiptImportClick}
-          style={{
-            width: '100%',
-            marginBottom: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '7px',
-            padding: '10px',
-            background: canUseReceiptRegistration ? C.primaryLight : C.surface,
-            color: canUseReceiptRegistration ? C.primary : C.fgMuted,
-            border: `1px solid ${canUseReceiptRegistration ? C.primaryMid : C.border}`,
-            borderRadius: '14px',
-            fontSize: '13px',
-            fontWeight: 900,
-            cursor: 'pointer',
-          }}
-        >
-          <FileText size={15} /> 영수증 등록
-        </button>
-
-        {currentFridge?.mine && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginBottom: '12px' }}>
           <button
-            onClick={handlePhotoAddClick}
+            onClick={handleReceiptImportClick}
             style={{
-              width: '100%',
-              marginBottom: '12px',
+              minWidth: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '7px',
-              padding: '10px',
+              gap: '6px',
+              padding: '10px 8px',
+              background: canUseReceiptRegistration ? C.primaryLight : C.surface,
+              color: canUseReceiptRegistration ? C.primary : C.fgMuted,
+              border: `1px solid ${canUseReceiptRegistration ? C.primaryMid : C.border}`,
+              borderRadius: '14px',
+              fontSize: '12px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <FileText size={14} />
+            <span>영수증 등록</span>
+          </button>
+
+          <button
+            onClick={handlePhotoAddClick}
+            style={{
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '10px 8px',
               background: canUseFridgePhotoRegistration ? C.primaryLight : C.surface,
               color: canUseFridgePhotoRegistration ? C.primary : C.fgMuted,
               border: `1px solid ${canUseFridgePhotoRegistration ? C.primaryMid : C.border}`,
               borderRadius: '14px',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 900,
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
-            <Camera size={15} /> 냉장고 사진 등록
+            <Camera size={14} />
+            <span>냉장고 사진 등록</span>
           </button>
-        )}
+        </div>
 
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.fgMuted }} />
@@ -695,20 +697,20 @@ export function FridgeManager({
                   )}
                 </div>
                 <DayCounter expiryDate={ingredient.expiryDate} />
-                <div style={{ gridColumn: '2 / 4', display: 'flex', gap: '6px', marginTop: '-4px' }}>
-                  <button onClick={() => setUsing(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.primaryLight, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                <div style={{ gridColumn: '1 / 4', display: 'flex', flexWrap: 'nowrap', gap: '6px', marginTop: '-2px', overflowX: 'auto', paddingBottom: '2px' }}>
+                  <button onClick={() => setUsing(ingredient)} style={{ flexShrink: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', background: C.primaryLight, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
                     <CheckCircle size={12} /> 사용
                   </button>
-                  <button onClick={() => setEditing(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+                  <button onClick={() => setEditing(ingredient)} style={{ flexShrink: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                     <Edit2 size={12} /> 수정
                   </button>
                   {accessibleFridges.length > 1 && (
                     <>
-                      <button onClick={() => setTransferring(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.primaryLight, border: `1px solid ${C.primaryMid}`, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                      <button onClick={() => setTransferring(ingredient)} style={{ flexShrink: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', background: C.primaryLight, border: `1px solid ${C.primaryMid}`, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
                         <Send size={12} /> 나눔
                       </button>
                       {!currentFridge?.mine && (
-                        <button onClick={() => setRequesting(ingredient)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.primaryMid}`, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                        <button onClick={() => setRequesting(ingredient)} style={{ flexShrink: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.primaryMid}`, borderRadius: '10px', color: C.primary, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
                           <HandHeart size={12} /> 요청
                         </button>
                       )}
@@ -716,11 +718,11 @@ export function FridgeManager({
                   )}
                   {deleteConfirm === ingredient.id ? (
                     <>
-                      <button onClick={() => { onDelete(ingredient.id); setDeleteConfirm(null); }} style={{ background: C.dangerLight, borderRadius: '10px', color: C.danger, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>삭제 확인</button>
-                      <button onClick={() => setDeleteConfirm(null)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                      <button onClick={() => { onDelete(ingredient.id); setDeleteConfirm(null); }} style={{ flexShrink: 0, whiteSpace: 'nowrap', background: C.dangerLight, borderRadius: '10px', color: C.danger, padding: '6px 9px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>삭제 확인</button>
+                      <button onClick={() => setDeleteConfirm(null)} style={{ flexShrink: 0, whiteSpace: 'nowrap', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', cursor: 'pointer' }}>취소</button>
                     </>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(ingredient.id)} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+                    <button onClick={() => setDeleteConfirm(ingredient.id)} style={{ flexShrink: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.fgMuted, padding: '6px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                       <Trash2 size={12} /> 삭제
                     </button>
                   )}
