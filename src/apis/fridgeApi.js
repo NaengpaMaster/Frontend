@@ -12,8 +12,13 @@ export const fridgeApi = {
   getMembers: () =>
     axiosClient.get('/api/v1/fridges/me/members').then(unwrap),
 
-  inviteMember: (email) =>
-    axiosClient.post('/api/v1/fridges/me/members', { email }).then(unwrap),
+  inviteMember: (email) => {
+    const trimmedEmail = String(email || '').trim();
+    if (!trimmedEmail) {
+      return Promise.reject(new Error('초대할 이메일을 입력해주세요.'));
+    }
+    return axiosClient.post('/api/v1/fridges/me/members', { email: trimmedEmail }).then(unwrap);
+  },
 
   getSentInvites: () =>
     axiosClient.get('/api/v1/fridges/me/invites').then(unwrap),

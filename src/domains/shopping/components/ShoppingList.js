@@ -33,7 +33,7 @@ export function ShoppingList({
   const [formError, setFormError] = useState('');
 
   const checkedCount = items.filter((i) => i.checked).length;
-  const currentFridge = accessibleFridges.find((fridge) => fridge.fridgeId === selectedFridgeId);
+  const currentFridge = accessibleFridges.find((fridge) => Number(fridge.fridgeId) === Number(selectedFridgeId));
   const canUseAiRecommendation = Boolean(subscriptionStatus?.premium);
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
@@ -106,7 +106,7 @@ export function ShoppingList({
         {accessibleFridges.length > 0 && (
           <div style={{ display: 'flex', gap: '7px', overflowX: 'auto', paddingBottom: '12px' }}>
             {accessibleFridges.map((fridge) => {
-              const selected = fridge.fridgeId === selectedFridgeId;
+              const selected = Number(fridge.fridgeId) === Number(selectedFridgeId);
               const label = fridge.mine ? '내 장보기' : `${fridge.ownerNickname || fridge.ownerEmail}님의 장보기`;
               return (
                 <button
